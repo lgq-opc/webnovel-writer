@@ -1,7 +1,7 @@
 # Spec：v7 写前链路补全（v8-gap-review 阶段一 P1-1 / P1-2）
 
 > 档位：Architectural（改变 `/webnovel:write` 与 `v7_write` 的组件关系；新增 settle 门禁接口）
-> 状态：**待 Human 批准**（brainstorming 第 6 步落盘；方案分叉已裁决：C + 显式 bypass）
+> 状态：**已批准（Human 2026-09-04：「批准，默认值你先设置」）**；默认值 = §2 六项 v6-only section 不移植、§4.3 门② 全部 flagged 阻断。计划：同目录 `2026-09-04-v7-write-chain-plan.md`
 > 上游：`docs/zcode/v8-gap-review-3rounds/README.md` 阶段一表格；`docs/cursor/项目复审/2026-09-04-项目复审报告.md` P1-6 / 步骤 6
 > 下游：批准后 → writing-plans 出 `…-plan.md`（同目录）→ TDD 实现 → code-review → finishing
 
