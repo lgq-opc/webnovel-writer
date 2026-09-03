@@ -177,6 +177,18 @@ class TestChecks:
 
 
 class TestSettle:
+    @pytest.fixture(autouse=True)
+    def _gates_green(self, tmp_path, monkeypatch):
+        """阶段一 P1-2 起 settle 有三道门禁；本类只测 settle 事务语义，门禁在 test_v7_write_gates.py 单测。"""
+        import v7_write as v7w
+
+        review_dir = tmp_path / "repo" / ".webnovel" / "tmp"
+        review_dir.mkdir(parents=True, exist_ok=True)
+        (review_dir / "review_results.json").write_text(
+            json.dumps({"chapter": 37, "blocking_count": 0, "issues": []}), encoding="utf-8"
+        )
+        monkeypatch.setattr(v7w, "_prose_flagged", lambda _body: [])
+
     def test_settle_writes_files_and_commits(self, tmp_path):
         repo = _v7_repo(tmp_path)
         d = _decision()

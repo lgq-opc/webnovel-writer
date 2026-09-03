@@ -544,6 +544,75 @@ def _v6_root_from_git_config(repo: Path) -> str:
     return probe.stdout.strip() if probe.returncode == 0 else ""
 
 
+class GateRejected(RuntimeError):
+    """settle 门禁拒绝（CLI 退出码 2）。`.report` 为结构化明细（review / prose / materials）。"""
+
+    def __init__(self, message: str, report: dict[str, Any]):
+        super().__init__(message)
+        self.report = report
+
+
+def _prose_flagged(body: str) -> list[str]:
+    from data_modules.prose_check import check_prose
+
+    return list(check_prose(body).get("flagged") or [])
+
+
+def _read_review(repo: Path, chapter: int) -> dict[str, Any]:
+    """门①：读 reviewer 直写的 review_results.json；顶层或 review_result 嵌套两种 schema 都认。"""
+    path = Path(repo) / ".webnovel" / "tmp" / "review_results.json"
+    if not path.is_file():
+        return {"ok": False, "blocking_count": None, "reason": "未审查：缺 .webnovel/tmp/review_results.json"}
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    inner = payload.get("review_result") if isinstance(payload.get("review_result"), dict) else payload
+    got_chapter = payload.get("chapter", inner.get("chapter"))
+    if got_chapter is not None and int(got_chapter) != int(chapter):
+        return {"ok": False, "blocking_count": None, "reason": f"审查文件章号不符（chapter={got_chapter}，本章 {chapter}），视同未审查"}
+    blocking = int(inner.get("blocking_count") or 0)
+    return {"ok": blocking == 0, "blocking_count": blocking, "reason": "" if blocking == 0 else f"审查 blocking={blocking}"}
+
+
+def _material_refs(repo: Path, decision: dict[str, Any], chapter: int) -> list[str]:
+    """门③输入：决策 JSON `material_refs` ∪ 章纲卡 `素材引用`（与 material_usage.log_chapter_materials 同源）。"""
+    refs = [str(r) for r in (decision.get("material_refs") or [])]
+    card = Path(repo) / "大纲" / "章纲" / f"{chapter:04d}.md"
+    if card.is_file():
+        from data_modules.chapter_outline_batch import parse_chapter_card
+
+        fields, _ = parse_chapter_card(card.read_text(encoding="utf-8"))
+        extra = fields.get("素材引用") or []
+        refs += [extra] if isinstance(extra, str) else [str(r) for r in extra]
+    return list(dict.fromkeys(refs))
+
+
+def _run_gates(repo: Path, decision: dict[str, Any], body: str, *, bypass_reason: str) -> dict[str, Any]:
+    """三门禁（阶段一 P1-2）：审查 / 文笔可 bypass；素材引用不可 bypass。拒绝抛 GateRejected。"""
+    chapter = int(decision["chapter"])
+    review = _read_review(repo, chapter)
+    flagged = _prose_flagged(body)
+    prose = {"ok": not flagged, "flagged": flagged}
+    from data_modules.material_usage import resolve_ref
+
+    resolved: list[str] = []
+    unresolved: list[str] = []
+    for ref in _material_refs(repo, decision, chapter):
+        (resolved if resolve_ref(repo, ref).get("ok") else unresolved).append(ref)
+    materials = {"ok": not unresolved, "resolved": resolved, "unresolved": unresolved}
+    gates: dict[str, Any] = {"review": review, "prose": prose, "materials": materials, "bypassed": False, "bypass_reason": ""}
+    if unresolved:
+        raise GateRejected(f"素材引用无法解析（不可绕过）：{'、'.join(unresolved)}", gates)
+    soft_fail = [name for name, gate in (("review", review), ("prose", prose)) if not gate["ok"]]
+    if soft_fail:
+        if not bypass_reason:
+            detail = "；".join(filter(None, [review.get("reason"), f"文笔 flagged={flagged}" if flagged else ""]))
+            raise GateRejected(
+                f"门禁拒绝（{'/'.join(soft_fail)}）：{detail}。作者明确要求时可 --force-review-bypass \"<理由>\"", gates
+            )
+        gates["bypassed"] = True
+        gates["bypass_reason"] = bypass_reason
+    return gates
+
+
 def settle(
     repo: Path,
     decision: dict[str, Any],
@@ -551,6 +620,7 @@ def settle(
     draft_path: Path,
     summary: str,
     commit: bool = True,
+    force_review_bypass: Optional[str] = None,
 ) -> dict[str, Any]:
     repo = Path(repo)
     chapter = int(decision["chapter"])
@@ -560,6 +630,13 @@ def settle(
     report = run_checks(repo, decision, draft_text)
     if not report["ok"]:
         raise RuntimeError(f"机检未通过，拒绝 settle：{json.dumps(report, ensure_ascii=False)}")
+
+    # 阶段一 P1-2：三门禁在唯一写入路径检查之前、任何落盘之前
+    bypass_reason = (force_review_bypass or "").strip()
+    if force_review_bypass is not None and not bypass_reason:
+        raise ValueError("--force-review-bypass 需要非空理由")
+    body_clean = body_clean_of(draft_text)  # R12/F-15：与机检同一净稿口径
+    gates = _run_gates(repo, decision, body_clean, bypass_reason=bypass_reason)
 
     # S18/E4：唯一写入路径——v6 侧已落定该章时禁止 v7 settle
     from data_modules.dual_format_guard import check_unique_write_path, has_v7_settled_chapter
@@ -574,7 +651,6 @@ def settle(
         raise RuntimeError(f"唯一写入路径：该章已 settle（定稿/正文 存在 {chapter:04d}- 前缀文件），禁止双写")
     chapter_file = repo / "定稿" / "正文" / f"{chapter:04d}-{title}.md"
 
-    body_clean = body_clean_of(draft_text)  # R12/F-15：与机检同一净稿口径
     word_count = len(re.sub(r"\s", "", body_clean))
     front = [
         "---",
@@ -587,6 +663,8 @@ def settle(
     if decision.get("time_anchor"):
         front.append(f"书内时间: {decision['time_anchor']}")
     front.append(f"字数: {word_count}")
+    if gates["bypassed"]:
+        front.append(f"审查绕过: {gates['bypass_reason']}")
     if decision.get("waiver"):
         front.append(f"承诺豁免: {decision['waiver']}")
     if decision.get("promises"):
@@ -626,7 +704,29 @@ def settle(
             )
             created.append(entity_file)
 
-        result = {"chapter": chapter, "committed": False, "chapter_file": str(chapter_file), "checks": report}
+        result = {"chapter": chapter, "committed": False, "chapter_file": str(chapter_file), "checks": report, "gates": gates}
+        if gates["bypassed"]:
+            # 绕过留痕（spec §4.3）：journal 事件四值均在 author_journal.VALID_* 白名单内
+            from data_modules.author_journal import append_events
+
+            append_events(
+                repo,
+                [
+                    {
+                        "actor": "author",
+                        "action": "settle",
+                        "domain": "正文",
+                        "path": f"定稿/正文/{chapter_file.name}",
+                        "change_kind": "content",
+                        "diff_stat": {"ins": word_count, "del": 0},
+                        "summary": (
+                            f"settle 审查绕过：{gates['bypass_reason']}"
+                            f"（blocking={gates['review'].get('blocking_count')}, prose_flagged={gates['prose']['flagged']}）"
+                        ),
+                        "impact": [],
+                    }
+                ],
+            )
         if commit:
             _git(repo, "add", "定稿")
             _commit_with_identity_fallback(repo, f"settle: 第{chapter:04d}章 {title}")
@@ -691,6 +791,19 @@ def main(argv: Optional[list[str]] = None) -> int:
     p_check.add_argument("--chapter", type=int, required=True)
     p_check.add_argument("--draft", required=True)
     p_check.add_argument("--json", required=True, help="决策内容 JSON 文件")
+    p_settle = sub.add_parser("settle", help="门禁（审查/文笔/素材引用）+ 原子落定（正文/章摘要/新实体 + git commit）")
+    p_settle.add_argument("--repo", required=True)
+    p_settle.add_argument("--chapter", type=int, required=True)
+    p_settle.add_argument("--draft", required=True)
+    p_settle.add_argument("--json", required=True, help="决策内容 JSON 文件")
+    summary_group = p_settle.add_mutually_exclusive_group(required=True)
+    summary_group.add_argument("--summary", help="章摘要文本（≤200 字）")
+    summary_group.add_argument("--summary-file", help="章摘要文件")
+    p_settle.add_argument("--no-commit", action="store_true")
+    p_settle.add_argument(
+        "--force-review-bypass", metavar="理由",
+        help="显式绕过审查/文笔门禁（素材引用门不可绕过）；理由写入 front matter「审查绕过:」与 作者/journal.jsonl",
+    )
     args = parser.parse_args(argv)
 
     if args.action == "decision":
@@ -710,6 +823,27 @@ def main(argv: Optional[list[str]] = None) -> int:
         report = run_checks(Path(args.repo), decision, Path(args.draft).read_text(encoding="utf-8"))
         print(json.dumps(report, ensure_ascii=False, indent=1))
         return 0 if report["ok"] else 2
+    if args.action == "settle":
+        decision = json.loads(Path(args.json).read_text(encoding="utf-8"))
+        decision["chapter"] = args.chapter
+        summary = args.summary if args.summary is not None else Path(args.summary_file).read_text(encoding="utf-8")
+        try:
+            result = settle(
+                Path(args.repo), decision, draft_path=Path(args.draft), summary=summary,
+                commit=not args.no_commit, force_review_bypass=args.force_review_bypass,
+            )
+        except GateRejected as exc:
+            print(f"REJECTED v7-write settle chapter={args.chapter}: {exc}", file=sys.stderr)
+            print(json.dumps(exc.report, ensure_ascii=False, indent=1), file=sys.stderr)
+            return 2
+        except (RuntimeError, ValueError) as exc:
+            print(f"REJECTED v7-write settle chapter={args.chapter}: {exc}", file=sys.stderr)
+            return 2 if "机检" in str(exc) else 1
+        print(
+            f"OK v7-write settle chapter={args.chapter} committed={result['committed']} "
+            f"bypassed={result['gates']['bypassed']} file={result['chapter_file']}"
+        )
+        return 0
     return 0
 
 
