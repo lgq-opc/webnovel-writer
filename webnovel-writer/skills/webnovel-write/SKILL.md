@@ -56,6 +56,47 @@ echo "$PREFLIGHT_ALL"
 export PROJECT_ROOT="$(echo "$PREFLIGHT_ALL" | grep '^PROJECT_ROOT=' | head -1 | cut -d= -f2-)"
 ```
 
+### 准备：书仓形态判定
+
+`${PROJECT_ROOT}/book.yaml` 存在 → 本书是 v7 story-repo，**跳过下文的 v6 步骤（刷新合同树、运行时门禁、v6 的 Step 5 提交与 Step 6 备份），改走「v7 书仓分支」**；不存在 → 继续 v6 流程。判定只看 `book.yaml`，不看 `.webnovel/` 是否存在（v7 书仓同样有 `.webnovel/tmp/` 审查产物目录）。preflight 在纯 v7 书仓解析不到 v6 项目根时，`PROJECT_ROOT` 直接取书仓目录。
+
+### v7 书仓分支（book.yaml 存在时）
+
+上下文包 → 草稿 → 机检 → 审查 → 文笔检测 → settle。所有命令经 `webnovel.py v7-write` 转发，`--project-root` 即书仓根；决策 JSON 字段以 `docs/guides/v7-write-path.md` §3 为准。
+
+1. **决策卡与上下文包**（替代 Step 1 的写作任务书；context-agent 可用于起草决策 JSON，但不得由它替代上下文包）：
+
+```bash
+python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" v7-write decision --json "${PROJECT_ROOT}/工作区/决策-{chapter_num}.json"
+python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" v7-write pack --chapter {chapter_num} --json "${PROJECT_ROOT}/工作区/决策-{chapter_num}.json"
+```
+
+上下文包落 `工作区/上下文包-{NNNN}.md`，含：决策卡 / 本章章纲节选 / 本章应推进（承诺账本）/ 作者修改未消费（stale）/ 前情摘要 / 上一章结尾 / 本章实体 / 主角卡 / 视角纪律（pov ≠ 主角时）/ 名册清单 / 素材装配 / 文风宪法 / 文风锚点 / 作者模型 / 读者信号。起草只以此包为依据；stdout 的 `used=` 与包内缺节属正常降级（对应域为空），不是错误。
+
+2. **起草**：同 Step 2（多稿择优 `drafts` 照用），草稿写 `工作区/草稿-{NNNN}.md`。
+
+3. **机检**：
+
+```bash
+python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" v7-write check --chapter {chapter_num} --draft "${PROJECT_ROOT}/工作区/草稿-{NNNN}.md" --json "${PROJECT_ROOT}/工作区/决策-{chapter_num}.json"
+```
+
+退出码 2 = 字数 / 占位符 / 标题 / 承诺未过，回到起草。
+
+4. **审查**：同 Step 3，reviewer 直写 `${PROJECT_ROOT}/.webnovel/tmp/review_results.json`（顶层 `chapter` + `blocking_count`）。**settle 门禁会读这个文件**：缺失、章号不符或 `blocking_count > 0` 都拒绝。
+
+5. **文笔检测**：`python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" prose-check --file "${PROJECT_ROOT}/工作区/草稿-{NNNN}.md" --format json`；`flagged` 非空先按 Step 4 规则润色，再重跑到 `flagged: []`。
+
+6. **settle**（替代 Step 5/6；原子 git commit，含正文 / 章摘要 / 新实体，随后自动刷新 v7 缓存）：
+
+```bash
+python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" v7-write settle --chapter {chapter_num} --draft "${PROJECT_ROOT}/工作区/草稿-{NNNN}.md" --json "${PROJECT_ROOT}/工作区/决策-{chapter_num}.json" --summary "{≤200 字章摘要}"
+```
+
+退出码 2 = 门禁拒绝，stderr 有 JSON 明细（`review` / `prose` / `materials`）。处理顺序：**改稿 → 重审 → 再 settle**。`materials.unresolved` 非空（素材引用 ID 不存在）只能改决策 JSON 的 `material_refs` 或章纲卡的 `素材引用`，**不可绕过**。仅当作者明确要求发布时，加 `--force-review-bypass "<理由>"`——理由必须来自作者原话，不得由主流程代拟；绕过会写进正文 front matter（`审查绕过:`）与 `作者/journal.jsonl`，最终报告必须如实列出。
+
+v7 分支到此结束；下文「准备：刷新合同树」起为 v6 流程。
+
 ### 准备：刷新合同树
 
 genre 从 `.webnovel/state.json` 的初始化配置快照读取，用于刷新合同树；写前主链真源仍是 `.story-system/` 合同。调用 story-system 前必须先从详细大纲解析真实本章目标，禁止传 `{章纲目标}`、`第N章章纲目标` 等占位 query。

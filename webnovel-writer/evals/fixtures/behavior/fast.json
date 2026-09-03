@@ -52,6 +52,25 @@
       ]
     },
     {
+      "id": "skill_write_v7_branch",
+      "type": "skill_contract",
+      "skill": "webnovel-write",
+      "description": "/webnovel-write detects book.yaml and routes to the v7 chain with gated settle and traced bypass.",
+      "required": [
+        "book.yaml",
+        "v7-write pack --chapter {chapter_num}",
+        "v7-write check --chapter {chapter_num}",
+        "v7-write settle --chapter {chapter_num}",
+        "--force-review-bypass",
+        "理由必须来自作者原话"
+      ],
+      "ordered": [
+        ["v7-write pack --chapter {chapter_num}", "v7-write check --chapter {chapter_num}"],
+        ["v7-write check --chapter {chapter_num}", "v7-write settle --chapter {chapter_num}"],
+        ["prose-check --file", "v7-write settle --chapter {chapter_num}"]
+      ]
+    },
+    {
       "id": "skill_review_contract",
       "type": "skill_contract",
       "skill": "webnovel-review",
