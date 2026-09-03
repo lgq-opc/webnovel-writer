@@ -1,7 +1,8 @@
 # v7 写前链路补全 实施计划
 
 > **执行者注意：** 按任务逐个实施，用 subagent-driven-development（推荐）或逐批人工执行。
-> 步骤用 checkbox（`- [ ]`）语法跟踪，完成即勾选。
+> 步骤用 checkbox（`- [x]`）语法跟踪，完成即勾选。
+> **执行记录（2026-09-04，Cursor）**：7 任务全部完成，commit `d645d70`（T1-3）/ `d404a29`（T4+T5a）/ `73b70a7`（T5b）/ `841831b`（T6）/ `06a9ed1`（prompt 完整性注册表，计划未预见）/ 本文件所在的收尾 docs commit（T7）。与计划的偏差：① 饱和测试预算 4000 不足以触发丢弃，改 2500；② `pov_discipline` 在 book.yaml 无 `主角` 时省略、且只注入 §一（计划原写全文，会恒截断并破坏 legacy `test_no_override_zero_change`）；③ `CLEAN_BODY` 夹具重写为 `prose_check` 实测 `flagged=[]` 的多段文本（计划初稿 6 句 ×12 被 lexicon / said_tag / variance 三项命中）；④ write SKILL 的 v7 段不得出现 `chapter-commit` / `write-gate` 字面（会打乱 v6 契约 eval 的 `find` 顺序）；⑤ `create_entry` 关键字为 `due_chapter`/`note`（计划预留了核对步骤）。
 
 **目标：** 让 v7 书仓的写章链在写前拿到 v8 治理信号（10 个新 section）、在 settle 前过审查/文笔/素材引用三门禁，并让 `/webnovel:write` 能按 `book.yaml` 分流到这条链。
 **架构：** 只改 `v7_write.py`（section 声明表 + `_run_gates`）、`webnovel.py`（一个转发子命令）、write SKILL（一个 v7 分支小节）与评测夹具；所有新 section 直接调用 v8 各域模块已有的读函数，v6 `context_manager` / write-gate 零改动。
@@ -55,7 +56,7 @@
 
 **文件**：`v7_write.py`；新测试 `data_modules/tests/test_v7_write_pack_sections.py`
 
-- [ ] **写失败测试**（新文件，完整内容）：
+- [x] **写失败测试**（新文件，完整内容）：
 
 ```python
 #!/usr/bin/env python3
@@ -187,9 +188,9 @@ class TestNewSections:
             assert v7w.V7_SECTION_QUOTAS[name] == quota
 ```
 
-- [ ] **跑它确认失败**：`python -X utf8 -m pytest webnovel-writer/scripts/data_modules/tests/test_v7_write_pack_sections.py -q -p no:cacheprovider --no-cov` → 预期 `AttributeError`/`KeyError`（`_sec_author_model` / `section_errors` 不存在）。
-- [ ] **注意 `create_entry` 签名**：先 `python -X utf8 -c "import inspect,sys; sys.path.insert(0,'webnovel-writer/scripts'); from data_modules import promise_ledger as p; print(inspect.signature(p.create_entry))"`，按实际关键字名修正测试里 `_seed_ledger`（计划写的是 `planted_chapter/latest_chapter/description`，若名不同以实际为准；`pending_for_chapter` 判「即将到期」的窗口看 `foreshadow_scan` 的 due_soon 阈值，必要时把 `latest_chapter` 调到窗口内）。
-- [ ] **写最小实现**（`v7_write.py`）：
+- [x] **跑它确认失败**：`python -X utf8 -m pytest webnovel-writer/scripts/data_modules/tests/test_v7_write_pack_sections.py -q -p no:cacheprovider --no-cov` → 预期 `AttributeError`/`KeyError`（`_sec_author_model` / `section_errors` 不存在）。
+- [x] **注意 `create_entry` 签名**：先 `python -X utf8 -c "import inspect,sys; sys.path.insert(0,'webnovel-writer/scripts'); from data_modules import promise_ledger as p; print(inspect.signature(p.create_entry))"`，按实际关键字名修正测试里 `_seed_ledger`（计划写的是 `planted_chapter/latest_chapter/description`，若名不同以实际为准；`pending_for_chapter` 判「即将到期」的窗口看 `foreshadow_scan` 的 due_soon 阈值，必要时把 `latest_chapter` 调到窗口内）。
+- [x] **写最小实现**（`v7_write.py`）：
 
 ```python
 # --- 顶部常量区：扩 V7_SECTION_QUOTAS ---
@@ -343,12 +344,12 @@ def _sec_pov_discipline(repo: Path, decision: dict[str, Any]) -> dict[str, Any]:
 
 `stats` 加 `"section_errors": section_errors`。`_render_pack_markdown` 改为遍历 `V7_RENDER_ORDER` 并用 `V7_SECTION_TITLES`（删除函数内 `titles` 字典与硬编码元组）。
 
-- [ ] **跑测试**：同上命令 → 7 passed；再跑 `python -X utf8 -m pytest webnovel-writer/scripts/data_modules/tests/test_v7_write.py -q --no-cov -p no:cacheprovider` → 既有全绿（`test_no_override_zero_change` 断言 `stats["sections"] == V7_SECTION_QUOTAS` 仍成立，因两边同源）。
-- [ ] **提交**：`feat(v7-write): 上下文包新增 10 个治理 section（stale/账本/作者模型/文风/读者信号/素材/章纲节选/主角/视角，P1-1）`
+- [x] **跑测试**：同上命令 → 7 passed；再跑 `python -X utf8 -m pytest webnovel-writer/scripts/data_modules/tests/test_v7_write.py -q --no-cov -p no:cacheprovider` → 既有全绿（`test_no_override_zero_change` 断言 `stats["sections"] == V7_SECTION_QUOTAS` 仍成立，因两边同源）。
+- [x] **提交**：`feat(v7-write): 上下文包新增 10 个治理 section（stale/账本/作者模型/文风/读者信号/素材/章纲节选/主角/视角，P1-1）`
 
 ## Task 2：饱和时 PROTECTED / DROP 顺序
 
-- [ ] **写失败测试**（追加到 `test_v7_write_pack_sections.py`）：
+- [x] **写失败测试**（追加到 `test_v7_write_pack_sections.py`）：
 
 ```python
 class TestSaturation:
@@ -381,8 +382,8 @@ class TestSaturation:
         assert stats["dropped_sections"] == [] if stats["sections_before"] == {} else True
 ```
 
-- [ ] **跑它确认失败**：`KeyError: 'dropped_sections'`。
-- [ ] **写最小实现**：把 `build_context_pack` 末尾的渲染/截断替换为：
+- [x] **跑它确认失败**：`KeyError: 'dropped_sections'`。
+- [x] **写最小实现**：把 `build_context_pack` 末尾的渲染/截断替换为：
 
 ```python
     effective_total = int(total_budget) if total_budget is not None else (book_budget["total"] or TOTAL_BUDGET_DEFAULT)
@@ -408,12 +409,12 @@ class TestSaturation:
     return md, stats
 ```
 
-- [ ] **跑测试** → 绿；`test_v7_write.py` 仍绿（`test_no_override_zero_change` 只断言 `truncated_sections == []`，不涉及 dropped）。
-- [ ] **提交**：`feat(v7-write): 总预算超限按 DROP 顺序整段丢弃，四个 PROTECTED section 只截不丢（P1-1）`
+- [x] **跑测试** → 绿；`test_v7_write.py` 仍绿（`test_no_override_zero_change` 只断言 `truncated_sections == []`，不涉及 dropped）。
+- [x] **提交**：`feat(v7-write): 总预算超限按 DROP 顺序整段丢弃，四个 PROTECTED section 只截不丢（P1-1）`
 
 ## Task 3：`pack --json` 修 entities 恒空
 
-- [ ] **写失败测试**（追加）：
+- [x] **写失败测试**（追加）：
 
 ```python
 class TestPackCli:
@@ -443,8 +444,8 @@ class TestPackCli:
         assert "林知夏" in md.split("## 本章实体（名册查询）", 1)[1]
 ```
 
-- [ ] **跑它确认失败**：第一个因 `--json` 未知参数退出 2；第二个实体节缺失。
-- [ ] **写最小实现**：
+- [x] **跑它确认失败**：第一个因 `--json` 未知参数退出 2；第二个实体节缺失。
+- [x] **写最小实现**：
 
 ```python
 def decision_from_card(repo: Path, chapter: int) -> dict[str, Any]:
@@ -471,14 +472,14 @@ def decision_from_card(repo: Path, chapter: int) -> dict[str, Any]:
         decision["chapter"] = args.chapter
 ```
 
-- [ ] **跑测试** → 绿。
-- [ ] **提交**：`fix(v7-write): pack 子命令支持 --json 并从决策卡回退解析实体，修 entities 恒空`
+- [x] **跑测试** → 绿。
+- [x] **提交**：`fix(v7-write): pack 子命令支持 --json 并从决策卡回退解析实体，修 entities 恒空`
 
 ## Task 4：settle 三门禁 + bypass 留痕
 
 **文件**：`v7_write.py`；新测试 `test_v7_write_gates.py`；`test_v7_write.py` 只加夹具。
 
-- [ ] **先给 legacy 测试加夹具**（`test_v7_write.py` 的 `class TestSettle:` 体首行前插入；其余不动）：
+- [x] **先给 legacy 测试加夹具**（`test_v7_write.py` 的 `class TestSettle:` 体首行前插入；其余不动）：
 
 ```python
     @pytest.fixture(autouse=True)
@@ -493,7 +494,7 @@ def decision_from_card(repo: Path, chapter: int) -> dict[str, Any]:
 
 （`_v7_repo` 在 `tmp_path/"repo"` 建仓，夹具先建 `.webnovel/tmp` 不影响 `mkdir(parents=True)` 的建仓——注意 `_v7_repo` 用 `mkdir(parents=True)` 于子目录，`repo` 已存在无碍；若 `git add -A` 把 `.webnovel` 提交进去也无碍。）
 
-- [ ] **写失败测试**（新文件 `test_v7_write_gates.py`）：
+- [x] **写失败测试**（新文件 `test_v7_write_gates.py`）：
 
 ```python
 #!/usr/bin/env python3
@@ -672,8 +673,8 @@ class TestMaterialGate:
         assert result["gates"]["materials"]["ok"] and result["gates"]["materials"]["resolved"] == ["桥段:Q-001"]
 ```
 
-- [ ] **跑它确认失败**：`ImportError: cannot import name 'GateRejected'`。
-- [ ] **写最小实现**（`v7_write.py`，settle 段前）：
+- [x] **跑它确认失败**：`ImportError: cannot import name 'GateRejected'`。
+- [x] **写最小实现**（`v7_write.py`，settle 段前）：
 
 ```python
 class GateRejected(RuntimeError):
@@ -770,12 +771,12 @@ def _run_gates(repo: Path, decision: dict[str, Any], body: str, *, bypass_reason
 
 注意 journal 写入要在 `commit` 分支外也执行（`commit=False` 的测试也断言事件）——放在 `result = {...}` 之后、`if commit:` 之前。
 
-- [ ] **跑测试**：`python -X utf8 -m pytest webnovel-writer/scripts/data_modules/tests/test_v7_write_gates.py webnovel-writer/scripts/data_modules/tests/test_v7_write.py -q --no-cov -p no:cacheprovider` → 全绿。若 `test_flagged_prose_rejects` 未触发 flagged，改用 `check_said_tags` 阈值上方的更密集 said tag 文本（先 `python -X utf8 webnovel-writer/scripts/data_modules/prose_check.py --file <临时文件> --format json` 看实测）。
-- [ ] **提交**：`feat(v7-write): settle 三门禁（审查/文笔/素材引用）+ --force-review-bypass 留痕（P1-2）`
+- [x] **跑测试**：`python -X utf8 -m pytest webnovel-writer/scripts/data_modules/tests/test_v7_write_gates.py webnovel-writer/scripts/data_modules/tests/test_v7_write.py -q --no-cov -p no:cacheprovider` → 全绿。若 `test_flagged_prose_rejects` 未触发 flagged，改用 `check_said_tags` 阈值上方的更密集 said tag 文本（先 `python -X utf8 webnovel-writer/scripts/data_modules/prose_check.py --file <临时文件> --format json` 看实测）。
+- [x] **提交**：`feat(v7-write): settle 三门禁（审查/文笔/素材引用）+ --force-review-bypass 留痕（P1-2）`
 
 ## Task 5：settle CLI + `webnovel.py v7-write` 转发
 
-- [ ] **写失败测试**（追加到 `test_v7_write_gates.py`）：
+- [x] **写失败测试**（追加到 `test_v7_write_gates.py`）：
 
 ```python
 class TestSettleCli:
@@ -831,8 +832,8 @@ def test_v7_write_forwarding_pack(tmp_path):
     assert (repo / "工作区" / "上下文包-0003.md").is_file()
 ```
 
-- [ ] **跑它确认失败**：`v7_write.py settle` → argparse `invalid choice: 'settle'`；`webnovel.py v7-write` → `invalid choice`。
-- [ ] **写最小实现**：`v7_write.main()` 加
+- [x] **跑它确认失败**：`v7_write.py settle` → argparse `invalid choice: 'settle'`；`webnovel.py v7-write` → `invalid choice`。
+- [x] **写最小实现**：`v7_write.main()` 加
 
 ```python
     p_settle = sub.add_parser("settle", help="门禁 + 原子落定（正文/章摘要/新实体 + git commit）")
@@ -891,12 +892,12 @@ def cmd_v7_write(args: argparse.Namespace) -> int:
 
 `v7_write.main` 签名改为 `def main(argv: list[str] | None = None) -> int:` 且 `args = parser.parse_args(argv)`。
 
-- [ ] **跑测试** → 绿；再跑 `python -X utf8 -m pytest webnovel-writer/scripts/tests -q --no-cov -p no:cacheprovider`（确认 CLI 相关既有测试如 `test_webnovel_cli*` 不受影响）。
-- [ ] **提交**：`feat(v7-write): settle CLI（退出码 0/2/1）+ webnovel.py v7-write 转发子命令`
+- [x] **跑测试** → 绿；再跑 `python -X utf8 -m pytest webnovel-writer/scripts/tests -q --no-cov -p no:cacheprovider`（确认 CLI 相关既有测试如 `test_webnovel_cli*` 不受影响）。
+- [x] **提交**：`feat(v7-write): settle CLI（退出码 0/2/1）+ webnovel.py v7-write 转发子命令`
 
 ## Task 6：SKILL v7 分支 + 行为评测 + guides
 
-- [ ] **写失败评测用例**（`evals/fixtures/behavior/fast.json` 的 `cases` 追加）：
+- [x] **写失败评测用例**（`evals/fixtures/behavior/fast.json` 的 `cases` 追加）：
 
 ```json
 {
@@ -920,8 +921,8 @@ def cmd_v7_write(args: argparse.Namespace) -> int:
 }
 ```
 
-- [ ] **跑它确认失败**：`python -X utf8 webnovel-writer/scripts/run_behavior_evals.py --suite fast` → `skill_write_v7_branch FAIL`。（若脚本参数名不同，先 `--help`。）
-- [ ] **改 SKILL**（`skills/webnovel-write/SKILL.md`）：在「### 准备：预检」代码块之后、「### 准备：刷新合同树」之前插入：
+- [x] **跑它确认失败**：`python -X utf8 webnovel-writer/scripts/run_behavior_evals.py --suite fast` → `skill_write_v7_branch FAIL`。（若脚本参数名不同，先 `--help`。）
+- [x] **改 SKILL**（`skills/webnovel-write/SKILL.md`）：在「### 准备：预检」代码块之后、「### 准备：刷新合同树」之前插入：
 
 ```markdown
 ### 准备：书仓形态判定
@@ -953,13 +954,13 @@ def cmd_v7_write(args: argparse.Namespace) -> int:
    退出码 2 = 门禁拒绝（stderr 有 JSON 明细：`review` / `prose` / `materials`）。处理顺序：**改稿重审 → 再 settle**。素材引用不存在（`materials.unresolved`）只能改决策 JSON / 章纲卡，不可绕过。仅当作者明确要求发布时，加 `--force-review-bypass "<理由>"`——理由必须来自作者原话，不得由主流程代拟；绕过会写进正文 front matter（`审查绕过:`）与 `作者/journal.jsonl`，最终报告必须如实列出。
 ```
 
-- [ ] **跑评测** → 全 PASS；`python -X utf8 webnovel-writer/scripts/validate_reference_wiring.py` → drift=0（SKILL 未新增 reference 引用；若报 drift，按其输出补 `reference-loading-map.md`）。
-- [ ] **guides**：`docs/guides/v7-write-path.md` §3 把 `python -c "from v7_write import settle; ..."` 行替换为 settle CLI 示例；「要点」加两条：「三门禁：审查（缺文件/章号不符/blocking>0 拒）/ 文笔（flagged 拒）/ 素材引用（不可绕过）」「`--force-review-bypass "<理由>"` 留痕于 front matter `审查绕过:` 与 journal」；「已知边界」删掉「承诺流转未实现」句（T28 已实现，pack 现读账本）。决策 JSON 字段表加 `material_refs`（可选，`表:ID` 或裸 ID 列表）与 `volume`（可选，缺省按 `卷规模` 推算）。
-- [ ] **提交**：`docs(write): /webnovel:write 按 book.yaml 分流 v7 链 + settle 门禁/bypass 契约进评测 + v7 指南同步`
+- [x] **跑评测** → 全 PASS；`python -X utf8 webnovel-writer/scripts/validate_reference_wiring.py` → drift=0（SKILL 未新增 reference 引用；若报 drift，按其输出补 `reference-loading-map.md`）。
+- [x] **guides**：`docs/guides/v7-write-path.md` §3 把 `python -c "from v7_write import settle; ..."` 行替换为 settle CLI 示例；「要点」加两条：「三门禁：审查（缺文件/章号不符/blocking>0 拒）/ 文笔（flagged 拒）/ 素材引用（不可绕过）」「`--force-review-bypass "<理由>"` 留痕于 front matter `审查绕过:` 与 journal」；「已知边界」删掉「承诺流转未实现」句（T28 已实现，pack 现读账本）。决策 JSON 字段表加 `material_refs`（可选，`表:ID` 或裸 ID 列表）与 `volume`（可选，缺省按 `卷规模` 推算）。
+- [x] **提交**：`docs(write): /webnovel:write 按 book.yaml 分流 v7 链 + settle 门禁/bypass 契约进评测 + v7 指南同步`
 
 ## Task 7：fantasy01 冒烟 + 回归 + 勾选
 
-- [ ] **fantasy01 冒烟（只读副本）**：
+- [x] **fantasy01 冒烟（只读副本）**：
   ```powershell
   $src="c:\lgq\ai-workspace\projects\loom-books\fantasy01"; $dst="$env:TEMP\fantasy01-smoke"
   if (Test-Path $dst) { python -X utf8 -c "import shutil; shutil.rmtree(r'\\?\$dst')" }
@@ -968,7 +969,7 @@ def cmd_v7_write(args: argparse.Namespace) -> int:
   Select-String -Path "$dst\工作区\上下文包-0042.md" -Pattern "^## " | ForEach-Object { $_.Line }
   ```
   期望：出现 `## 作者模型`（fantasy01 有 `作者/author_model.md`）与 `## 文风宪法`/`## 素材装配`（有 `文风/`、`素材/`）；`## 作者修改未消费（stale）` 与 `## 本章应推进（承诺账本）` 取决于真仓当下是否有 stale / 到期条目——**如实记录出现了哪些**，并用 `webnovel.py --project-root $dst author-sync --format json` / `promise-ledger scan` 查证「没出现」的原因是数据为空而非读函数失败（`stats["section_errors"]` 应为空：临时用 `python -X utf8 -c "...build_context_pack...; print(stats['section_errors'], stats['dropped_sections'])"`）。
-- [ ] **全量回归**：`python -X utf8 -m pytest -q -p no:cacheprovider` → 记录 `N passed` 与覆盖率行（spec 验收 #8：≥1455 passed，cov ≥80）；`python -X utf8 webnovel-writer/scripts/validate_plugin_package.py`；`sync_plugin_version.py --check`。
-- [ ] **勾选**：`docs/zcode/v8-gap-review-3rounds/README.md` 阶段一表 P1-1 / P1-2 行加 `✅ 2026-09-0x <commit>`，验收列引用本计划测试名；同表下方补一句「实现时发现 v7_write 未被任何 skill 调用，已在同批接线（见 spec §1）」。
-- [ ] **交接**：`docs/cursor/项目复审/2026-09-04-会话交接.md` 步骤 6 状态改「阶段一完成」，列出 commit 与 fantasy01 冒烟实际输出摘要。
-- [ ] **提交**：`docs: v8-gap-review 阶段一 P1-1/P1-2 勾选 + fantasy01 冒烟记录 + 交接`；工作区同步子模块指针。
+- [x] **全量回归**：`python -X utf8 -m pytest -q -p no:cacheprovider` → 记录 `N passed` 与覆盖率行（spec 验收 #8：≥1455 passed，cov ≥80）；`python -X utf8 webnovel-writer/scripts/validate_plugin_package.py`；`sync_plugin_version.py --check`。
+- [x] **勾选**：`docs/zcode/v8-gap-review-3rounds/README.md` 阶段一表 P1-1 / P1-2 行加 `✅ 2026-09-0x <commit>`，验收列引用本计划测试名；同表下方补一句「实现时发现 v7_write 未被任何 skill 调用，已在同批接线（见 spec §1）」。
+- [x] **交接**：`docs/cursor/项目复审/2026-09-04-会话交接.md` 步骤 6 状态改「阶段一完成」，列出 commit 与 fantasy01 冒烟实际输出摘要。
+- [x] **提交**：`docs: v8-gap-review 阶段一 P1-1/P1-2 勾选 + fantasy01 冒烟记录 + 交接`；工作区同步子模块指针。

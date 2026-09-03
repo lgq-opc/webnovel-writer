@@ -147,6 +147,16 @@ create_chapter_batch 不读详细大纲（无论叫什么名字）→ 标题自�
 | **P1-1 v7 上下文包补 14 section** | `build_context_pack` 增加：stale_notes / reader_signal / author_style_patterns / style_contract（宪法）/ urgent_loops（账本条目）/ pending_promises（本章应推进项）/ protagonist / outline（详细大纲当章节选）/ genre_profile / active_rules / memory_pack / prewrite_validation / runtime_status / story_contracts。每个 section 复用既有模块的读函数，配额进 V7_SECTION_QUOTAS，DROP 顺序按 v6 的 PROTECTED_PATHS 语义 | fantasy01 ch42 上下文包含 stale_notes、账本应推进项、author_model 三段；饱和测试三段保全 |
 | **P1-2 v7 settle 三门禁** | settle() 前置：①读 `.webnovel/tmp/review_results.json` 存在且 blocking>0 → 拒绝（`--force-review-bypass` 显式跳过）；②prose_check flagged 非（空或全 deviation）→ 拒绝；③素材引用 resolve_ref 逐条存在性 | 构造 blocking 审查 → settle 拒绝；引用不存在 ID → 报错 |
 
+**阶段一完成（2026-09-04，Cursor；spec/plan 见 `docs/cursor/阶段一-写前链路补全/`）**
+
+| 任务 | 状态 | 证据（验收原文 → 测试 / 命令输出） |
+|---|---|---|
+| P1-1 | ✅ `d645d70` | 「fantasy01 ch42 上下文包含 stale_notes、账本应推进项、author_model 三段」→ fantasy01 只读副本 `webnovel.py --project-root <副本> v7-write pack --chapter 42` 输出 `OK … used=5,774`，包内 `## ` 节 = 决策卡 / 本章应推进（承诺账本）/ 作者修改未消费（stale）/ 前情摘要 / 上一章结尾 / 素材装配 / 作者模型 / 书级元信息；`section_errors={}`、`dropped=[]`、`stale_count=5`。「饱和测试三段保全」→ `test_v7_write_pack_sections.py::TestSaturation::test_protected_sections_survive_budget_squeeze`（预算 2500 触发丢弃，四个 PROTECTED 节全在）。**范围调整（Human 2026-09-04 批准 spec §2）**：14 → 10 个 section，v6-only 的 genre_profile / active_rules / memory_pack / prewrite_validation / runtime_status / story_contracts 不移植（无 v7 数据源）；author_style_patterns 并入 author_model；urgent_loops 并入 pending_promises；新增 pov_discipline。 |
+| P1-2 | ✅ `d404a29` `73b70a7` | 「构造 blocking 审查 → settle 拒绝」→ `test_v7_write_gates.py::TestReviewGate::test_blocking_review_rejects_without_side_effects`（HEAD 不动、定稿零文件）；「引用不存在 ID → 报错」→ `TestMaterialGate::test_unresolvable_ref_rejects_even_with_bypass`（bypass 也不放行）。补充：缺审查文件 / 章号不符视同未审查；绕过留痕 front matter `审查绕过:` + journal 事件（`validate_journal()==[]`）；settle CLI 退出码 0/2/1；`webnovel.py v7-write` 转发。 |
+| 接线（原文未列） | ✅ `841831b` | brainstorming 时发现 `v7_write.py` 无任何 skill/command 调用点（`/webnovel:write` 全 v6）——不接线则 P1-1/P1-2 不可达。`/webnovel:write` 新增「书仓形态判定」按 `book.yaml` 分流到 v7 链；`evals/fast.json` 新增 `skill_write_v7_branch` 契约，`run_behavior_evals.py --suite fast` 23/23 PASS。 |
+
+回归：`pytest -o addopts=""` → `1483 passed`（此前 1455）；覆盖率 82.67%（门 80）；`sync_plugin_version.py --check` / `validate_plugin_package.py` / `validate_reference_wiring.py`（drift=0）/ `validate_release_notes.py` 全 OK。
+
 ### 阶段二：一致性闸——章纲与数据不变量（预计 3 个任务，~1 天）
 
 > 目标：标题/账本/人物/时间锚在生成时就被拦，不等 reviewer
