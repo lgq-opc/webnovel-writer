@@ -61,6 +61,7 @@ REGISTERED_CLI_SUBCOMMANDS = {
     "materials",
     "style-domain", "learn", "power", "forge", "prose-check", "drafts",
     "foreshadow-scan", "promise-ledger", "name-check", "volume-reconcile",
+    "v7-write",
 }
 
 
