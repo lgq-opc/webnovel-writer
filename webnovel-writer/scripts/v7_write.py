@@ -33,7 +33,44 @@ V7_SECTION_QUOTAS: dict[str, int] = {
     "roster": 1500,
     "prev_chapter_tail": 1200,
     "book_meta": 500,
+    # v8-gap-review 阶段一 P1-1（spec §4.2）：治理信号 section
+    "stale_notes": 800,
+    "pending_promises": 1000,
+    "author_model": 800,
+    "style_anchor": 500,
+    "style_contract": 600,
+    "reader_signal": 500,
+    "materials": 1500,
+    "outline_excerpt": 800,
+    "protagonist": 600,
+    "pov_discipline": 400,
 }
+# 总预算超限时：PROTECTED 只截不丢；其余按 DROP 顺序整段丢弃（spec §4.2 逐字）
+V7_PROTECTED_SECTIONS = ("decision_card", "prev_chapter_tail", "stale_notes", "pending_promises")
+V7_DROP_ORDER = (
+    "materials", "reader_signal", "style_contract", "outline_excerpt", "protagonist",
+    "pov_discipline", "style_anchor", "author_model", "roster", "recent_summaries", "entities",
+)
+V7_SECTION_TITLES: dict[str, str] = {
+    "decision_card": "决策卡",
+    "outline_excerpt": "本章章纲节选",
+    "pending_promises": "本章应推进（承诺账本）",
+    "stale_notes": "作者修改未消费（stale）",
+    "recent_summaries": "前情摘要（近三章，v7_cache）",
+    "prev_chapter_tail": "上一章结尾",
+    "entities": "本章实体（名册查询）",
+    "protagonist": "主角卡",
+    "pov_discipline": "视角纪律",
+    "roster": "名册清单",
+    "materials": "素材装配",
+    "style_contract": "文风宪法",
+    "style_anchor": "文风锚点（高分样本）",
+    "author_model": "作者模型",
+    "reader_signal": "读者信号（追读力）",
+    "book_meta": "书级元信息",
+}
+V7_RENDER_ORDER = tuple(V7_SECTION_TITLES)  # 渲染顺序 = 标题表声明顺序
+_PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 
 
 # ---------- 决策卡 ----------
@@ -138,6 +175,122 @@ def load_context_budget(repo: Path) -> dict[str, Any]:
     return out
 
 
+def _book_yaml_scalar(repo: Path, key: str) -> str:
+    """book.yaml 顶层标量（`主角:` / `卷规模:` 等）；缺失返回空串。"""
+    book_yaml = Path(repo) / "book.yaml"
+    if not book_yaml.exists():
+        return ""
+    for raw in book_yaml.read_text(encoding="utf-8").splitlines():
+        if raw.startswith(f"{key}:"):
+            return raw.split(":", 1)[1].strip().strip('"').strip("'")
+    return ""
+
+
+# ---------- 治理信号 section 读函数（阶段一 P1-1；每个只做一件事，异常由 build_context_pack 统一记账） ----------
+
+
+def _sec_stale_notes(repo: Path) -> list[dict[str, Any]]:
+    from data_modules.author_journal import unconsumed_stale
+
+    return unconsumed_stale(repo)
+
+
+def _sec_pending_promises(repo: Path, chapter: int) -> dict[str, Any]:
+    from data_modules.promise_ledger import pending_for_chapter
+
+    if not (Path(repo) / "大纲" / "条目").is_dir():
+        return {}
+    out = pending_for_chapter(repo, chapter=chapter)
+    items, from_card = out.get("items") or [], out.get("from_card") or []
+    return {"items": items, "from_card": from_card} if (items or from_card) else {}
+
+
+def _sec_author_model(repo: Path) -> dict[str, str]:
+    from data_modules.author_model import load_author_model_section
+
+    return {k: v for k, v in load_author_model_section(repo).items() if v}
+
+
+def _sec_style_anchor(repo: Path) -> dict[str, Any]:
+    from data_modules.style_domain import build_style_anchor_section
+
+    return build_style_anchor_section(repo)
+
+
+def _sec_style_contract(repo: Path) -> str:
+    from data_modules.style_domain import constitution_path
+
+    p = constitution_path(repo)
+    return p.read_text(encoding="utf-8") if p.is_file() else ""
+
+
+def _sec_reader_signal(repo: Path) -> dict[str, Any]:
+    from data_modules.reader_signal_builder import build_reader_signal
+
+    sig = build_reader_signal(repo)
+    keys = ("recent_reading_power", "hook_type_usage", "review_trend", "differentiation_reminder")
+    return sig if any(sig.get(k) for k in keys) else {}
+
+
+def _sec_materials(repo: Path) -> dict[str, Any]:
+    from data_modules.material_store import assemble_materials
+
+    if not (Path(repo) / "素材").is_dir():
+        return {}
+    k = int(_book_yaml_scalar(repo, "素材装配条数") or 3)
+    out = assemble_materials(repo, k=k)
+    live = {
+        table: [{"id": r.get("id"), "名称": r.get("名称"), "核心摘要": r.get("核心摘要")} for r in rows]
+        for table, rows in (out.get("live") or {}).items()
+    }
+    return {"live": live, "frozen_version": out.get("frozen_version")} if live else {}
+
+
+def _sec_outline_excerpt(repo: Path, decision: dict[str, Any], chapter: int) -> str:
+    """当卷详细大纲中本章小节；先 `第NN卷-详细大纲.md` 再 `第NN卷.md`（P2-1 统一路径前的兼容读）。"""
+    vol = int(decision.get("volume") or 0)
+    if not vol:
+        size = int(_book_yaml_scalar(repo, "卷规模") or 0)
+        vol = (chapter - 1) // size + 1 if size else 1
+    base = Path(repo) / "大纲" / "卷纲"
+    for name in (f"第{vol:02d}卷-详细大纲.md", f"第{vol:02d}卷.md"):
+        p = base / name
+        if not p.is_file():
+            continue
+        text = p.read_text(encoding="utf-8")
+        m = re.search(rf"^(#+)\s*第\s*0*{chapter}\s*章[^\n]*\n", text, re.M)
+        if not m:
+            continue
+        level = len(m.group(1))
+        rest = text[m.end():]
+        nxt = re.search(rf"^#{{1,{level}}}\s", rest, re.M)
+        return (m.group(0) + (rest[: nxt.start()] if nxt else rest)).strip()
+    return ""
+
+
+def _sec_protagonist(repo: Path) -> dict[str, Any]:
+    name = _book_yaml_scalar(repo, "主角")
+    if not name:
+        return {}
+    card = Path(repo) / "定稿" / "设定" / "名册" / f"{name}.md"
+    return {"正名": name, "名册卡": card.read_text(encoding="utf-8")} if card.is_file() else {"正名": name}
+
+
+def _sec_pov_discipline(repo: Path, decision: dict[str, Any]) -> dict[str, Any]:
+    """N11：决策卡 pov ≠ book.yaml `主角` 时注入单章视角纪律（references/shared/pov-management.md §一）。
+
+    book.yaml 未声明 `主角` 时无法判定越界，省略（不注入噪音）。
+    """
+    pov = str(decision.get("pov") or "").strip()
+    protagonist = _book_yaml_scalar(repo, "主角")
+    if not pov or not protagonist or pov == protagonist:
+        return {}
+    ref = _PLUGIN_ROOT / "references" / "shared" / "pov-management.md"
+    rules = ref.read_text(encoding="utf-8") if ref.is_file() else ""
+    m = re.search(r"^## 一、[^\n]*\n(.*?)(?=^## |\Z)", rules, re.M | re.S)
+    return {"本章视角": pov, "主角": protagonist, "规则": (m.group(1) if m else rules).strip()}
+
+
 def build_context_pack(repo: Path, decision: dict[str, Any], *, db_path: Optional[Path] = None, total_budget: Optional[int] = None):
     repo = Path(repo)
     from v7_cache import find_entity, get_summary
@@ -189,6 +342,29 @@ def build_context_pack(repo: Path, decision: dict[str, Any], *, db_path: Optiona
         "下限": int(target * 0.75),
     }
 
+    # v8-gap-review 阶段一 P1-1：治理信号 section（读函数失败只记账不阻断）
+    section_errors: dict[str, str] = {}
+    loaders = {
+        "stale_notes": lambda: _sec_stale_notes(repo),
+        "pending_promises": lambda: _sec_pending_promises(repo, chapter),
+        "author_model": lambda: _sec_author_model(repo),
+        "style_anchor": lambda: _sec_style_anchor(repo),
+        "style_contract": lambda: _sec_style_contract(repo),
+        "reader_signal": lambda: _sec_reader_signal(repo),
+        "materials": lambda: _sec_materials(repo),
+        "outline_excerpt": lambda: _sec_outline_excerpt(repo, decision, chapter),
+        "protagonist": lambda: _sec_protagonist(repo),
+        "pov_discipline": lambda: _sec_pov_discipline(repo, decision),
+    }
+    for name, load in loaders.items():
+        try:
+            value = load()
+        except Exception as exc:  # noqa: BLE001 - 单域失败不阻断打包
+            section_errors[name] = f"{type(exc).__name__}: {exc}"
+            continue
+        if value:
+            sections[name] = value
+
     stats_before = sum(estimate_tokens(v) for v in sections.values())
     sizes_before = {name: estimate_tokens(v) for name, v in sections.items()}
     for name, quota in quotas_effective.items():
@@ -197,7 +373,16 @@ def build_context_pack(repo: Path, decision: dict[str, Any], *, db_path: Optiona
     truncated = [n for n, v in sections.items() if n in sizes_before and estimate_tokens(v) < sizes_before[n]]
 
     effective_total = int(total_budget) if total_budget is not None else (book_budget["total"] or TOTAL_BUDGET_DEFAULT)
+    # 超总预算：按 DROP 顺序整段丢弃非 PROTECTED section（P1-1「饱和测试三段保全」）
+    dropped: list[str] = []
     md = _render_pack_markdown(chapter, sections)
+    for name in V7_DROP_ORDER:
+        if estimate_tokens(md) <= effective_total:
+            break
+        if name in sections and name not in V7_PROTECTED_SECTIONS:
+            sections.pop(name)
+            dropped.append(name)
+            md = _render_pack_markdown(chapter, sections)
     used = estimate_tokens(md)
     if used > effective_total:
         md = md[: effective_total - 8] + "…（预算截断）"
@@ -208,6 +393,8 @@ def build_context_pack(repo: Path, decision: dict[str, Any], *, db_path: Optiona
         "sections_before": stats_before,
         "sections": dict(quotas_effective),
         "truncated_sections": truncated,
+        "dropped_sections": dropped,
+        "section_errors": section_errors,
         "budget_used_ratio": round(used / effective_total, 3) if effective_total else 1.0,
     }
     return md, stats
@@ -215,19 +402,11 @@ def build_context_pack(repo: Path, decision: dict[str, Any], *, db_path: Optiona
 
 def _render_pack_markdown(chapter: int, sections: dict[str, Any]) -> str:
     out = [f"# 上下文包 · 第{chapter:04d}章", ""]
-    titles = {
-        "decision_card": "决策卡",
-        "recent_summaries": "前情摘要（近三章，v7_cache）",
-        "entities": "本章实体（名册查询）",
-        "roster": "名册清单",
-        "prev_chapter_tail": "上一章结尾",
-        "book_meta": "书级元信息",
-    }
-    for name in ("decision_card", "recent_summaries", "entities", "roster", "prev_chapter_tail", "book_meta"):
+    for name in V7_RENDER_ORDER:
         value = sections.get(name)
         if not value:
             continue
-        out.append(f"## {titles.get(name, name)}")
+        out.append(f"## {V7_SECTION_TITLES[name]}")
         if isinstance(value, str):
             out.append(value)
         else:
@@ -480,7 +659,24 @@ def settle(
     return result
 
 
-def main() -> int:
+def decision_from_card(repo: Path, chapter: int) -> dict[str, Any]:
+    """无决策 JSON 时从决策卡文本回退解析（title / pov / 关键实体），供 pack CLI 用。"""
+    card = Path(repo) / "工作区" / f"决策卡-{chapter:04d}.md"
+    decision: dict[str, Any] = {"chapter": chapter, "title": "", "entities": []}
+    if not card.exists():
+        return decision
+    for line in card.read_text(encoding="utf-8").splitlines():
+        s = line.strip()
+        if s.startswith("- title:"):
+            decision["title"] = s.split(":", 1)[1].strip()
+        elif s.startswith("- pov:"):
+            decision["pov"] = s.split(":", 1)[1].strip()
+        elif s.startswith("- 关键实体:"):
+            decision["entities"] = [e.strip() for e in re.split(r"[、,，]", s.split(":", 1)[1]) if e.strip()]
+    return decision
+
+
+def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="v7 写路径：决策卡/上下文包/机检/settle")
     sub = parser.add_subparsers(dest="action", required=True)
     p_decision = sub.add_parser("decision", help="生成决策卡（参数经 --json 文件传入）")
@@ -489,20 +685,21 @@ def main() -> int:
     p_pack = sub.add_parser("pack", help="生成上下文包（需已有决策卡）")
     p_pack.add_argument("--repo", required=True)
     p_pack.add_argument("--chapter", type=int, required=True)
+    p_pack.add_argument("--json", help="决策内容 JSON 文件（可选；无则从决策卡回退解析 title/pov/关键实体）")
     p_check = sub.add_parser("check", help="机检草稿")
     p_check.add_argument("--repo", required=True)
     p_check.add_argument("--chapter", type=int, required=True)
     p_check.add_argument("--draft", required=True)
     p_check.add_argument("--json", required=True, help="决策内容 JSON 文件")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if args.action == "decision":
         decision = json.loads(Path(args.json).read_text(encoding="utf-8"))
         print(write_decision_card(Path(args.repo), decision))
         return 0
     if args.action == "pack":
-        card = Path(args.repo) / "工作区" / f"决策卡-{args.chapter:04d}.md"
-        decision = {"chapter": args.chapter, "title": "", "entities": []}
+        decision = json.loads(Path(args.json).read_text(encoding="utf-8")) if args.json else decision_from_card(Path(args.repo), args.chapter)
+        decision["chapter"] = args.chapter
         md, stats = build_context_pack(Path(args.repo), decision)
         out = Path(args.repo) / "工作区" / f"上下文包-{args.chapter:04d}.md"
         out.write_text(md, encoding="utf-8")
