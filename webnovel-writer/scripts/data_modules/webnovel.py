@@ -279,6 +279,21 @@ def cmd_materials(args: argparse.Namespace) -> int:
     return material_store.main(argv)
 
 
+def cmd_v7_write(args: argparse.Namespace) -> int:
+    """v7 书仓写链转发（v8-gap-review 阶段一）：decision / pack / check / settle。
+
+    `--repo` 取自 `--project-root`（宽松解析：纯 v7 story-repo 直接用给定目录）；其余参数原样透传给 v7_write.main，
+    退出码（0 成功 / 2 门禁或机检拒绝 / 1 其他）不做改写。
+    """
+    import v7_write
+
+    root = _resolve_root_lenient(args.project_root)
+    rest = list(getattr(args, "v7_args", []) or [])
+    if rest[:1] == ["--"]:
+        rest = rest[1:]
+    return v7_write.main([args.action, "--repo", str(root), *rest])
+
+
 def cmd_style_domain(args: argparse.Namespace) -> int:
     """文风域数据面（webnovel-copilot-300 M3/T15）：宪法迁移 / 指纹 / 金句库。"""
     from data_modules import style_domain
@@ -984,6 +999,11 @@ def _main_impl() -> None:
     p_materials.add_argument("material_args", nargs=argparse.REMAINDER, help="子动作参数（--table/--k/--genre 等）")
     p_materials.add_argument("--format", choices=["text", "json"], default="text", help="输出格式")
     p_materials.set_defaults(func=cmd_materials)
+
+    p_v7_write = sub.add_parser("v7-write", help="v7 书仓写链（decision / pack / check / settle；阶段一 P1-1/P1-2）")
+    p_v7_write.add_argument("action", choices=["decision", "pack", "check", "settle"], help="子动作")
+    p_v7_write.add_argument("v7_args", nargs=argparse.REMAINDER, help="透传给 v7_write.py 的参数（--chapter/--json/--draft/--summary/--force-review-bypass 等）")
+    p_v7_write.set_defaults(func=cmd_v7_write)
 
     p_style_domain = sub.add_parser("style-domain", help="文风域（migrate 宪法迁移 / fingerprint 指纹 / golden-* 金句库）")
     p_style_domain.add_argument("action", choices=["migrate", "fingerprint", "golden-add", "golden-list", "golden-feed"], help="子动作")
