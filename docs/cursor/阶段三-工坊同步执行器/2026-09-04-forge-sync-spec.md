@@ -1,9 +1,9 @@
 # Spec：工坊同步执行器（v8-gap-review 阶段三 P3-2）
 
 > 档位：Architectural（新 CLI + journal 消费协议）
-> 状态：**方案 A 已批准**（Human 2026-09-04）；本文为落盘稿，确认后进入 plan → TDD
+> 状态：**已批准**（Human 2026-09-04 确认书面稿）
 > 上游：`docs/zcode/v8-gap-review-3rounds/README.md` 阶段三 P3-2；N5；`setting_forge.forge_confirm`
-> 下游：同目录 `2026-09-04-forge-sync-plan.md`（尚未写）
+> 下游：同目录 `2026-09-04-forge-sync-plan.md` → TDD → 收尾
 
 ## 1. 背景与目标
 
@@ -75,7 +75,7 @@ webnovel.py [--project-root ROOT] forge-sync mark-cleared --kind {power_anchor_s
 
 **status 退出码：** pending 空 → 0；有 pending → 1。
 
-**mark-cleared：** 对每个请求的 kind，若该 kind 队列非空，追加一条 journal 事件（见 §4.5）弹出队头语义；`--kind all` = 对当前有 pending 的 kind 各消费 **一条**（一次一行事件，`impact` 可含多个 `*:cleared`）。任一请求的 kind 当前无 pending → 整次拒绝、不写 journal、退出码 2。成功退出码 0。
+**mark-cleared：** 对每个请求的 kind，若该 kind 队列非空，追加一条 journal 事件（见 §4.5）弹出队头语义。`--kind all` **只请求当前队列非空的 kind**（法宝-only pending 时 `all` 只清 `contract_rebuild`）；两种队列都空、或显式 `--kind power_anchor_sync`/`contract_rebuild` 而该队列空、或缺少 `--kind` → 整次拒绝、不写 journal、退出码 2。成功退出码 0。一次成功写入一行事件，`impact` 可含多个 `*:cleared`。
 
 不把 `forge-sync` 做成 `forge` 的第五个 action（避免与 `prepare/save/adopt/confirm/list` 混名）。
 
