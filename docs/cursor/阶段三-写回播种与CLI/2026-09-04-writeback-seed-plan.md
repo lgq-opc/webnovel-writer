@@ -9,6 +9,8 @@
 **技术栈：** Python 3.10+、pytest、标准库 `json` / `re` / `argparse`。
 **Spec：** `docs/cursor/阶段三-写回播种与CLI/2026-09-04-writeback-seed-spec.md`
 
+**执行记录（2026-09-04，Cursor）**：Task 1–4 完成。实现 commit `cd6016d`（播种 + learn）；书仓去重 `e28e7c5`；spec `57c09cc`；plan `ae17cdb`。无 ledger（未走 SDD）。`test_writeback_seed.py` 6 例 + `test_learn_cli.py` 4 例 + `test_promise_ledger.py` / `test_author_model.py` 定点全绿。全量 `1568 passed` / cov 82.97%。`promise-ledger -h` 含 `seed-from-writeback`；`learn -h` action 可选默认 learn。fantasy01 `第01卷.md` 已删，`resolve_detailed_outline(..., 1)` → `第01卷-详细大纲.md`。
+
 ## 全局约束
 
 - 只读 `foreshadow_writeback`，不播种 `open_loop_writeback`。
@@ -51,7 +53,7 @@ README「8 条」旁注与 P3-3 勾选留在收尾（`finishing-a-development-br
 
 **文件：** 新增 `webnovel-writer/scripts/tests/test_writeback_seed.py`
 
-- [ ] 写失败测试（完整文件）：
+- [x] 写失败测试（完整文件）：
 
 ```python
 #!/usr/bin/env python3
@@ -183,7 +185,7 @@ def test_cli_seed_and_help(book: Path):
     assert proc.returncode == 0 and len(payload["created"]) == 7
 ```
 
-- [ ] 运行 RED：
+- [x] 运行 RED：
 
 ```powershell
 python -X utf8 -m pytest webnovel-writer/scripts/tests/test_writeback_seed.py -q --no-cov -p no:cacheprovider
@@ -197,7 +199,7 @@ python -X utf8 -m pytest webnovel-writer/scripts/tests/test_writeback_seed.py -q
 
 **文件：** `promise_ledger.py`、`webnovel.py`
 
-- [ ] 在 `promise_ledger.py` 顶部补 `import json`。新增：
+- [x] 在 `promise_ledger.py` 顶部补 `import json`。新增：
 
 ```python
 _CHAPTER_INT = re.compile(r"(\d+)")
@@ -283,17 +285,17 @@ def seed_from_writeback(project_root: str | Path, *, volume: int) -> dict[str, A
     }
 ```
 
-- [ ] `crud_main`：`action` choices 加 `seed-from-writeback`；加 `--volume`（type=int, default=0）。`seed-from-writeback` 时若 `not args.volume` → `parser.error`。调用 `seed_from_writeback`。json 打印 report；text 打印 `OK seed-from-writeback volume=N created=A skipped=B failed=C` 再列出 created 的 `id「name」`（name 从 skipped/created 对应条目或 report）。**返回 `report.get("exit", 0 if report.get("ok") else 1)`**，不要一律用 ok→0/1（缺文件必须 2）。json 分支同样按 `exit` 返回。`create`/`list`/`update` 分支保持原返回。
+- [x] `crud_main`：`action` choices 加 `seed-from-writeback`；加 `--volume`（type=int, default=0）。`seed-from-writeback` 时若 `not args.volume` → `parser.error`。调用 `seed_from_writeback`。json 打印 report；text 打印 `OK seed-from-writeback volume=N created=A skipped=B failed=C` 再列出 created 的 `id「name」`（name 从 skipped/created 对应条目或 report）。**返回 `report.get("exit", 0 if report.get("ok") else 1)`**，不要一律用 ok→0/1（缺文件必须 2）。json 分支同样按 `exit` 返回。`create`/`list`/`update` 分支保持原返回。
 
-- [ ] `webnovel.py`：`p_ledger` 的 action choices 加 `seed-from-writeback`；`add_argument("--volume", type=int, default=0)`；`cmd_promise_ledger` 在 `args.action == "seed-from-writeback"` 时 `argv.extend(["--volume", str(args.volume)])`。help 文案改为含 seed。
+- [x] `webnovel.py`：`p_ledger` 的 action choices 加 `seed-from-writeback`；`add_argument("--volume", type=int, default=0)`；`cmd_promise_ledger` 在 `args.action == "seed-from-writeback"` 时 `argv.extend(["--volume", str(args.volume)])`。help 文案改为含 seed。
 
-- [ ] 运行 GREEN：
+- [x] 运行 GREEN：
 
 ```powershell
 python -X utf8 -m pytest webnovel-writer/scripts/tests/test_writeback_seed.py webnovel-writer/scripts/tests/test_promise_ledger.py -q --no-cov -p no:cacheprovider
 ```
 
-- [ ] 提交（仅插件仓、仅本任务实现文件 + 测试；不含 spec/plan）：
+- [x] 提交（仅插件仓、仅本任务实现文件 + 测试；不含 spec/plan）：
 
 ```text
 feat(ledger): 从总纲写回 JSON 播种伏笔账本
@@ -305,7 +307,7 @@ feat(ledger): 从总纲写回 JSON 播种伏笔账本
 
 **文件：** `test_learn_cli.py`、`webnovel.py`、`author_model.py`、`docs/guides/commands.md`
 
-- [ ] 写失败测试 `webnovel-writer/scripts/tests/test_learn_cli.py`：
+- [x] 写失败测试 `webnovel-writer/scripts/tests/test_learn_cli.py`：
 
 ```python
 #!/usr/bin/env python3
@@ -382,7 +384,7 @@ def test_learn_apply_still_requires_explicit_action(book: Path):
 
 `test_learn_apply_still_requires_explicit_action`：无建议文件时 `apply` 应失败（现有 `apply_suggestion` 行为）。不要把缺 action 的 `learn` 误当成 apply。
 
-- [ ] 先跑 RED：
+- [x] 先跑 RED：
 
 ```powershell
 python -X utf8 -m pytest webnovel-writer/scripts/tests/test_learn_cli.py -q --no-cov -p no:cacheprovider
@@ -390,7 +392,7 @@ python -X utf8 -m pytest webnovel-writer/scripts/tests/test_learn_cli.py -q --no
 
 期望：`learn --from-journal` usage error（缺 action）。
 
-- [ ] `webnovel.py` 与 `author_model.py`：
+- [x] `webnovel.py` 与 `author_model.py`：
 
 ```python
 parser.add_argument("action", nargs="?", default="learn", choices=["learn", "apply", "show"], help="子动作（默认 learn）")
@@ -398,15 +400,15 @@ parser.add_argument("action", nargs="?", default="learn", choices=["learn", "app
 
 `cmd_learn` 仍按 `args.action` 转发；默认已是 `"learn"`。
 
-- [ ] `docs/guides/commands.md` learn 行改为不再提 `learn learn` / N9；promise-ledger 行补 `seed-from-writeback`。
+- [x] `docs/guides/commands.md` learn 行改为不再提 `learn learn` / N9；promise-ledger 行补 `seed-from-writeback`。
 
-- [ ] GREEN：
+- [x] GREEN：
 
 ```powershell
 python -X utf8 -m pytest webnovel-writer/scripts/tests/test_learn_cli.py webnovel-writer/scripts/tests/test_author_model.py -q --no-cov -p no:cacheprovider
 ```
 
-- [ ] 提交：
+- [x] 提交：
 
 ```text
 fix(learn): 默认 action 为 learn，去掉冗余位置参数
@@ -427,7 +429,7 @@ feat(cli): 写回播种账本并修复 learn 默认动作
 **仓库：** `c:\lgq\ai-workspace\projects\loom-books\fantasy01`  
 **文件：** 删除 `大纲/卷纲/第01卷.md`（保留 `第01卷-详细大纲.md`）
 
-- [ ] 再算整文件哈希，必须相等才删：
+- [x] 再算整文件哈希，必须相等才删：
 
 ```powershell
 python -X utf8 -c "from pathlib import Path; import hashlib; root=Path(r'c:\lgq\ai-workspace\projects\loom-books\fantasy01'); a=root/'大纲'/'卷纲'/'第01卷.md'; b=root/'大纲'/'卷纲'/'第01卷-详细大纲.md'; ha=hashlib.sha256(a.read_bytes()).hexdigest(); hb=hashlib.sha256(b.read_bytes()).hexdigest(); print(ha==hb, ha, a.stat().st_size, b.stat().st_size)"
@@ -435,25 +437,25 @@ python -X utf8 -c "from pathlib import Path; import hashlib; root=Path(r'c:\lgq\
 
 哈希不同 → **停止**，不删、不改内容，回报 Human。
 
-- [ ] 相等则只删副本：
+- [x] 相等则只删副本：
 
 ```powershell
 git -C "c:\lgq\ai-workspace\projects\loom-books\fantasy01" rm -- "大纲/卷纲/第01卷.md"
 ```
 
-- [ ] 验证解析器仍指向规范路径（插件仓，只读该书路径）：
+- [x] 验证解析器仍指向规范路径（插件仓，只读该书路径）：
 
 ```powershell
 python -X utf8 -c "from pathlib import Path; import sys; sys.path.insert(0, r'c:\lgq\ai-workspace\projects\zcode-plugins\webnovel-writer\webnovel-writer\scripts'); from data_modules.outline_paths import resolve_detailed_outline; p=resolve_detailed_outline(Path(r'c:\lgq\ai-workspace\projects\loom-books\fantasy01'), 1); print(p); assert p and p.name=='第01卷-详细大纲.md'"
 ```
 
-- [ ] 只 stage 该删除。书仓其它脏文件不碰。提交（UTF-8 文件 + `-F`）：
+- [x] 只 stage 该删除。书仓其它脏文件不碰。提交（UTF-8 文件 + `-F`）：
 
 ```text
 chore(outline): 删除与详细大纲重复的第01卷.md
 ```
 
-- [ ] `git -C ... status`：该删除已提交；其它预先存在的脏文件如实报告，不代交。
+- [x] `git -C ... status`：该删除已提交；其它预先存在的脏文件如实报告，不代交。
 
 插件仓 `test_outline_paths.py` 已覆盖「仅规范路径」回退，不必再加用例。
 

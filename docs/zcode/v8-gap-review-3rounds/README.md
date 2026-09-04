@@ -206,7 +206,7 @@ create_chapter_batch 不读详细大纲（无论叫什么名字）→ 标题自�
 |------|------|------|
 | **P3-1 v7 settle 后置钩子** | settle 成功后自动串：materials log（幂等闸已有）→ settle_style_domain（指纹+高分采样）→ reading_power（从摘要 front matter 提取）；各自 try/except 不阻断 settle；CLI 输出后置结果一行 | ch43 settle 一次跑完，轨迹/指纹/追读力三表自动更新 |
 | **P3-2 工坊同步执行器** | 新 `forge-sync` 命令：扫 journal 中 `power_anchor_sync:required` / `contract_rebuild:required` 未消费标记 → 提示作者执行锚点确认与 master-outline-sync；消费后标记 cleared | adopt 功法提案 → forge-sync 引导完成锚点同步 |
-| **P3-3 写回 JSON 播种 + CLI 修正** | ①promise-ledger 增 `seed-from-writeback`：读 `第NN卷-总纲写回.json` 的 foreshadow_writeback 数组建账本条目；②修 `learn` CLI 冗余参数（action 默认 learn）；③fantasy01 重复详细大纲去重（保留带后缀版） | 写回 8 条伏笔一键入账；`learn --from-journal` 直接可跑 |
+| **P3-3 写回 JSON 播种 + CLI 修正** | ①promise-ledger 增 `seed-from-writeback`：读 `第NN卷-总纲写回.json` 的 foreshadow_writeback 数组建账本条目；②修 `learn` CLI 冗余参数（action 默认 learn）；③fantasy01 重复详细大纲去重（保留带后缀版） | 写回 8 条伏笔一键入账；`learn --from-journal` 直接可跑。**勘误**：真仓 `foreshadow_writeback` 实际 7 条，验收按数组长度，不造第 8 条 |
 
 **阶段三 P3-1 完成（2026-09-04，Cursor；spec/plan 见 `docs/cursor/阶段三-settle后置钩子/`；实现 `6ed016f`）**
 
@@ -249,6 +249,28 @@ create_chapter_batch 不读详细大纲（无论叫什么名字）→ 标题自�
 额外（方案 A）：`test_status_does_not_write_journal`；`test_mark_cleared_rejects_when_empty` exit 2；`test_extra_cleared_does_not_swallow_later_required`。
 
 偏差：① 无 ledger。② CLI 夹具须有 `book.yaml`（`webnovel.py` 宽松根解析认 v7 书仓）。③ 测试跨文件 import 把 `scripts/tests` 加入 `sys.path`。Task 2+3 合并为一次提交 `f23eeb5`。
+
+**阶段三 P3-3 完成（2026-09-04，Cursor；spec/plan 见 `docs/cursor/阶段三-写回播种与CLI/`；实现 `cd6016d`；书仓 `e28e7c5`）**
+
+| 任务 | 状态 | 证据（验收原文 → 测试 / 命令输出） |
+|---|---|---|
+| P3-3 | ✅ `cd6016d` + 书仓 `e28e7c5` | 「写回 8 条伏笔一键入账」→ 勘误为数组长度 7：`test_seeds_seven_foreshadow_entries` created=`F-001`…`F-007`，第二次 `test_idempotent_skips_duplicate_names` skipped=7。真仓未跑 seed（spec §2）。「`learn --from-journal` 直接可跑」→ `test_learn_from_journal_without_nested_action`；`webnovel.py learn -h` → `[{learn,apply,show}]` 可选。③ `resolve_detailed_outline(fantasy01, 1)` → `第01卷-详细大纲.md`，`第01卷.md` 已不存在。 |
+
+**范围/实现对照（spec §6 原文 → 证据）：**
+
+| # | 方案原文 | 证据 |
+|---|---|---|
+| 1 | 读 `第NN卷-总纲写回.json` 的 foreshadow_writeback 数组建账本条目 | `test_seeds_seven_foreshadow_entries`：7 个 `F-*.md`，`名称` 与夹具 `content` 一一对应；`test_ignores_open_loop_writeback` 不建悬念 |
+| 2 | promise-ledger 增 `seed-from-writeback` | `webnovel.py promise-ledger -h` 含 `{create,list,update,seed-from-writeback}`；`test_cli_seed_and_help` 缺 `--volume` 非 0 |
+| 3 | 验收：写回 8 条伏笔一键入账 | **勘误为 7**：同上 created=7 / 幂等 skipped=7；不以字面 8 造数据 |
+| 4 | 修 `learn` CLI 冗余参数（action 默认 learn） | `test_learn_from_journal_without_nested_action`；`learn -h` action 可选 |
+| 5 | 验收：`learn --from-journal` 直接可跑 | 同上；`test_learn_learn_from_journal_still_works`；`test_learn_apply_still_requires_explicit_action` |
+| 6 | fantasy01 重复详细大纲去重（保留带后缀版） | 删除前 SHA-256 相同；书仓 `e28e7c5` 删 `大纲/卷纲/第01卷.md`；`dup_exists False`；解析器指向 `-详细大纲.md` |
+| 7 | 回归 | `test_promise_ledger.py` / `test_author_model.py` 定点全绿；`pytest -o addopts="" -q --cov …` → `1568 passed, 23 warnings in 127.90s`；`Total coverage: 82.97%`；evals fast 23/23；`validate_plugin_package.py` OK；`validate_reference_wiring.py` drift=0；`sync_plugin_version.py --check` → `Versions are in sync: 8.0.0` |
+
+额外（方案 A）：`test_missing_file_exit_2_no_write` exit 2；`test_bad_buried_chapter_fails_item_keeps_rest` 坏章号 failed、其余仍种；空 payoff → `最晚回收章==0`。
+
+偏差：① 无 ledger。② 真仓 fantasy01 不跑 seed（会新增 F-004 起且与现有 F-001 名称对不上）。③ Task 1–3 合并为 `cd6016d`；Task 4 在书仓 `e28e7c5`。阶段三 P3-1/P3-2/P3-3 全部完成。
 
 ### 阶段四：体检与体验（预计 3 个任务，~1 天）
 
