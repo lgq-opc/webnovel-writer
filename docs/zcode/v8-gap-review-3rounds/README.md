@@ -173,7 +173,7 @@ create_chapter_batch 不读详细大纲（无论叫什么名字）→ 标题自�
 |---|---|---|
 | P2-1 | ✅ `948bf79` `06028ac` `0ea89e3` `a939ef7` | 「fantasy01 建卡 43「夜袭」与大纲一致」→ 只读副本 `create_chapter_batch(..., 标题=夜袭, 卷=1)`：`MATCH_OK True outline_codes []`，`MATCH_WARNINGS []`；解析到规范路径 `大纲/卷纲/第01卷-详细大纲.md`，`heading43=夜袭`。「错标题被 warning 报出」→ 同副本 `标题=错名`：`WRONG_OK True codes ['outline_title_mismatch']` 且 `0043.md` 仍落盘。单测：`test_chapter_outline_batch.py::TestConsistencyGate::test_title_mismatch_is_warning_but_card_is_written`。 |
 | P2-2 | ✅ `a939ef7` | 「F-999 引用被拒」→ 单测 `test_missing_promise_is_error_with_zero_side_effects`（`ok=False, error=consistency_gate`，零卡）；副本冒烟 `F999_OK False error consistency_gate codes ['promise_not_found', 'time_regression']`，无 `0099.md`。「时间倒流被拒」→ `test_time_regression_from_confirmed_card_is_error` / `test_time_regression_from_settled_front_matter`。战力/人物为 warning：`test_unknown_realm_is_warning` / `test_unknown_character_is_warning`。 |
-| P2-3 | 未开工 | 见 `docs/cursor/阶段二-数据不变量/` |
+| P2-3 | 进行中 `c304aa9` | Task 1：六项报告骨架 + `webnovel.py invariants` CLI（空 v7 = 5 pass / 1 skip）。Inv-1…6 实现尚未替换骨架。 |
 
 **范围/实现对照（对照方案条目，非只报测试全绿）：**
 
