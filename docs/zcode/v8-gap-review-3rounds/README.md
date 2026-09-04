@@ -64,6 +64,8 @@ create_chapter_batch 不读详细大纲（无论叫什么名字）→ 标题自�
 **实测**（fantasy01 真仓跑 `build_doctor_report`）：只有 8 个环境检查（python.version / 依赖导入×7），**零治理检查**。MCP `webnovel_doctor` 暴露的也是这个空壳版本。
 
 > **勘误 2026-09-04（复审 §6）**：「零治理检查」属实；「只有环境检查」是表象——`build_doctor_report`（`doctor.py:861-945`）本有 12 组项目检查（preflight / file / json / story_runtime / sqlite / total_words / projection_log / extraction / contract_version / run_log / rag / domain_contract），在 fantasy01 只跑出环境组是因为 doctor **对纯 v7 书仓解析不到项目根**（依赖 `.webnovel/state.json`，08 计划 T1 证据行已登记「phase 解析限制」但未排任务）。`_python_checks` 实为 version + 6 import = 7 项。修复见 P4-0。
+>
+> **P4-0 完成记录（2026-09-04）**：根解析已修。fantasy01 CLI doctor `phase=v7_story_repo`，§4.6 十二组前缀 12/12，`check_count=32`，不再只剩 python.*。P4-1 八组治理检查仍未建，不把本节改成「已有治理检查」。
 
 ### 2.2 06 §12 六条数据不变量仅 1 条实现
 
@@ -282,6 +284,26 @@ create_chapter_batch 不读详细大纲（无论叫什么名字）→ 标题自�
 | **P4-1 doctor 治理检查组** | doctor 增 8 组检查（F-13）：journal 水位/stale 积压/轨迹-manifest/锚点-正文/条目状态机/素材健康（复用 material_review stats）/画廊积压/合同对账（调 P2-3）；MCP webnovel_doctor 自动受益。**F-13 在 08 计划中从未排期**（对账见 `docs/cursor/项目复审/2026-09-04-copilot-300-规格对账表.md`），本项即其唯一落地点 | fantasy01 doctor 输出治理组结论 |
 | **P4-2 dashboard 账本视图** | governance.py 增承诺账本视图（各状态计数+逾期列表）；GovernancePage 增第七段 | 面板可见 F-001~S-001 状态 |
 | **P4-3 播种复合题材 + name-check 绰号** | ①seed 支持复合键（都市+仙侠+科幻 → 三键并集）；②name-check 增正文浮动名扫描（最近 N 章高频专名，warning 级） | fantasy01 播种含仙侠素材；「铁牙」类绰号被提示 |
+
+**阶段四 P4-0 完成（2026-09-04，Cursor；spec/plan 见 `docs/cursor/阶段四-doctor根解析/`；实现 `47e661c`）**
+
+| 任务 | 状态 | 证据（验收原文 → 测试 / 命令输出） |
+|---|---|---|
+| P4-0 | ✅ `47e661c` | 「改 doctor 根解析兼容 `book.yaml` 书仓」→ tmp `phase=v7_story_repo`；fantasy01 CLI `phase=v7_story_repo`、`preflight.project_root` ok。「phase 推导走 v7 定稿目录」→ `test_v7_book_yaml_is_story_repo_phase` 章号 42；`test_v7_ignores_v6_zhengwen_flat_dir` 不读 `正文/`。「fantasy01 doctor 输出 ≥12 组既有检查而非仅 python.*」→ 十二组前缀 12/12，`check_count=32`，`python_only False`。 |
+
+**范围/实现对照（spec §6 原文 → 证据）：**
+
+| # | 方案原文 | 证据 |
+|---|---|---|
+| 1 | 改 doctor 根解析兼容 `book.yaml` 书仓 | `test_v7_book_yaml_is_story_repo_phase`；`test_doctor_v7_runs_project_groups_not_only_python` 无 `project.root`；fantasy01 `project_root=…\fantasy01` |
+| 2 | phase 推导走 v7 定稿目录 | `定稿/正文/0042-夜袭.md` → `target_chapter==42` / `latest_accepted_chapter==42`；v6 平铺 `正文/第0099章.md` 不影响（latest=0） |
+| 3 | 验收：fantasy01 doctor 输出 ≥12 组既有检查而非仅 python.* | CLI json：`group_hits 12 / 12`，`missing []`；`python_only False` |
+| 4 | §2.1 措辞「零治理检查」 | 历史勘误段未改实测句；上补 P4-0 完成记录（12 组已跑到）。P4-1 治理组仍未建 |
+| 5 | 回归 | `test_doctor.py` / `test_project_phase.py` 定点全绿；`pytest -o addopts="" -q` → `1575 passed in 122.50s`；`Total coverage: 82.99%`；evals fast 23/23；`validate_plugin_package.py` OK；`validate_reference_wiring.py` drift=0；`sync_plugin_version.py --check` → `Versions are in sync: 8.0.0` |
+
+额外（方向 2）：`test_doctor_v7_missing_finalized_dir_errors` → `file.v7.dir.定稿/正文` error；fantasy01 无 `file.dir.设定集`；`test_doctor_cli_v7_emits_twelve_groups` + 真仓 `preflight.project_root` ok。
+
+偏差：① 无 ledger。② Task 1–3 合并为一次提交 `47e661c`。③ `_resolve_root_lenient` 入参改为 `Optional[str]`，避免 preflight 无根时 `Path(None)`。
 
 ### 依赖关系
 

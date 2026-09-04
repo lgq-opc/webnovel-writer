@@ -46,7 +46,7 @@ README P4-0 勾选留收尾。
 
 **文件：** `test_project_phase.py`、`test_doctor.py`
 
-- [ ] 在 `test_project_phase.py` 增加（文件顶部 import `PHASE_NO_PROJECT`、`PHASE_V7_STORY_REPO`）：
+- [x] 在 `test_project_phase.py` 增加（文件顶部 import `PHASE_NO_PROJECT`、`PHASE_V7_STORY_REPO`）：
 
 ```python
 def _make_v7_repo(root: Path, *, settled: str | None = "0042-夜袭.md") -> Path:
@@ -88,7 +88,7 @@ def test_empty_dir_without_state_or_yaml_is_no_project(tmp_path):
     assert snapshot.phase == PHASE_NO_PROJECT
 ```
 
-- [ ] 在 `test_doctor.py` 增加（可把 `_make_v7_repo` 放本文件或从 phase 测试导入）：
+- [x] 在 `test_doctor.py` 增加（可把 `_make_v7_repo` 放本文件或从 phase 测试导入）：
 
 ```python
 _SCRIPTS = Path(__file__).resolve().parents[2]
@@ -159,7 +159,7 @@ def test_doctor_cli_v7_emits_twelve_groups(tmp_path):
 
 跨文件 import：`test_doctor.py` 与 `test_project_phase.py` 同目录，pytest 收集时通常可 `from .test_project_phase import _make_v7_repo` 或同包相对导入。若失败，把 `_make_v7_repo` 复制进 `test_doctor.py`。
 
-- [ ] RED：
+- [x] RED：
 
 ```powershell
 python -X utf8 -m pytest webnovel-writer/scripts/data_modules/tests/test_project_phase.py webnovel-writer/scripts/data_modules/tests/test_doctor.py -q --no-cov -p no:cacheprovider -k "v7 or empty_dir_without or state_json_wins or twelve_groups or missing_finalized"
@@ -171,9 +171,9 @@ python -X utf8 -m pytest webnovel-writer/scripts/data_modules/tests/test_project
 
 **文件：** `project_phase.py`、`doctor.py`
 
-- [ ] `PHASE_V7_STORY_REPO = "v7_story_repo"` 加入 `PHASES`。
+- [x] `PHASE_V7_STORY_REPO = "v7_story_repo"` 加入 `PHASES`。
 
-- [ ] `resolve_project_phase` 在 `if not state_path.is_file()` 分支：
+- [x] `resolve_project_phase` 在 `if not state_path.is_file()` 分支：
 
 ```python
     if not state_path.is_file():
@@ -204,11 +204,11 @@ python -X utf8 -m pytest webnovel-writer/scripts/data_modules/tests/test_project
         )
 ```
 
-- [ ] `doctor.py` import `PHASE_V7_STORY_REPO`。早退 `project.root` 的 `expected` 改为 `book.yaml or .webnovel/state.json`。
+- [x] `doctor.py` import `PHASE_V7_STORY_REPO`。早退 `project.root` 的 `expected` 改为 `book.yaml or .webnovel/state.json`。
 
-- [ ] `_expected_profile`：若 `snapshot.phase == PHASE_V7_STORY_REPO`，files=`["book.yaml"]`，dirs=`["定稿/正文","大纲","作者"]`，return。
+- [x] `_expected_profile`：若 `snapshot.phase == PHASE_V7_STORY_REPO`，files=`["book.yaml"]`，dirs=`["定稿/正文","大纲","作者"]`，return。
 
-- [ ] `_file_checks` 开头：v7 phase 只跑：
+- [x] `_file_checks` 开头：v7 phase 只跑：
 
 ```python
 V7_FILE_CHECKS = (
@@ -237,9 +237,9 @@ def _v7_file_checks(project_root: Path) -> list[dict[str, Any]]:
     return checks
 ```
 
-- [ ] `_total_words_reconcile_check`：读 state 失败（缺文件）时改为一条 skipped，不要 `return []`。其它早退（无漂移、无 index）保持 `return []`。
+- [x] `_total_words_reconcile_check`：读 state 失败（缺文件）时改为一条 skipped，不要 `return []`。其它早退（无漂移、无 index）保持 `return []`。
 
-- [ ] GREEN（可先不含 CLI 若 preflight 仍红）：
+- [x] GREEN（可先不含 CLI 若 preflight 仍红）：
 
 ```powershell
 python -X utf8 -m pytest webnovel-writer/scripts/data_modules/tests/test_project_phase.py webnovel-writer/scripts/data_modules/tests/test_doctor.py -q --no-cov -p no:cacheprovider
@@ -251,11 +251,11 @@ python -X utf8 -m pytest webnovel-writer/scripts/data_modules/tests/test_project
 
 **文件：** `webnovel.py`
 
-- [ ] `_build_preflight_report` 把 `_resolve_root(explicit_project_root)` 换成 `_resolve_root_lenient(explicit_project_root)`。`_resolve_root_lenient` 已先严格再认 `is_story_repo`。
+- [x] `_build_preflight_report` 把 `_resolve_root(explicit_project_root)` 换成 `_resolve_root_lenient(explicit_project_root)`。`_resolve_root_lenient` 已先严格再认 `is_story_repo`。
 
-- [ ] GREEN 含 `test_doctor_cli_v7_emits_twelve_groups` 与全部 doctor / project_phase。
+- [x] GREEN 含 `test_doctor_cli_v7_emits_twelve_groups` 与全部 doctor / project_phase。
 
-- [ ] 提交（实现 + 测试，不含 spec/plan）：
+- [x] 提交（实现 + 测试，不含 spec/plan）：
 
 ```text
 feat(doctor): 纯 v7 书仓解析项目根并按定稿体检
@@ -267,7 +267,9 @@ Task 2+3 可合成一次提交。
 
 ## 完成定义（实现期）
 
-- 新测试全绿；既有 doctor / project_phase 全绿。
-- tmp v7 CLI json 具备 spec §4.6 十二组前缀；`preflight.project_root` ok。
-- 缺 `定稿/正文` error；无 `file.dir.设定集` error。
-- 全量回归与 README W1 留收尾。
+- [x] 新测试全绿；既有 doctor / project_phase 全绿。
+- [x] tmp v7 CLI json 具备 spec §4.6 十二组前缀；`preflight.project_root` ok。
+- [x] 缺 `定稿/正文` error；无 `file.dir.设定集` error。
+- [x] 全量回归与 README W1（收尾提交）。
+
+实现提交：`47e661c`。Task 2+3 合并为一次提交。
