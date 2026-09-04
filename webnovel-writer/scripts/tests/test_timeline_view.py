@@ -18,9 +18,11 @@ import pytest
 def book(tmp_path: Path) -> Path:
     from data_modules.chapter_outline_batch import create_chapter_batch
     from data_modules.domain_contract import init_domain_skeleton
+    from data_modules.promise_ledger import create_entry
 
     init_domain_skeleton(tmp_path)
     (tmp_path / "大纲" / "卷纲").mkdir(parents=True, exist_ok=True)
+    create_entry(tmp_path, kind="伏笔", name="揭示部分真相", planted_chapter=1, due_chapter=80, entry_id="F-003")
     create_chapter_batch(
         tmp_path,
         [
