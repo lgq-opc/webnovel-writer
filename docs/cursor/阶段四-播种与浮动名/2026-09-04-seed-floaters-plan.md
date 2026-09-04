@@ -51,7 +51,7 @@ README / 交接留收尾。
 
 **文件：** `test_genre_taxonomy.py`、`test_material_store.py`
 
-- [ ] `test_genre_taxonomy.py` 增加：
+- [x] `test_genre_taxonomy.py` 增加：
 
 ```python
 def test_compound_label_keeps_union_and_single_canonical():
@@ -63,7 +63,7 @@ def test_compound_label_keeps_union_and_single_canonical():
     assert seed_genre_label("都市+仙侠+科幻") == "都市+仙侠+科幻"
 ```
 
-- [ ] 在 `test_material_store.py` 的夹具源 CSV 增加仅 `仙侠` 适用的桥段行（如 `TR-XIAN`），并增加：
+- [x] 在 `test_material_store.py` 的夹具源 CSV 增加仅 `仙侠` 适用的桥段行（如 `TR-XIAN`），并增加：
 
 ```python
 def test_seed_compound_genre_includes_xianxia_rows(self, book: Path, source_dir: Path):
@@ -85,7 +85,7 @@ def test_seed_compound_genre_includes_xianxia_rows(self, book: Path, source_dir:
 
 夹具 `book / "u"` 与 `book / "m"` 需 `mkdir`；`source_dir` 的桥段表必须能按「适用题材」筛到 `TR-XIAN`（`仙侠`）与都市行。若现有夹具列名不同，按该文件已有 `_write_csv` 格式追加一行，不要另造一套列。
 
-- [ ] RED：
+- [x] RED：
 
 ```powershell
 python -X utf8 -m pytest webnovel-writer/scripts/tests/test_genre_taxonomy.py webnovel-writer/scripts/tests/test_material_store.py -q --no-cov -p no:cacheprovider -k "compound_label or compound_genre or seed_"
@@ -95,7 +95,7 @@ python -X utf8 -m pytest webnovel-writer/scripts/tests/test_genre_taxonomy.py we
 
 ## Task 2：播种实现
 
-- [ ] `GenreResolution` 增加 `canonical_genres: list[str] = field(default_factory=list)`。在 `resolve_genre_input` 填完 `canonical_genre` 后：
+- [x] `GenreResolution` 增加 `canonical_genres: list[str] = field(default_factory=list)`。在 `resolve_genre_input` 填完 `canonical_genre` 后：
 
 ```python
     for entry in matched:
@@ -104,7 +104,7 @@ python -X utf8 -m pytest webnovel-writer/scripts/tests/test_genre_taxonomy.py we
             resolution.canonical_genres.append(canon)
 ```
 
-- [ ] 增加：
+- [x] 增加：
 
 ```python
 def seed_genre_label(raw: str) -> str:
@@ -114,9 +114,9 @@ def seed_genre_label(raw: str) -> str:
     return str(raw or "").strip()
 ```
 
-- [ ] `init_project.py` 将 `seed_materials(project_path, genre=canonical_genre)` 改为 `seed_materials(project_path, genre=seed_genre_label(genre))`（`from genre_taxonomy import seed_genre_label`，已有 `resolve_genre_input` 导入处并列）。
+- [x] `init_project.py` 将 `seed_materials(project_path, genre=canonical_genre)` 改为 `seed_materials(project_path, genre=seed_genre_label(genre))`（`from genre_taxonomy import seed_genre_label`，已有 `resolve_genre_input` 导入处并列）。
 
-- [ ] GREEN：Task 1 命令去掉 RED 预期。既有 `test_seed_filters_by_genre_and_caps` 仍绿。
+- [x] GREEN：Task 1 命令去掉 RED 预期。既有 `test_seed_filters_by_genre_and_caps` 仍绿。
 
 ---
 
@@ -124,7 +124,7 @@ def seed_genre_label(raw: str) -> str:
 
 **文件：** `test_continuity_check.py`
 
-- [ ] 增加：
+- [x] 增加：
 
 ```python
 def _plant_settled_chapter(root: Path, chapter: int, body: str) -> None:
@@ -165,7 +165,7 @@ def test_cli_scan_exit_zero_with_warning(book: Path, capsys):
 
 `book` 夹具已有名册苏小白、无铁牙。
 
-- [ ] RED：
+- [x] RED：
 
 ```powershell
 python -X utf8 -m pytest webnovel-writer/scripts/tests/test_continuity_check.py -q --no-cov -p no:cacheprovider -k "scan_ or cli_scan"
@@ -175,7 +175,7 @@ python -X utf8 -m pytest webnovel-writer/scripts/tests/test_continuity_check.py 
 
 ## Task 4：浮动名实现
 
-- [ ] `continuity_check.py`：
+- [x] `continuity_check.py`：
 
 ```python
 FLOATER_WINDOW = 5
@@ -222,21 +222,21 @@ def scan_floating_names(
 
 `check_name_conflicts` 返回值加 `"floaters": []`。`main`：`--scan`；无 `--scan` 且无 `--name` 仍 error。有 `--scan` 时把 `scan_floating_names` 写入 `floaters`。json 整份 dump。text 在冲突块之后若 floaters 非空则打印 `WARNING 浮动名 {n} 个：` 及名单。仅 scan、无冲突、有浮动名 → 仍 exit 0。
 
-- [ ] `webnovel.py`：`p_name_check` 的 `--name` 改为 `default=""`、去掉 `required=True`；增加 `--scan`。`cmd_name_check` 转发 `--format`；`--scan` 时 argv 加 `--scan`；有 name 才加 `--name`。
+- [x] `webnovel.py`：`p_name_check` 的 `--name` 改为 `default=""`、去掉 `required=True`；增加 `--scan`。`cmd_name_check` 转发 `--format`；`--scan` 时 argv 加 `--scan`；有 name 才加 `--name`。
 
-- [ ] GREEN：Task 3 命令 + 既有 `TestNameConflict`。
+- [x] GREEN：Task 3 命令 + 既有 `TestNameConflict`。
 
 ---
 
 ## Task 5：提交
 
-- [ ] 播种（taxonomy + init + 两份测试）：
+- [x] 播种（taxonomy + init + 两份测试）：
 
 ```text
 feat(materials): 复合题材按 canonical 并集播种
 ```
 
-- [ ] 浮动名（continuity + webnovel + 测试）：
+- [x] 浮动名（continuity + webnovel + 测试）：
 
 ```text
 feat(name-check): 扫描近章未入册高频专名

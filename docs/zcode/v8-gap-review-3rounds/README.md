@@ -352,6 +352,26 @@ create_chapter_batch 不读详细大纲（无论叫什么名字）→ 标题自�
 
 偏差：① 无 ruling ledger。② Task 1–3 合并为 `0f399fe`。③ 浏览器 DOM 未走 Playwright，用 API + dist 文案代替。
 
+**阶段四 P4-3 完成（2026-09-04，Cursor；spec/plan 见 `docs/cursor/阶段四-播种与浮动名/`；实现 `9160aff` / `d2cbd44`）**
+
+| 任务 | 状态 | 证据（验收原文 → 测试 / 命令输出） |
+|---|---|---|
+| P4-3 | ✅ `9160aff` `d2cbd44` | 「seed 支持复合键（都市+仙侠+科幻 → 三键并集）」→ `test_compound_label_keeps_union_and_single_canonical`：`canonical_genre==都市`，`canonical_genres==[都市,仙侠,科幻]`。「name-check 增正文浮动名扫描」→ `test_scan_flags_unlisted_nickname` / `test_cli_scan_exit_zero_with_warning` exit 0。验收「fantasy01 播种含仙侠素材」→ tmp 空仓 `seed_genre_label("都市+仙侠+科幻")` 桥段含 TR-001/006/008/013/014/017（适用题材含仙侠），单键都市 0 条仙侠；真仓未 seed。「铁牙类绰号被提示」→ 夹具未入册铁牙入 floaters；真仓铁牙已入册故不在 floaters，`--scan` 只读跑通。 |
+
+**范围/实现对照（spec §6 原文 → 证据）：**
+
+| # | 方案原文 | 证据 |
+|---|---|---|
+| 1 | seed 支持复合键（都市+仙侠+科幻 → 三键并集） | `canonical_genres` 三键；夹具 `TR-XIAN` 仅并集命中；`test_seed_compound_genre_includes_xianxia_rows` |
+| 2 | name-check 增正文浮动名扫描（最近 N 章高频专名，warning 级） | 未入册「铁牙」≥2 → floaters；已入册「苏小白」不报；`--scan` JSON exit 0 |
+| 3 | fantasy01 播种含仙侠素材 | 用其题材标签在 **空 tmp** 播种；`mixed_has_xianxia: True`；真仓 `素材/活` 未写 |
+| 4 | 「铁牙」类绰号被提示 | 夹具未入册铁牙；真仓 scan `fantasy01_has_tieya: False`（已入册） |
+| 5 | 回归 | 定点 15 passed；`pytest -o addopts="" -q` → `1588 passed in 108.26s`；`Total coverage: 83.03%`；evals fast 23/23；三校验器 OK；`Versions are in sync: 8.0.0` |
+
+额外：扫描取 CJK 串 2–4 字前缀，并丢掉名册正名/别名的前后缀碎片。真参考库每表 cap=30，并集含仙侠行时都市行不必是并集子集（夹具行少时 `urban_ids <= mixed_ids` 仍成立）。
+
+偏差：① 无 ruling ledger。② 真库 cap=30 使 `urban_ids ⊆ mixed_ids` 不成立，验收以「含仙侠行」为准。
+
 ### 依赖关系
 
 ```
