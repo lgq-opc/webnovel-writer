@@ -434,6 +434,18 @@ def cmd_volume_reconcile(args: argparse.Namespace) -> int:
     return volume_reconcile.main(argv)
 
 
+def cmd_invariants(args: argparse.Namespace) -> int:
+    """数据不变量校验（v8-gap-review 阶段二 P2-3）：06 §12 六条只读报告。"""
+    from data_modules.invariant_check import main as invariants_main
+
+    root = _resolve_root_lenient(args.project_root)
+    only = [part.strip() for part in (args.only or "").split(",") if part.strip()]
+    argv = ["--project-root", str(root), "--format", args.format]
+    if only:
+        argv.extend(["--only", ",".join(only)])
+    return invariants_main(argv)
+
+
 def _project_root_diagnostic(
     explicit_project_root: Optional[str], exc: FileNotFoundError
 ) -> str:
@@ -1081,6 +1093,11 @@ def _main_impl() -> None:
     p_reconcile.add_argument("--volume", type=int, required=True, help="卷号")
     p_reconcile.add_argument("--format", choices=["text", "json"], default="text", help="输出格式")
     p_reconcile.set_defaults(func=cmd_volume_reconcile)
+
+    p_invariants = sub.add_parser("invariants", help="数据不变量校验（P2-3）：journal/轨迹/战力/条目/合同/stale 六项只读报告")
+    p_invariants.add_argument("--format", choices=["text", "json"], default="text", help="输出格式")
+    p_invariants.add_argument("--only", default="", help="逗号分隔检查 id（如 inv-1-journal,inv-5-contracts）")
+    p_invariants.set_defaults(func=cmd_invariants)
 
     p_timeline_check = sub.add_parser("timeline-check", help="程序化校验卷时间线（单调递增/倒计时算术）")
     p_timeline_check.add_argument("--volume", type=int, required=True, help="卷号")
