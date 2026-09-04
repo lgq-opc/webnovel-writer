@@ -37,6 +37,28 @@ def extract_hook_fields(extraction_result: dict[str, Any]) -> tuple[str, str]:
     return hook_type, hook_strength
 
 
+def settle_reading_power(project_root: str | Path, chapter: int, summary_text: str = "") -> dict[str, Any]:
+    """v7 settle 后置：从摘要 front matter 提取钩子并写入 chapter_reading_power。无 hook_type 则 skip。"""
+    root = Path(project_root)
+    hook_type, hook_strength = extract_hook_fields({"summary_text": summary_text or ""})
+    if not hook_type:
+        summary_file = root / "定稿" / "记忆" / "章摘要" / f"{int(chapter):04d}.md"
+        if summary_file.is_file():
+            hook_type, hook_strength = extract_hook_fields({"summary_text": summary_file.read_text(encoding="utf-8")})
+    if not hook_type:
+        return {"ok": True, "applied": False, "status": "skipped", "reason": "not_required"}
+    from .config import DataModulesConfig
+    from .index_manager import ChapterReadingPowerMeta, IndexManager
+
+    meta = ChapterReadingPowerMeta(
+        chapter=int(chapter),
+        hook_type=hook_type,
+        hook_strength=hook_strength or "medium",
+    )
+    IndexManager(DataModulesConfig.from_project_root(root)).save_chapter_reading_power(meta)
+    return {"ok": True, "applied": True, "status": "ok", "hook_type": hook_type, "chapter": int(chapter)}
+
+
 class ReadingPowerProjectionWriter:
     name = "reading_power"
 

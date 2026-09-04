@@ -256,3 +256,4 @@ class TestSettleCli:
 
         assert proc.returncode == 0, proc.stderr
         assert "OK v7-write settle chapter=42" in proc.stdout and "bypassed=True" in proc.stdout
+        assert "post=" in proc.stdout

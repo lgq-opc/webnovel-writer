@@ -605,6 +605,92 @@ def _run_gates(repo: Path, decision: dict[str, Any], body: str, *, bypass_reason
     return gates
 
 
+_SETTLE_ADD_PATHS = (
+    "定稿",
+    "素材/使用轨迹.jsonl",
+    "文风/指纹.yaml",
+    "作者/journal.jsonl",
+    ".webnovel/index.db",
+)
+
+
+def _run_post_hooks(repo: Path, chapter: int, summary_text: str) -> dict[str, Any]:
+    """P3-1：素材轨迹 → 文风指纹/采样 → 追读力。各自失败不阻断 settle。"""
+    post: dict[str, Any] = {}
+    try:
+        from data_modules.material_usage import log_chapter_materials
+
+        report = log_chapter_materials(repo, chapter)
+        if report.get("ok"):
+            post["materials"] = {"status": "ok", "logged": len(report.get("logged") or [])}
+        elif report.get("error") == "already_logged":
+            post["materials"] = {"status": "already_logged"}
+        else:
+            post["materials"] = {"status": "skipped", "reason": str(report.get("error") or "")}
+    except Exception as exc:
+        post["materials"] = {"status": "error", "reason": str(exc)}
+    try:
+        from data_modules.style_domain import settle_style_domain
+
+        review = repo / ".webnovel" / "tmp" / "review_results.json"
+        extraction = repo / ".webnovel" / "tmp" / "extraction_result.json"
+        style = settle_style_domain(
+            repo,
+            chapter=chapter,
+            review_file=review if review.is_file() else None,
+            extraction_file=extraction if extraction.is_file() else None,
+        )
+        post["style"] = {
+            "status": "ok",
+            "recorded": int(style.get("recorded") or 0),
+            "fingerprint_chapters": style.get("fingerprint_chapters", 0),
+        }
+    except Exception as exc:
+        post["style"] = {"status": "error", "reason": str(exc)}
+    try:
+        from data_modules.reading_power_projection import settle_reading_power
+
+        post["reading"] = settle_reading_power(repo, chapter, summary_text)
+    except Exception as exc:
+        post["reading"] = {"status": "error", "reason": str(exc)}
+    return post
+
+
+def _git_ignored(repo: Path, rel: str) -> bool:
+    probe = subprocess.run(
+        ["git", "-C", str(repo), "check-ignore", "-q", "--", rel],
+        capture_output=True,
+    )
+    return probe.returncode == 0
+
+
+def _git_add_settle_paths(repo: Path) -> list[str]:
+    added: list[str] = []
+    for rel in _SETTLE_ADD_PATHS:
+        path = repo / rel
+        if rel != "定稿" and not path.exists():
+            continue
+        if _git_ignored(repo, rel):
+            continue
+        _git(repo, "add", "--", rel)
+        added.append(rel)
+    return added
+
+
+def _format_post(post: dict[str, Any]) -> str:
+    materials = post.get("materials") or {}
+    style = post.get("style") or {}
+    reading = post.get("reading") or {}
+    mat = str(materials.get("status") or "skipped")
+    if mat == "ok":
+        mat = f"ok/{int(materials.get('logged') or 0)}"
+    sty = str(style.get("status") or "skipped")
+    if sty == "ok":
+        sty = f"fp={style.get('fingerprint_chapters', 0)},samples={style.get('recorded', 0)}"
+    read = str(reading.get("status") or "skipped")
+    return f"materials:{mat} style:{sty} reading:{read}"
+
+
 def settle(
     repo: Path,
     decision: dict[str, Any],
@@ -719,8 +805,9 @@ def settle(
                     }
                 ],
             )
+        result["post"] = _run_post_hooks(repo, chapter, summary_text)
         if commit:
-            _git(repo, "add", "定稿")
+            _git_add_settle_paths(repo)
             _commit_with_identity_fallback(repo, f"settle: 第{chapter:04d}章 {title}")
             result["committed"] = True
     except Exception as exc:
@@ -783,7 +870,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     p_check.add_argument("--chapter", type=int, required=True)
     p_check.add_argument("--draft", required=True)
     p_check.add_argument("--json", required=True, help="决策内容 JSON 文件")
-    p_settle = sub.add_parser("settle", help="门禁（审查/文笔/素材引用）+ 原子落定（正文/章摘要/新实体 + git commit）")
+    p_settle = sub.add_parser("settle", help="门禁 + 原子落定 + 后置落账（轨迹/指纹/追读力）")
     p_settle.add_argument("--repo", required=True)
     p_settle.add_argument("--chapter", type=int, required=True)
     p_settle.add_argument("--draft", required=True)
@@ -833,7 +920,8 @@ def main(argv: Optional[list[str]] = None) -> int:
             return 2 if "机检" in str(exc) else 1
         print(
             f"OK v7-write settle chapter={args.chapter} committed={result['committed']} "
-            f"bypassed={result['gates']['bypassed']} file={result['chapter_file']}"
+            f"bypassed={result['gates']['bypassed']} file={result['chapter_file']} "
+            f"post={_format_post(result.get('post') or {})}"
         )
         return 0
     return 0
