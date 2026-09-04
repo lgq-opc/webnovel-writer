@@ -167,6 +167,22 @@ create_chapter_batch 不读详细大纲（无论叫什么名字）→ 标题自�
 | **P2-2 self_check_batch 增 4 项** | ①承诺 ID 存在于账本（load_entries）；②时间锚跨批单调（读已确认卡+定稿时间锚取最大）；③战力事件境界名 ∈ 境界链；④人物 ∈ 名册∪决策卡 entities（warning 级） | F-999 引用被拒；时间倒流被拒 |
 | **P2-3 数据不变量校验器** | 新 `data_modules/invariant_check.py`：实现 06 §12 六条（journal 积压/轨迹-manifest 一致/战例-正文对账/合同重建对账/stale 超一卷+状态机复检），CLI `webnovel.py invariants` | fantasy01 跑出六条各自结论 |
 
+**阶段二 P2-1/P2-2 完成（2026-09-04，Cursor；spec/plan 见 `docs/cursor/阶段二-章纲一致性闸/`）**
+
+| 任务 | 状态 | 证据（验收原文 → 测试 / 命令输出） |
+|---|---|---|
+| P2-1 | ✅ `948bf79` `06028ac` `0ea89e3` `a939ef7` | 「fantasy01 建卡 43「夜袭」与大纲一致」→ 只读副本 `create_chapter_batch(..., 标题=夜袭, 卷=1)`：`MATCH_OK True outline_codes []`，`MATCH_WARNINGS []`；解析到规范路径 `大纲/卷纲/第01卷-详细大纲.md`，`heading43=夜袭`。「错标题被 warning 报出」→ 同副本 `标题=错名`：`WRONG_OK True codes ['outline_title_mismatch']` 且 `0043.md` 仍落盘。单测：`test_chapter_outline_batch.py::TestConsistencyGate::test_title_mismatch_is_warning_but_card_is_written`。 |
+| P2-2 | ✅ `a939ef7` | 「F-999 引用被拒」→ 单测 `test_missing_promise_is_error_with_zero_side_effects`（`ok=False, error=consistency_gate`，零卡）；副本冒烟 `F999_OK False error consistency_gate codes ['promise_not_found', 'time_regression']`，无 `0099.md`。「时间倒流被拒」→ `test_time_regression_from_confirmed_card_is_error` / `test_time_regression_from_settled_front_matter`。战力/人物为 warning：`test_unknown_realm_is_warning` / `test_unknown_character_is_warning`。 |
+| P2-3 | 未开工 | 见 `docs/cursor/阶段二-数据不变量/` |
+
+**范围/实现对照（对照方案条目，非只报测试全绿）：**
+
+- 规范写路径 `大纲/卷纲/第NN卷-详细大纲.md`；兼容读：规范 → `第NN卷.md` → v6 平铺/空格变体（`outline_paths.py`）。
+- 新检查不塞进 `self_check_batch`（签名仍 `list[str]`）；由 `validate_chapter_batch` 产出结构化 `errors/warnings`，`create_chapter_batch` 组合后 `checks` 仍为 warning 文本。
+- **偏差**：验收原文写「第02卷」，fantasy01 第43章在 **第01卷**（卡 `卷: 1`，规范文件 `第01卷-详细大纲.md`），冒烟按真仓卷号，未伪造第02卷文件。Task 4+5 合并为一次提交 `a939ef7`（闸实现不可拆）。`init_domain_skeleton` 会建空 `作者/journal.jsonl`，error 门禁断言 journal **内容**不变而非文件不存在。时间线夹具补种 `F-003`（`test_timeline_view.py`，`6d39144`），否则闸上线后建卡被拒、视图空表。
+
+回归：`pytest -o addopts=""` → `1505 passed`（阶段一 1483）；覆盖率 `TOTAL … 83%` / `Total coverage: 82.72%`（门 80）；`run_behavior_evals.py --suite fast` 23/23；`validate_plugin_package.py` OK；`validate_reference_wiring.py` drift=0；`sync_plugin_version.py --check` → `Versions are in sync: 8.0.0`。
+
 ### 阶段三：闭环补全——settle 后置与工坊执行器（预计 3 个任务，~1 天）
 
 > 目标：settle 一条命令完成全部落账；工坊采纳标记有人消费

@@ -31,6 +31,16 @@
 | 5 | 时间/战力/人物一致性闸 | 依赖 Task 4 | 同测试文件：倒流 error、未知境界/人物 warning |
 | 6 | fantasy01 冒烟、全量回归、状态回写 | 依赖 Task 1-5 | 只读副本建卡 43；全量 pytest ≥1483、cov ≥80 |
 
+**执行状态（2026-09-04）：Task 1–6 已完成。**
+
+| 序号 | commit | 验收对照 |
+|---|---|---|
+| 1 | `948bf79` | `test_outline_paths.py` 规范优先 + 兼容路径 + 标题矩阵（含四十三/九十九） |
+| 2 | `06028ac` | 迁移写 `第NN卷-详细大纲.md`；plan skill 规范路径 + `## 第N章：标题` |
+| 3 | `0ea89e3` | v7 pack / v6 loader / chapter_paths 复用共享解析器 |
+| 4–5 | `a939ef7` | 标题 mismatch warning；F-999 / 时间倒流 error 零落盘；境界/人物 warning；可选 `人物` 字段 |
+| 6 | （本 docs commit） | fantasy01 副本 ch43「夜袭」无 title warning；错标题 mismatch 仍写卡；`1505 passed` / cov 82.72%；夹具 `6d39144` |
+
 ---
 
 ## 文件结构
@@ -357,9 +367,9 @@ feat(chapter-batch): 增加跨批时间、战力境界与人物一致性检查
 
 ## Task 6：冒烟、回归、状态回写
 
-- [ ] 复制 fantasy01 到临时目录，保留规范 `第02卷-详细大纲.md`，调用 `create_chapter_batch` 构造第 43 章「夜袭」测试卡；断言标题无 warning。
-- [ ] 构造错标题副本，断言 `outline_title_mismatch` 且仍写 draft 卡。
-- [ ] 运行：
+- [x] 复制 fantasy01 到临时目录；真仓第43章在第01卷（非计划草稿里的第02卷）。只读副本调用 `create_chapter_batch` 构造第 43 章「夜袭」：`MATCH_OK True outline_codes []`，`MATCH_WARNINGS []`，解析路径 `大纲/卷纲/第01卷-详细大纲.md`。
+- [x] 错标题副本：`WRONG_OK True codes ['outline_title_mismatch']` 且仍写 draft 卡。顺带 F-999：`consistency_gate` + `promise_not_found`（副本因章99时间锚相对已确认卡倒流，同时带 `time_regression`），无 `0099.md`。
+- [x] 运行：
 
 ```powershell
 python -X utf8 -m pytest -o addopts="" -q
@@ -370,8 +380,9 @@ python -X utf8 webnovel-writer/scripts/validate_reference_wiring.py
 python -X utf8 webnovel-writer/scripts/sync_plugin_version.py --check
 ```
 
-- [ ] 在 `docs/zcode/v8-gap-review-3rounds/README.md` 对 P2-1/P2-2 写入验收原文、commit 和实际输出；更新交接文件。
-- [ ] 提交：
+实际：`1505 passed`；`TOTAL … 83%` / `Total coverage: 82.72%`；evals 23/23；三校验器 OK / drift=0 / `8.0.0`。
+- [x] 在 `docs/zcode/v8-gap-review-3rounds/README.md` 对 P2-1/P2-2 写入验收原文、commit 和实际输出；更新交接文件。
+- [x] 提交：
 
 ```text
 docs: 阶段二 P2-1/P2-2 验收对账与交接
