@@ -14,13 +14,14 @@ from pathlib import Path
 from typing import Any
 
 from .author_journal import append_events
+from .chapter_outline_validate import validate_chapter_batch
 
 BATCH_SCHEMA_VERSION = "chapter-card/1"
 MAX_BATCH = 8
 REQUIRED_FIELDS: tuple[str, ...] = ("章节号", "标题", "卷", "时间锚", "节点", "字数目标")
-LIST_FIELDS: tuple[str, ...] = ("节点", "禁区", "承诺推进", "战力事件", "素材引用")
+LIST_FIELDS: tuple[str, ...] = ("节点", "禁区", "承诺推进", "战力事件", "素材引用", "人物")
 _FIELD_ORDER: tuple[str, ...] = (
-    "章节号", "标题", "卷", "状态", "时间锚", "节点", "禁区", "承诺推进", "战力事件", "素材引用", "字数目标",
+    "章节号", "标题", "卷", "状态", "时间锚", "节点", "禁区", "承诺推进", "战力事件", "素材引用", "人物", "字数目标",
 )
 WORD_MIN, WORD_MAX = 500, 10000
 _PROMISE_PREFIXES = ("F-", "S-", "R-")
@@ -115,6 +116,17 @@ def create_chapter_batch(project_root: str | Path, cards: list[dict[str, Any]]) 
         chapter_numbers.append(chapter)
 
     problems = self_check_batch(cards)
+    gate = validate_chapter_batch(project_root, cards)
+    warnings = list(gate["warnings"])
+    if gate["errors"]:
+        return {
+            "ok": False,
+            "error": "consistency_gate",
+            "errors": gate["errors"],
+            "warnings": warnings,
+            "checks": problems + [item["message"] for item in warnings],
+        }
+
     chapter_dir = _chapter_dir(project_root)
     chapter_dir.mkdir(parents=True, exist_ok=True)
     written: list[int] = []
@@ -145,7 +157,9 @@ def create_chapter_batch(project_root: str | Path, cards: list[dict[str, Any]]) 
         "ok": True,
         "schema_version": BATCH_SCHEMA_VERSION,
         "written": sorted(written),
-        "checks": problems,
+        "checks": problems + [item["message"] for item in warnings],
+        "errors": [],
+        "warnings": warnings,
     }
 
 

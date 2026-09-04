@@ -30,7 +30,7 @@ def _card(chapter: int, **over) -> dict:
         "时间锚": f"第{chapter}日·夜",
         "节点": [f"CBN: 推进{chapter}", f"CEN: 钩子{chapter}"],
         "禁区": ["主角不得暴露金手指"],
-        "承诺推进": [f"F-{chapter:03d}: 揭示部分真相"],
+        "承诺推进": [],
         "战力事件": [],
         "素材引用": ["桥段:TR-012"],
         "字数目标": 2400,
@@ -38,6 +38,34 @@ def _card(chapter: int, **over) -> dict:
     }
     base.update(over)
     return base
+
+
+def _write_outline(book: Path, body: str, volume: int = 2) -> None:
+    path = book / "大纲" / "卷纲" / f"第{volume:02d}卷-详细大纲.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(body, encoding="utf-8")
+
+
+def _seed_promise(book: Path, entry_id: str, name: str = "测试伏笔") -> None:
+    from data_modules.promise_ledger import create_entry
+
+    create_entry(book, kind="伏笔", name=name, planted_chapter=1, due_chapter=80, entry_id=entry_id)
+
+
+def _seed_roster(book: Path, name: str, aliases: list[str] | None = None) -> None:
+    path = book / "定稿" / "设定" / "名册" / f"{name}.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    alias_json = __import__("json").dumps(aliases or [], ensure_ascii=False)
+    path.write_text(f"---\n正名: {name}\n别名: {alias_json}\n类型: 角色\n---\n", encoding="utf-8")
+
+
+def _write_confirmed_card(book: Path, chapter: int, *, title: str, anchor: str) -> None:
+    path = book / "大纲" / "章纲" / f"{chapter:04d}.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        f"---\n章节号: {chapter}\n标题: {title}\n卷: 2\n状态: confirmed\n时间锚: {anchor}\n节点: [\"CBN\"]\n字数目标: 2000\n---\n",
+        encoding="utf-8",
+    )
 
 
 class TestCreateBatch:
@@ -83,7 +111,8 @@ class TestCreateBatch:
     def test_list_fields_round_trip(self, book: Path):
         from data_modules.chapter_outline_batch import create_chapter_batch, parse_chapter_card
 
-        create_chapter_batch(book, [_card(39)])
+        _seed_promise(book, "F-039")
+        create_chapter_batch(book, [_card(39, 承诺推进=["F-039: 揭示部分真相"])])
         fields, _ = parse_chapter_card((book / "大纲" / "章纲" / "0039.md").read_text(encoding="utf-8"))
 
         assert fields["节点"] == ["CBN: 推进39", "CEN: 钩子39"]
@@ -145,3 +174,121 @@ class TestConfirm:
 
         report = confirm_chapter_batch(book, [99])
         assert report["ok"] is False
+
+
+class TestConsistencyGate:
+    def test_title_mismatch_is_warning_but_card_is_written(self, book: Path):
+        from data_modules.chapter_outline_batch import create_chapter_batch
+
+        _write_outline(book, "## 第43章：夜袭\n目标")
+        report = create_chapter_batch(book, [_card(43, 标题="错名", 人物=["苏小白"])])
+
+        assert report["ok"] is True
+        assert any(item["code"] == "outline_title_mismatch" for item in report["warnings"])
+        assert (book / "大纲" / "章纲" / "0043.md").is_file()
+
+    def test_matching_outline_title_has_no_title_warning(self, book: Path):
+        from data_modules.chapter_outline_batch import create_chapter_batch
+
+        _write_outline(book, "## 第43章：夜袭\n目标")
+        report = create_chapter_batch(book, [_card(43, 标题="夜袭")])
+
+        assert report["ok"] is True
+        assert not any(item["code"] == "outline_title_mismatch" for item in report.get("warnings") or [])
+
+    def test_missing_promise_is_error_with_zero_side_effects(self, book: Path):
+        from data_modules.chapter_outline_batch import create_chapter_batch
+
+        journal = book / "作者" / "journal.jsonl"
+        before = journal.read_text(encoding="utf-8") if journal.is_file() else ""
+        report = create_chapter_batch(book, [_card(43, 承诺推进=["F-999: 推进"])])
+
+        assert report["ok"] is False and report["error"] == "consistency_gate"
+        assert any(item["code"] == "promise_not_found" for item in report["errors"])
+        assert not (book / "大纲" / "章纲" / "0043.md").exists()
+        assert (journal.read_text(encoding="utf-8") if journal.is_file() else "") == before
+
+    def test_people_round_trip_as_json_list(self, book: Path):
+        from data_modules.chapter_outline_batch import create_chapter_batch, parse_chapter_card
+
+        _seed_roster(book, "苏小白")
+        _seed_roster(book, "林知夏")
+        report = create_chapter_batch(book, [_card(43, 人物=["苏小白", "林知夏"])])
+
+        assert report["ok"] is True
+        fields, _ = parse_chapter_card((book / "大纲" / "章纲" / "0043.md").read_text(encoding="utf-8"))
+        assert fields["人物"] == ["苏小白", "林知夏"]
+
+    def test_time_regression_from_confirmed_card_is_error(self, book: Path):
+        from data_modules.chapter_outline_batch import create_chapter_batch
+
+        _write_confirmed_card(book, 42, title="前夜", anchor="第42日·夜")
+        report = create_chapter_batch(book, [_card(43, 时间锚="第41日·晨")])
+
+        assert report["ok"] is False and report["error"] == "consistency_gate"
+        assert any(item["code"] == "time_regression" for item in report["errors"])
+        assert not (book / "大纲" / "章纲" / "0043.md").exists()
+
+    def test_time_regression_from_settled_front_matter(self, book: Path):
+        from data_modules.chapter_outline_batch import create_chapter_batch
+
+        path = book / "定稿" / "正文" / "0041-旧章.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("---\n章号: 41\n书内时间: 末世第42天\n---\n正文\n", encoding="utf-8")
+        report = create_chapter_batch(book, [_card(43, 时间锚="第41日·晨")])
+
+        assert report["ok"] is False
+        assert any(item["code"] == "time_regression" for item in report["errors"])
+
+    def test_unparseable_time_is_warning_and_writes(self, book: Path):
+        from data_modules.chapter_outline_batch import create_chapter_batch
+
+        report = create_chapter_batch(book, [_card(43, 时间锚="灾变后第三周")])
+
+        assert report["ok"] is True
+        assert any(item["code"] == "time_unparseable" for item in report["warnings"])
+        assert (book / "大纲" / "章纲" / "0043.md").is_file()
+
+    def test_unknown_realm_is_warning(self, book: Path):
+        from data_modules.chapter_outline_batch import create_chapter_batch
+        from data_modules.power_anchor import write_anchor
+
+        write_anchor(book, {
+            "spec": "power-anchor/1",
+            "境界链": [{"序": 1, "名": "聚气"}, {"序": 2, "名": "凝罡"}],
+            "越级规则": {},
+            "战例账本": [],
+            "通胀记录": [],
+        })
+        report = create_chapter_batch(book, [_card(43, 战力事件=["筑基突破"])])
+
+        assert report["ok"] is True
+        assert any(item["code"] == "unknown_realm" for item in report["warnings"])
+
+    def test_missing_power_anchor_with_events_is_warning(self, book: Path):
+        from data_modules.chapter_outline_batch import create_chapter_batch
+
+        report = create_chapter_batch(book, [_card(43, 战力事件=["聚气对决"])])
+
+        assert report["ok"] is True
+        assert any(item["code"] == "power_anchor_missing" for item in report["warnings"])
+
+    def test_unknown_character_is_warning(self, book: Path):
+        from data_modules.chapter_outline_batch import create_chapter_batch
+
+        _seed_roster(book, "苏小白")
+        report = create_chapter_batch(book, [_card(43, 人物=["苏小白", "林知夏"])])
+
+        assert report["ok"] is True
+        codes = [item["code"] for item in report["warnings"] if item.get("chapter") == 43]
+        assert "unknown_character" in codes
+        assert not any(item["code"] == "unknown_character" and "苏小白" in item["message"] for item in report["warnings"])
+
+    def test_missing_people_field_is_compatible(self, book: Path):
+        from data_modules.chapter_outline_batch import create_chapter_batch
+
+        report = create_chapter_batch(book, [_card(43)])
+
+        assert report["ok"] is True
+        assert not any(item["code"] == "unknown_character" for item in report.get("warnings") or [])
+
