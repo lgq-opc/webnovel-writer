@@ -9,6 +9,8 @@
 **技术栈：** Python 3.10+、pytest、标准库 `re` / `json` / `argparse`。
 **Spec：** `docs/cursor/阶段三-工坊同步执行器/2026-09-04-forge-sync-spec.md`
 
+**执行记录（2026-09-04，Cursor）**：Task 1–3 完成。实现 commit `f23eeb5`；spec `aa8947a`；plan `23c9bb7`。无 ledger（未走 SDD）。`test_forge_sync.py` 8 例 + `test_setting_forge.py` 全绿。全量 `1558 passed` / cov 82.85%。`webnovel.py forge-sync -h` 可解析。
+
 ## 全局约束
 
 - 生产者是 `forge confirm`，不是 `adopt`。
@@ -45,7 +47,7 @@
 
 **文件：** 新增 `webnovel-writer/scripts/tests/test_forge_sync.py`
 
-- [ ] 写失败测试（完整文件；夹具复用 `test_setting_forge._proposal_doc` 与同等 `book` 骨架）：
+- [x] 写失败测试（完整文件；夹具复用 `test_setting_forge._proposal_doc` 与同等 `book` 骨架）：
 
 ```python
 #!/usr/bin/env python3
@@ -194,7 +196,7 @@ def test_webnovel_cli_forge_sync(book: Path, tmp_path: Path):
     assert again.returncode == 0
 ```
 
-- [ ] 运行 RED：
+- [x] 运行 RED：
 
 ```powershell
 python -X utf8 -m pytest webnovel-writer/scripts/tests/test_forge_sync.py -q --no-cov -p no:cacheprovider
@@ -208,7 +210,7 @@ python -X utf8 -m pytest webnovel-writer/scripts/tests/test_forge_sync.py -q --n
 
 **文件：** `webnovel-writer/scripts/data_modules/forge_sync.py`
 
-- [ ] 写入完整模块：
+- [x] 写入完整模块：
 
 ```python
 #!/usr/bin/env python3
@@ -373,13 +375,13 @@ if __name__ == "__main__":
     raise SystemExit(main())
 ```
 
-- [ ] 运行定点 GREEN（此时 CLI 子进程测试仍红，可临时 skip 或先做 Task 3）：
+- [x] 运行定点 GREEN（此时 CLI 子进程测试仍红，可临时 skip 或先做 Task 3）：
 
 ```powershell
 python -X utf8 -m pytest webnovel-writer/scripts/tests/test_forge_sync.py -q --no-cov -p no:cacheprovider -k "not webnovel_cli"
 ```
 
-- [ ] 提交（若与 Task 3 同一次实现，可合并提交，message 仍用下面这一条）：
+- [x] 提交（若与 Task 3 同一次实现，可合并提交，message 仍用下面这一条）：
 
 ```text
 feat(forge): 扫描并消费工坊同步标记
@@ -391,7 +393,7 @@ feat(forge): 扫描并消费工坊同步标记
 
 **文件：** `webnovel.py`、`docs/guides/commands.md`
 
-- [ ] 在 `cmd_forge` 之后增加：
+- [x] 在 `cmd_forge` 之后增加：
 
 ```python
 def cmd_forge_sync(args: argparse.Namespace) -> int:
@@ -406,7 +408,7 @@ def cmd_forge_sync(args: argparse.Namespace) -> int:
     return forge_sync.main(argv)
 ```
 
-- [ ] 在 `p_forge` 解析器之后增加：
+- [x] 在 `p_forge` 解析器之后增加：
 
 ```python
     p_forge_sync = sub.add_parser("forge-sync", help="工坊同步执行器（P3-2）：扫 pending / mark-cleared")
@@ -416,16 +418,16 @@ def cmd_forge_sync(args: argparse.Namespace) -> int:
     p_forge_sync.set_defaults(func=cmd_forge_sync)
 ```
 
-- [ ] `docs/guides/commands.md` 在 `forge` 行下插入：
+- [x] `docs/guides/commands.md` 在 `forge` 行下插入：
 
 ```text
 | `forge-sync` | `status` / `mark-cleared` | 扫 journal 未消费的 `power_anchor_sync` / `contract_rebuild`；引导 `power validate` 与 `master-outline-sync`；显式 mark-cleared 追加 `*:cleared` |
 ```
 
-- [ ] 运行：
+- [x] 运行：
 
 ```powershell
 python -X utf8 -m pytest webnovel-writer/scripts/tests/test_forge_sync.py webnovel-writer/scripts/tests/test_setting_forge.py -q --no-cov -p no:cacheprovider
 ```
 
-- [ ] 若 Task 2 未提交，此处一并提交 `feat(forge): 扫描并消费工坊同步标记`。
+- [x] 若 Task 2 未提交，此处一并提交 `feat(forge): 扫描并消费工坊同步标记`。

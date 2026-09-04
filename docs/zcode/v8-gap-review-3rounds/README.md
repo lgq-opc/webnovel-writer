@@ -229,6 +229,27 @@ create_chapter_batch 不读详细大纲（无论叫什么名字）→ 标题自�
 
 偏差：① 无 ledger（与 P2 相同，未走 SDD）。② 冒烟 `--no-commit`（副本排除 `.git`）；③ 真仓缺 `场景写法.csv`，副本补种 SP-001 才能过门③并验证轨迹，未改真仓。
 
+**阶段三 P3-2 完成（2026-09-04，Cursor；spec/plan 见 `docs/cursor/阶段三-工坊同步执行器/`；实现 `f23eeb5`）**
+
+| 任务 | 状态 | 证据（验收原文 → 测试 / 命令输出） |
+|---|---|---|
+| P3-2 | ✅ `f23eeb5` | 「adopt 功法提案 → forge-sync 引导完成锚点同步」→ 按代码勘误走 `save→adopt→confirm` 功法：`test_confirm_gongfa_lists_both_kinds` status exit 1、`pending` 含 `power_anchor_sync`+`contract_rebuild`、`next` 含 `power validate` 与 `master-outline-sync`；`test_mark_cleared_all_after_gongfa` / `test_webnovel_cli_forge_sync` mark-cleared 后 pending 空、exit 0。`webnovel.py forge-sync -h` → `usage: webnovel.py forge-sync [-h] [--kind KIND] [--format {text,json}] [{status,mark-cleared}]`。 |
+
+**范围/实现对照（spec §6 原文 → 证据）：**
+
+| # | 方案原文 | 证据 |
+|---|---|---|
+| 1 | 扫 journal 中 `power_anchor_sync:required` / `contract_rebuild:required` 未消费标记 | `test_confirm_gongfa_lists_both_kinds` 两种 kind；`test_confirm_fabao_only_contract` 仅 `contract_rebuild` |
+| 2 | 提示作者执行锚点确认与 master-outline-sync | 同上 `next` 含 `power validate` 与 `master-outline-sync` |
+| 3 | 消费后标记 cleared | `test_mark_cleared_all_after_gongfa` journal 含 `*:cleared`，再次 status `pending==[]` exit 0 |
+| 4 | 新 `forge-sync` 命令 | `webnovel.py forge-sync -h` 可解析；无子命令 = status（CLI 测 `--format json` 即默认 status） |
+| 5 | 验收：adopt 功法提案 → forge-sync 引导完成锚点同步 | 上表 P3-2 行；生产者实为 confirm |
+| 6 | 回归 | `test_setting_forge.py` 全绿；`pytest -o addopts="" -q --cov …` → `1558 passed, 23 warnings in 125.12s`；`Total coverage: 82.85%`；evals fast 23/23；`validate_plugin_package.py` OK；`validate_reference_wiring.py` drift=0；`sync_plugin_version.py --check` → `Versions are in sync: 8.0.0` |
+
+额外（方案 A）：`test_status_does_not_write_journal`；`test_mark_cleared_rejects_when_empty` exit 2；`test_extra_cleared_does_not_swallow_later_required`。
+
+偏差：① 无 ledger。② CLI 夹具须有 `book.yaml`（`webnovel.py` 宽松根解析认 v7 书仓）。③ 测试跨文件 import 把 `scripts/tests` 加入 `sys.path`。Task 2+3 合并为一次提交 `f23eeb5`。
+
 ### 阶段四：体检与体验（预计 3 个任务，~1 天）
 
 > 目标：doctor 成为一站式治理体检；面板/播种/命名补盲
