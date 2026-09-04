@@ -411,3 +411,88 @@ def test_doctor_cli_v7_emits_twelve_groups(tmp_path):
     assert hits == set(_GROUP_PREFIXES)
     pre = [c for c in payload["checks"] if c["id"] == "preflight.project_root"]
     assert pre and pre[0]["status"] == doctor_module.CHECK_OK
+
+
+_GOV_IDS = (
+    "gov.inv-1-journal",
+    "gov.inv-2-material-trajectory",
+    "gov.inv-3-power",
+    "gov.inv-4-promises",
+    "gov.inv-5-contracts",
+    "gov.inv-6-stale-age",
+    "gov.materials.health",
+    "gov.gallery.backlog",
+)
+
+
+def test_doctor_v7_emits_eight_governance_checks(tmp_path, monkeypatch):
+    _make_v7_repo(tmp_path)
+    monkeypatch.setattr(doctor_module, "_python_checks", lambda: [])
+    report = doctor_module.build_doctor_report(tmp_path)
+    ids = [c["id"] for c in report["checks"]]
+    for gov_id in _GOV_IDS:
+        assert gov_id in ids
+    gov = [c for c in report["checks"] if str(c["id"]).startswith("gov.")]
+    assert not [c for c in gov if c.get("severity") == "blocker"]
+    assert report["ok"] is True
+
+
+def test_doctor_maps_invariant_fail_to_warning_not_blocker(tmp_path, monkeypatch):
+    from data_modules.author_journal import append_events
+
+    _make_v7_repo(tmp_path)
+    append_events(
+        tmp_path,
+        [{
+            "actor": "author",
+            "action": "edit",
+            "domain": "其他",
+            "path": "工作区/散落.md",
+            "change_kind": "content",
+            "diff_stat": {"ins": 1, "del": 0},
+            "summary": "散落",
+            "impact": [],
+        }],
+    )
+    monkeypatch.setattr(doctor_module, "_python_checks", lambda: [])
+    report = doctor_module.build_doctor_report(tmp_path)
+    match = [c for c in report["checks"] if c["id"] == "gov.inv-1-journal"]
+    assert match and match[0]["status"] == doctor_module.CHECK_WARNING
+    assert match[0]["severity"] == "warning"
+    assert report["ok"] is True
+
+
+def test_doctor_materials_health_warns_on_decayed_active(tmp_path, monkeypatch):
+    _make_v7_repo(tmp_path, settled="0150-远征.md")
+    (tmp_path / "book.yaml").write_text("书名: 测试\n卷规模: 50\n", encoding="utf-8")
+    live = tmp_path / "素材" / "活"
+    live.mkdir(parents=True)
+    (live / "桥段.csv").write_text(
+        "id,名称,来源,状态\nTR-001,旧桥,原创,active\n", encoding="utf-8"
+    )
+    monkeypatch.setattr(doctor_module, "_python_checks", lambda: [])
+    report = doctor_module.build_doctor_report(tmp_path)
+    match = [c for c in report["checks"] if c["id"] == "gov.materials.health"]
+    assert match and match[0]["status"] == doctor_module.CHECK_WARNING
+
+
+def test_doctor_gallery_backlog_warns_after_two_volumes(tmp_path, monkeypatch):
+    _make_v7_repo(tmp_path, settled="0150-远征.md")
+    (tmp_path / "book.yaml").write_text("书名: 测试\n卷规模: 50\n", encoding="utf-8")
+    gallery = tmp_path / "大纲" / "regen" / "总纲"
+    gallery.mkdir(parents=True)
+    (gallery / "v1.md").write_text("旧稿\n", encoding="utf-8")
+    monkeypatch.setattr(doctor_module, "_python_checks", lambda: [])
+    report = doctor_module.build_doctor_report(tmp_path)
+    match = [c for c in report["checks"] if c["id"] == "gov.gallery.backlog"]
+    assert match and match[0]["status"] == doctor_module.CHECK_WARNING
+
+
+def test_doctor_gallery_and_materials_skip_when_absent(tmp_path, monkeypatch):
+    _make_v7_repo(tmp_path)
+    monkeypatch.setattr(doctor_module, "_python_checks", lambda: [])
+    report = doctor_module.build_doctor_report(tmp_path)
+    mats = [c for c in report["checks"] if c["id"] == "gov.materials.health"]
+    gal = [c for c in report["checks"] if c["id"] == "gov.gallery.backlog"]
+    assert mats and mats[0]["status"] == doctor_module.CHECK_SKIPPED
+    assert gal and gal[0]["status"] == doctor_module.CHECK_SKIPPED

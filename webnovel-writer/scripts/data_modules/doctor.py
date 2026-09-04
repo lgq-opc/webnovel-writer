@@ -6,6 +6,7 @@ import argparse
 import importlib.util
 import json
 import platform
+import re
 import sqlite3
 import sys
 from pathlib import Path
@@ -907,6 +908,148 @@ def _dashboard_checks(plugin_root: Path | None = None) -> list[dict[str, Any]]:
     return checks
 
 
+_FORGE_VERSION_RE = re.compile(r"^.+-v\d+\.md$")
+_CHAPTER_KEY_RE = re.compile(r"(\d+)")
+
+
+def _inv_status_to_doctor(status: str) -> tuple[str, str]:
+    if status in {"fail", "warn"}:
+        return CHECK_WARNING, "warning"
+    if status == "skip":
+        return CHECK_SKIPPED, "info"
+    return CHECK_OK, "info"
+
+
+def _current_volume(root: Path) -> int:
+    from .dual_format_guard import max_settled_chapter
+    from .invariant_check import volume_of_chapter, volume_size
+
+    size = volume_size(root)
+    chapter = max(1, max_settled_chapter(root))
+    return volume_of_chapter(chapter, size)
+
+
+def _iter_gallery_files(root: Path) -> list[Path]:
+    files: list[Path] = []
+    regen = root / "大纲" / "regen"
+    if regen.is_dir():
+        files.extend(path for path in regen.rglob("v*.md") if path.is_file())
+    forge = root / "设定" / "regen" / "工坊"
+    if forge.is_dir():
+        for path in forge.iterdir():
+            if not path.is_file():
+                continue
+            if _FORGE_VERSION_RE.fullmatch(path.name) or path.name.endswith("-草案.md"):
+                files.append(path)
+    return files
+
+
+def _gallery_produced_volume(root: Path, path: Path, size: int) -> int:
+    from .invariant_check import volume_of_chapter
+
+    chapter_root = root / "大纲" / "regen" / "章纲"
+    try:
+        rel = path.relative_to(chapter_root)
+    except ValueError:
+        return 1
+    key = rel.parts[0] if rel.parts else ""
+    match = _CHAPTER_KEY_RE.search(key)
+    if not match:
+        return 1
+    return volume_of_chapter(int(match.group(1)), size)
+
+
+def _governance_checks(project_root: Path) -> list[dict[str, Any]]:
+    from .invariant_check import run_invariants, volume_size
+    from .material_review import review_stats
+
+    root = Path(project_root)
+    checks: list[dict[str, Any]] = []
+    report = run_invariants(root)
+    for item in report.get("invariants") or []:
+        inv_id = str(item.get("id") or "")
+        status, severity = _inv_status_to_doctor(str(item.get("status") or ""))
+        counts = item.get("counts") or {}
+        checks.append(
+            _check(
+                f"gov.{inv_id}",
+                status=status,
+                severity=severity,
+                message=str(item.get("title") or inv_id),
+                actual=f"status={item.get('status')} counts={json.dumps(counts, ensure_ascii=False)}",
+                repair=str(item.get("repair") or ""),
+            )
+        )
+
+    volume = _current_volume(root)
+    stats = review_stats(root, current_volume=volume)
+    total = int(stats.get("total") or 0)
+    decayed_ids = [
+        str(row.get("id") or "")
+        for row in (stats.get("entries") or [])
+        if row.get("decayed") and row.get("状态") == "active"
+    ]
+    if total == 0:
+        mat_status, mat_severity = CHECK_SKIPPED, "info"
+        mat_message = "no live material rows"
+        mat_repair = ""
+    elif decayed_ids:
+        mat_status, mat_severity = CHECK_WARNING, "warning"
+        mat_message = "active materials decayed"
+        mat_repair = "运行 material-review 裁决衰减条目（归档/合并）。"
+    else:
+        mat_status, mat_severity = CHECK_OK, "info"
+        mat_message = "material health"
+        mat_repair = ""
+    checks.append(
+        _check(
+            "gov.materials.health",
+            status=mat_status,
+            severity=mat_severity,
+            message=mat_message,
+            actual=f"total={total} decayed={len(decayed_ids)} current_volume={volume} ids={decayed_ids[:5]}",
+            repair=mat_repair,
+        )
+    )
+
+    size = volume_size(root)
+    gallery_files = _iter_gallery_files(root)
+    stale_paths: list[str] = []
+    for path in gallery_files:
+        produced = _gallery_produced_volume(root, path, size)
+        if volume - produced >= 2:
+            try:
+                stale_paths.append(str(path.relative_to(root)))
+            except ValueError:
+                stale_paths.append(str(path))
+    if not gallery_files:
+        gal_status, gal_severity = CHECK_SKIPPED, "info"
+        gal_message = "no gallery files"
+        gal_repair = ""
+    elif stale_paths:
+        gal_status, gal_severity = CHECK_WARNING, "warning"
+        gal_message = "gallery backlog over two volumes"
+        gal_repair = "discard 或 adopt 后清理超过两卷的画廊文件。"
+    else:
+        gal_status, gal_severity = CHECK_OK, "info"
+        gal_message = "gallery backlog"
+        gal_repair = ""
+    checks.append(
+        _check(
+            "gov.gallery.backlog",
+            status=gal_status,
+            severity=gal_severity,
+            message=gal_message,
+            actual=(
+                f"files={len(gallery_files)} backlog={len(stale_paths)} "
+                f"current_volume={volume} paths={stale_paths[:5]}"
+            ),
+            repair=gal_repair,
+        )
+    )
+    return checks
+
+
 def build_doctor_report(
     project_root: str | Path | None,
     *,
@@ -986,6 +1129,20 @@ def build_doctor_report(
                     actual=str(exc),
                     impact="六域骨架（素材/作者/文风等）状态未知。",
                     repair="检查书项目根目录可读性；可运行 webnovel.py domains check 获取详情。",
+                )
+            )
+        try:
+            checks.extend(_governance_checks(root))
+        except Exception as exc:
+            checks.append(
+                _check(
+                    "gov.suite",
+                    status=CHECK_WARNING,
+                    severity="warning",
+                    message="governance checks failed",
+                    actual=str(exc),
+                    impact="治理组（不变量/素材/画廊）本次未跑完。",
+                    repair="检查 invariant_check / 素材 CSV / 画廊目录可读性。",
                 )
             )
 

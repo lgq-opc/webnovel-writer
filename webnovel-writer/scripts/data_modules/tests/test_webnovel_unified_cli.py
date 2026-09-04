@@ -23,6 +23,18 @@ def _load_webnovel_module():
     return webnovel_module
 
 
+def _parse_cli_json(stdout: str) -> dict:
+    """统一 CLI 可能把超阈值 stdout 外置到 .webnovel/tmp/cli_out/。"""
+    text = stdout.strip()
+    if text.startswith("EXTERNALIZED"):
+        marker = "full-output: "
+        idx = text.rfind(marker)
+        assert idx >= 0, stdout[:300]
+        dump = Path(text[idx + len(marker) :].strip().splitlines()[0])
+        text = dump.read_text(encoding="utf-8")
+    return json.loads(text)
+
+
 def _make_cli_init_ready_project(project_root: Path) -> None:
     dirs = (
         ".webnovel/backups",
@@ -643,7 +655,7 @@ def test_doctor_cli_reports_missing_init_file(monkeypatch, tmp_path, capsys):
         module.main()
 
     captured = capsys.readouterr()
-    report = json.loads(captured.out)
+    report = _parse_cli_json(captured.out)
     assert int(exc.value.code or 0) == 1
     assert report["schema_version"] == "webnovel-doctor/v1"
     assert report["ok"] is False
