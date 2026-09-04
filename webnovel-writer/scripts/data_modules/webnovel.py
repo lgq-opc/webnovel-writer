@@ -359,6 +359,18 @@ def cmd_forge(args: argparse.Namespace) -> int:
     return setting_forge.main(argv)
 
 
+def cmd_forge_sync(args: argparse.Namespace) -> int:
+    """工坊同步执行器（v8-gap-review 阶段三 P3-2）。退出码原样转发。"""
+    from data_modules import forge_sync
+
+    root = _resolve_root_lenient(args.project_root)
+    argv = [getattr(args, "action", None) or "status", "--project-root", str(root), "--format", args.format]
+    kind = getattr(args, "kind", "") or ""
+    if kind:
+        argv.extend(["--kind", kind])
+    return forge_sync.main(argv)
+
+
 def cmd_prose_check(args: argparse.Namespace) -> int:
     """程序化文笔检测（webnovel-copilot-300 M5/T23，R2）。"""
     from data_modules import prose_check
@@ -1049,6 +1061,12 @@ def _main_impl() -> None:
     p_forge.add_argument("--draft", default="", help="confirm：草案文件")
     p_forge.add_argument("--format", choices=["text", "json"], default="text", help="输出格式")
     p_forge.set_defaults(func=cmd_forge)
+
+    p_forge_sync = sub.add_parser("forge-sync", help="工坊同步执行器（P3-2）：扫 pending / mark-cleared")
+    p_forge_sync.add_argument("action", nargs="?", default="status", choices=["status", "mark-cleared"])
+    p_forge_sync.add_argument("--kind", default="", help="mark-cleared：power_anchor_sync / contract_rebuild / all")
+    p_forge_sync.add_argument("--format", choices=["text", "json"], default="text")
+    p_forge_sync.set_defaults(func=cmd_forge_sync)
 
     p_prose_check = sub.add_parser("prose-check", help="程序化文笔检测（T23/R2）：高频词库/长句/同句式/说明腔六项")
     p_prose_check.add_argument("--file", required=True, help="正文文件（md/txt）")

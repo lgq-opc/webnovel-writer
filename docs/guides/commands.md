@@ -123,6 +123,7 @@ python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJEC
 | `learn` | `learn --from-journal` / `apply` / `show` | 学习闭环：卷级归纳 → 作者确认 → author_model 回写（注意 `learn learn --from-journal` 的子动作位置参数，见缺口 N9） |
 | `power` | `extract` / `validate` / `battle` / `inflate` / `check` | 战力锚点提取与校验、战例 / 通胀账本、硬 ① ② 阻断校验 |
 | `forge` | `prepare` / `save` / `adopt` / `confirm` / `list` | 设定工坊提案流；`confirm` 才写设定域并留 `power_anchor_sync` / `contract_rebuild` 标记 |
+| `forge-sync` | `status` / `mark-cleared` | 扫 journal 未消费的 `power_anchor_sync` / `contract_rebuild`；引导 `power validate` 与 `master-outline-sync`；显式 mark-cleared 追加 `*:cleared` |
 | `prose-check` | — | 程序化文笔六项：高频词 / 长句比例 / said tag / 连续同主语 / 纯解释段 / 段落方差 |
 | `drafts` | `record` / `choose` / `link` / `report` | 多稿择优：rubric 六维评分 → 取均分最高稿 → 回填审查分 |
 | `promise-ledger` | `create` / `list` / `update` | 承诺账本（伏笔 F- / 悬念 S- / 感情线 R-）状态机 |
