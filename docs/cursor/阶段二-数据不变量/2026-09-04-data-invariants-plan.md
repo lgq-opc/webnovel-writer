@@ -188,59 +188,33 @@ feat(invariants): 添加六项报告骨架与统一 CLI
 
 ## Task 5：Inv-5 runtime contract 重建对账
 
-**前置：** 章纲一致性计划 Task 3 已让 `RuntimeContractBuilder` 间接使用统一详细大纲路径。
+**状态：已完成。** commit `f4a8c50`。定点 `TestContractRebuildInvariant` + `test_runtime_contract_builder.py` + `test_story_contracts.py` 全绿。
 
-- [ ] 新增测试夹具：按 `test_runtime_contract_builder.py` 建合法 `.story-system/MASTER_SETTING.json`、`anti_patterns.json`、state 和详细大纲；调用 builder 生成并持久化 volume/review。
-- [ ] 测试：
+- [x] 新增测试夹具：按 `test_runtime_contract_builder.py` 建合法 `.story-system/MASTER_SETTING.json`、`anti_patterns.json`、state 和详细大纲；调用 builder 生成并持久化 volume/review。
+- [x] 测试：
   - 纯 v7 无 `.story-system` → skip；
   - 合同刚生成 → pass；
   - 修改 review `must_check` → fail；
   - 修改 volume `selected_scenes` → fail；
   - 有 `.story-system` 但无 review 文件 → warn；
   - 坏 MASTER_SETTING → fail，不抛出到 CLI。
-- [ ] 运行 RED。
-- [ ] 实现：
+- [x] 运行 RED（骨架恒 skip，除 skip 用例外 5 红）。
+- [x] 实现：
   - 用 `StoryContractPaths` 枚举 `reviews/chapter_*.review.json`；
   - 从文件名取 chapter；
   - `RuntimeContractBuilder(root).build_for_chapter(chapter)`；
   - `read_json_if_exists` 后做 dict/list 对象相等比较；
   - 同一 volume 多章时，磁盘 volume 应等于最后一次/当前 builder 的确定性结果；每个 review 都比较，volume 只按去重卷比较一次，并在 finding 标 chapter/volume；
   - 捕获 schema/JSON/build 异常转 finding，单项 fail。
-- [ ] 运行：
-
-```powershell
-python -X utf8 -m pytest webnovel-writer/scripts/tests/test_invariant_check.py webnovel-writer/scripts/data_modules/tests/test_runtime_contract_builder.py webnovel-writer/scripts/data_modules/tests/test_story_contracts.py -q --no-cov -p no:cacheprovider
-```
-
-- [ ] 提交：
-
-```text
-feat(invariants): 重建并对账 runtime story contracts
-```
+- [x] 运行定点三文件全绿。
+- [x] 提交 `feat(invariants): 重建并对账 runtime story contracts`
 
 ## Task 6：fantasy01 冒烟与收尾
 
-- [ ] 复制 fantasy01 到临时目录；运行：
+**状态：已完成。** 只读副本 `$env:TEMP/fantasy01-invariants`：`len==6`，`ok=false` exit 1；inv-1 fail / inv-2 pass / inv-3 pass / inv-4 pass / inv-5 skip / inv-6 warn。全量 `1544 passed`，cov 82.82%。
 
-```powershell
-python -X utf8 webnovel-writer/scripts/webnovel.py --project-root "$env:TEMP/fantasy01-invariants" invariants --format json
-```
-
-- [ ] 验收“fantasy01 跑出六条各自结论”：断言 `len(invariants)==6`，逐项记录真实 status/findings；合同项应 skip。
-- [ ] 运行全量验证：
-
-```powershell
-python -X utf8 -m pytest -o addopts="" -q
-python -X utf8 -m pytest -q -p no:cacheprovider
-python -X utf8 webnovel-writer/scripts/run_behavior_evals.py --suite fast
-python -X utf8 webnovel-writer/scripts/validate_plugin_package.py
-python -X utf8 webnovel-writer/scripts/validate_reference_wiring.py
-python -X utf8 webnovel-writer/scripts/sync_plugin_version.py --check
-```
-
-- [ ] 在 gap-review README 的 P2-3 行写六项真实结果、commit、测试与覆盖率；更新交接。
-- [ ] 提交：
-
-```text
-docs: 阶段二 P2-3 六项不变量验收对账与交接
-```
+- [x] 复制 fantasy01 到临时目录（排除 `.git`）；运行 `webnovel.py --project-root "$env:TEMP/fantasy01-invariants" invariants --format json`。
+- [x] 验收“fantasy01 跑出六条各自结论”：`len(invariants)==6`；合同项 skip；分项真实 status 写入 README。
+- [x] 运行全量验证：`pytest -o addopts="" -q` → `1544 passed in 113.26s`；cov `Total coverage: 82.82%`；evals fast 23/23；三校验器 OK。
+- [x] 在 gap-review README 的 P2-3 行写六项真实结果、commit、测试与覆盖率；更新交接。
+- [x] 提交 `docs: 阶段二 P2-3 六项不变量验收对账与交接`

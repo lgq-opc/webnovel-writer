@@ -173,7 +173,7 @@ create_chapter_batch 不读详细大纲（无论叫什么名字）→ 标题自�
 |---|---|---|
 | P2-1 | ✅ `948bf79` `06028ac` `0ea89e3` `a939ef7` | 「fantasy01 建卡 43「夜袭」与大纲一致」→ 只读副本 `create_chapter_batch(..., 标题=夜袭, 卷=1)`：`MATCH_OK True outline_codes []`，`MATCH_WARNINGS []`；解析到规范路径 `大纲/卷纲/第01卷-详细大纲.md`，`heading43=夜袭`。「错标题被 warning 报出」→ 同副本 `标题=错名`：`WRONG_OK True codes ['outline_title_mismatch']` 且 `0043.md` 仍落盘。单测：`test_chapter_outline_batch.py::TestConsistencyGate::test_title_mismatch_is_warning_but_card_is_written`。 |
 | P2-2 | ✅ `a939ef7` | 「F-999 引用被拒」→ 单测 `test_missing_promise_is_error_with_zero_side_effects`（`ok=False, error=consistency_gate`，零卡）；副本冒烟 `F999_OK False error consistency_gate codes ['promise_not_found', 'time_regression']`，无 `0099.md`。「时间倒流被拒」→ `test_time_regression_from_confirmed_card_is_error` / `test_time_regression_from_settled_front_matter`。战力/人物为 warning：`test_unknown_realm_is_warning` / `test_unknown_character_is_warning`。 |
-| P2-3 | 进行中 `c304aa9` | Task 1：六项报告骨架 + `webnovel.py invariants` CLI（空 v7 = 5 pass / 1 skip）。Inv-1…6 实现尚未替换骨架。 |
+| P2-3 | ✅ `c304aa9` `5cdbb20` `fe5e7fc` `873fa21` `f4a8c50` | 「fantasy01 跑出六条各自结论」→ 只读副本 `$env:TEMP/fantasy01-invariants`：`schema_version=invariants/1`，`len(invariants)==6`，`ok=false` exit 1。分项：`inv-1-journal` **fail**（3 `unclassified_event` + 4 `illegal_field action=add` + 12 `pending_semantic`，events=61）；`inv-2-material-trajectory` **pass**（rows=4 live）；`inv-3-power` **pass**（battles=0，chain_problems=0）；`inv-4-promises` **pass**（entries=4）；`inv-5-contracts` **skip**（无 `.story-system`）；`inv-6-stale-age` **warn**（5 条旧 stale `unknown_stale_age`，current_chapter=41，volume_size=40）。 |
 
 **范围/实现对照（对照方案条目，非只报测试全绿）：**
 
@@ -181,7 +181,22 @@ create_chapter_batch 不读详细大纲（无论叫什么名字）→ 标题自�
 - 新检查不塞进 `self_check_batch`（签名仍 `list[str]`）；由 `validate_chapter_batch` 产出结构化 `errors/warnings`，`create_chapter_batch` 组合后 `checks` 仍为 warning 文本。
 - **偏差**：验收原文写「第02卷」，fantasy01 第43章在 **第01卷**（卡 `卷: 1`，规范文件 `第01卷-详细大纲.md`），冒烟按真仓卷号，未伪造第02卷文件。Task 4+5 合并为一次提交 `a939ef7`（闸实现不可拆）。`init_domain_skeleton` 会建空 `作者/journal.jsonl`，error 门禁断言 journal **内容**不变而非文件不存在。时间线夹具补种 `F-003`（`test_timeline_view.py`，`6d39144`），否则闸上线后建卡被拒、视图空表。
 
-回归：`pytest -o addopts=""` → `1505 passed`（阶段一 1483）；覆盖率 `TOTAL … 83%` / `Total coverage: 82.72%`（门 80）；`run_behavior_evals.py --suite fast` 23/23；`validate_plugin_package.py` OK；`validate_reference_wiring.py` drift=0；`sync_plugin_version.py --check` → `Versions are in sync: 8.0.0`。
+回归（P2-1/P2-2 当时）：`pytest -o addopts=""` → `1505 passed`（阶段一 1483）；覆盖率 `Total coverage: 82.72%`（门 80）；evals fast 23/23；三校验器 OK。
+
+**阶段二 P2-3 完成（2026-09-04，Cursor；spec/plan 见 `docs/cursor/阶段二-数据不变量/`）**
+
+| spec §6 成功标准原文 | 证据 |
+|---|---|
+| 1. 六项检查恒各有一条结果 | `test_empty_v7_book_always_returns_six_results`：空 v7 = 4 pass / 2 skip（无锚点 + 无 `.story-system`）；fantasy01 `len==6` |
+| 2. fantasy01 `invariants --format json` 六项 status；纯 v7 合同 skip | 上表 P2-3 行；inv-5 `skip` + repair「纯 v7 无 .story-system 时跳过合同重建」 |
+| 3. journal 普通 `domain=其他` fail；migration 豁免；待语义 warn | `TestJournal*` 定点；fantasy01 inv-1 含 `unclassified_event` 与 `pending_semantic` |
+| 4. live 丢条目、vNN 缺 manifest/CSV/文件项 fail | `test_invariant_check.py` Inv-2 矩阵（Task 2 `5cdbb20`） |
+| 5. 战例无定稿、境界链不单调 fail | Inv-3 定点（Task 3 `fe5e7fc`）；fantasy01 无战例 → pass |
+| 6. 作废缺 journal 或演化 retcon fail | Inv-4 定点（`fe5e7fc`）；fantasy01 4 条目均合法 → pass |
+| 7. 篡改 review/volume 重建 fail；纯 v7 skip | `TestContractRebuildInvariant`（`f4a8c50`）；fantasy01 无 `.story-system` → skip |
+| 8. 新 stale 带 `since_chapter`；超卷 fail；旧项 unknown-age warn | Task 4 `873fa21`；fantasy01 5 条旧 stale → `unknown_stale_age` warn |
+| 9. CLI 退出码 0/1 | 空 v7 `invariants --format json` returncode 0；fantasy01 有 fail → returncode 1 |
+| 10. 全量测试通过，覆盖率 ≥80% | `pytest -o addopts="" -q` → `1544 passed in 113.26s`；`Total coverage: 82.82%`；evals fast 23/23；`validate_plugin_package.py` OK；`validate_reference_wiring.py` drift=0；`sync_plugin_version.py --check` → `Versions are in sync: 8.0.0` |
 
 ### 阶段三：闭环补全——settle 后置与工坊执行器（预计 3 个任务，~1 天）
 
