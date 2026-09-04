@@ -470,3 +470,147 @@ class TestStaleAgeInvariant:
             ],
         )
         assert invariant_check.check_stale_age(tmp_path)["status"] == "pass"
+
+
+def _master_payload() -> dict:
+    return {
+        "meta": {"schema_version": "story-system/v1", "contract_type": "MASTER_SETTING"},
+        "route": {"primary_genre": "玄幻退婚流"},
+        "master_constraints": {"core_tone": "先压后爆"},
+        "base_context": [],
+        "source_trace": [],
+        "override_policy": {
+            "locked": ["route.primary_genre"],
+            "append_only": ["anti_patterns"],
+            "override_allowed": [],
+        },
+    }
+
+
+def _seed_runtime_contracts(root: Path, chapter: int = 3) -> tuple[dict, dict]:
+    from data_modules.runtime_contract_builder import RuntimeContractBuilder
+    from data_modules.story_contracts import persist_runtime_contracts
+
+    (root / ".webnovel").mkdir(parents=True, exist_ok=True)
+    (root / ".webnovel" / "state.json").write_text(
+        json.dumps(
+            {
+                "progress": {"volumes_planned": [{"volume": 1, "chapters_range": "1-20"}]},
+                "chapter_meta": {},
+                "disambiguation_pending": [],
+                "disambiguation_warnings": [],
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    story = root / ".story-system"
+    story.mkdir(parents=True, exist_ok=True)
+    (story / "MASTER_SETTING.json").write_text(
+        json.dumps(_master_payload(), ensure_ascii=False),
+        encoding="utf-8",
+    )
+    (story / "anti_patterns.json").write_text(
+        json.dumps([{"text": "配角不能抢主角兑现"}], ensure_ascii=False),
+        encoding="utf-8",
+    )
+    (root / "大纲").mkdir(parents=True, exist_ok=True)
+    (root / "大纲" / "第1卷-详细大纲.md").write_text(
+        "### 第3章：试压\nCBN：继续压迫\n必须覆盖节点：发现陷阱、决定隐忍\n本章禁区：不可提前摊牌",
+        encoding="utf-8",
+    )
+    volume_brief, review_contract = RuntimeContractBuilder(root).build_for_chapter(chapter)
+    persist_runtime_contracts(root, chapter, volume_brief, review_contract)
+    return volume_brief, review_contract
+
+
+class TestContractRebuildInvariant:
+    def test_pure_v7_without_story_system_skips(self, tmp_path: Path):
+        import data_modules.invariant_check as invariant_check
+
+        (tmp_path / "book.yaml").write_text("书名: 测试\n", encoding="utf-8")
+        item = invariant_check.check_contract_rebuild(tmp_path)
+        assert item["status"] == "skip"
+        assert item["id"] == "inv-5-contracts"
+
+    def test_freshly_persisted_contracts_pass(self, tmp_path: Path):
+        import data_modules.invariant_check as invariant_check
+
+        _seed_runtime_contracts(tmp_path)
+        item = invariant_check.check_contract_rebuild(tmp_path)
+        assert item["status"] == "pass"
+        assert item["counts"]["seed_schema_checked"] >= 2
+        assert item["counts"]["reviews"] == 1
+
+    def test_tampered_review_must_check_fails(self, tmp_path: Path):
+        import data_modules.invariant_check as invariant_check
+        from data_modules.story_contracts import StoryContractPaths
+
+        _seed_runtime_contracts(tmp_path)
+        review_path = StoryContractPaths.from_project_root(tmp_path).review_json(3)
+        payload = json.loads(review_path.read_text(encoding="utf-8"))
+        payload["must_check"] = list(payload.get("must_check") or []) + ["被篡改的检查点"]
+        review_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+        item = invariant_check.check_contract_rebuild(tmp_path)
+        assert item["status"] == "fail"
+        assert "review_mismatch" in _codes(item)
+
+    def test_tampered_volume_selected_scenes_fails(self, tmp_path: Path):
+        import data_modules.invariant_check as invariant_check
+        from data_modules.story_contracts import StoryContractPaths
+
+        _seed_runtime_contracts(tmp_path)
+        volume_path = StoryContractPaths.from_project_root(tmp_path).volume_json(1)
+        payload = json.loads(volume_path.read_text(encoding="utf-8"))
+        payload["selected_scenes"] = list(payload.get("selected_scenes") or []) + ["被篡改的场景"]
+        volume_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+        item = invariant_check.check_contract_rebuild(tmp_path)
+        assert item["status"] == "fail"
+        assert "volume_mismatch" in _codes(item)
+
+    def test_story_system_without_reviews_warns(self, tmp_path: Path):
+        import data_modules.invariant_check as invariant_check
+
+        story = tmp_path / ".story-system"
+        story.mkdir(parents=True, exist_ok=True)
+        (story / "MASTER_SETTING.json").write_text(
+            json.dumps(_master_payload(), ensure_ascii=False),
+            encoding="utf-8",
+        )
+        item = invariant_check.check_contract_rebuild(tmp_path)
+        assert item["status"] == "warn"
+        assert "no_review_sample" in _codes(item)
+
+    def test_bad_master_setting_fails_without_raising_cli(self, tmp_path: Path):
+        import data_modules.invariant_check as invariant_check
+
+        (tmp_path / "book.yaml").write_text("书名: 测试\n", encoding="utf-8")
+        story = tmp_path / ".story-system"
+        story.mkdir(parents=True, exist_ok=True)
+        (story / "MASTER_SETTING.json").write_text("{bad json", encoding="utf-8")
+        item = invariant_check.check_contract_rebuild(tmp_path)
+        assert item["status"] == "fail"
+        assert "bad_master_setting" in _codes(item)
+
+        proc = subprocess.run(
+            [
+                sys.executable,
+                "-X",
+                "utf8",
+                str(_WEBNOVEL),
+                "--project-root",
+                str(tmp_path),
+                "invariants",
+                "--format",
+                "json",
+                "--only",
+                "inv-5-contracts",
+            ],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+        assert proc.returncode == 1
+        assert "Traceback" not in (proc.stderr or "")
+        report = json.loads(proc.stdout)
+        assert report["invariants"][0]["status"] == "fail"

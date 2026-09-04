@@ -10,18 +10,26 @@ import re
 from pathlib import Path
 from typing import Any, Callable
 
+from chapter_outline_loader import volume_num_for_chapter_from_state
+
 from .author_journal import pending_semantic, read_journal, read_stale, read_watermark, validate_journal
 from .dual_format_guard import has_v7_settled_chapter, max_settled_chapter
 from .material_store import _read_csv_rows
 from .material_usage import trajectory_path
 from .power_anchor import anchor_path, load_anchor, validate_chain
 from .promise_ledger import STATUS_VALUES, load_entries
+from .runtime_contract_builder import RuntimeContractBuilder
+from .story_contract_schema import ChapterBrief, MasterSetting
+from .story_contracts import StoryContractPaths, read_json_if_exists
 
 SCHEMA_VERSION = "invariants/1"
 _JOURNAL_TITLE = "journal 无未分类事件积压"
 _MATERIAL_TITLE = "素材使用轨迹与来源一致"
 _POWER_TITLE = "力量锚点战例与境界链"
 _PROMISE_TITLE = "承诺条目状态机与 retcon 双记录"
+_CONTRACT_TITLE = "runtime contract 重建对账"
+_REVIEW_NAME_RE = re.compile(r"^chapter_(\d+)\.review\.json$")
+_CONTRACT_WARN_CODES = frozenset({"no_review_sample"})
 _FROZEN_VERSION_RE = re.compile(r"^v\d+$")
 _RETCON_VOL_RE = re.compile(r"v(\d+)")
 _EVO_RETCON_RE = re.compile(r"^retcon-v(\d+)-")
@@ -372,12 +380,187 @@ def check_promise_states(root: Path) -> dict[str, Any]:
         repair=repair,
     )
 
+def _rel_to_root(root: Path, path: Path) -> str:
+    try:
+        return path.resolve().relative_to(root.resolve()).as_posix()
+    except ValueError:
+        return str(path)
+
+
+def _normalized_json(payload: Any) -> Any:
+    return json.loads(json.dumps(payload, ensure_ascii=False))
+
+
 def check_contract_rebuild(root: Path) -> dict[str, Any]:
+    root = Path(root)
+    try:
+        return _check_contract_rebuild_inner(root)
+    except Exception as exc:
+        return result(
+            "inv-5-contracts",
+            _CONTRACT_TITLE,
+            "fail",
+            findings=[finding("contract_check_error", str(exc))],
+            repair="修正 .story-system JSON/schema 后重跑 invariants",
+        )
+
+
+def _check_contract_rebuild_inner(root: Path) -> dict[str, Any]:
+    paths = StoryContractPaths.from_project_root(root)
+    if not paths.root.is_dir():
+        return result(
+            "inv-5-contracts",
+            _CONTRACT_TITLE,
+            "skip",
+            repair="纯 v7 无 .story-system 时跳过合同重建",
+        )
+
+    findings: list[dict[str, Any]] = []
+    seed_checked = 0
+    master_rel = ".story-system/MASTER_SETTING.json"
+    try:
+        master_raw = read_json_if_exists(paths.master_json)
+    except Exception as exc:
+        findings.append(finding("bad_master_setting", str(exc), path=master_rel))
+        master_raw = None
+    if master_raw is None and not any(item["code"] == "bad_master_setting" for item in findings):
+        findings.append(finding("missing_master_setting", "缺 MASTER_SETTING.json", path=master_rel))
+    elif master_raw is not None:
+        try:
+            MasterSetting.model_validate(master_raw)
+            seed_checked += 1
+        except Exception as exc:
+            findings.append(finding("bad_master_setting", str(exc), path=master_rel))
+
+    if paths.anti_patterns_json.is_file():
+        anti_rel = ".story-system/anti_patterns.json"
+        try:
+            anti_raw = read_json_if_exists(paths.anti_patterns_json)
+            if not isinstance(anti_raw, list):
+                findings.append(finding("bad_anti_patterns", "anti_patterns 必须是 JSON 数组", path=anti_rel))
+            else:
+                seed_checked += 1
+        except Exception as exc:
+            findings.append(finding("bad_anti_patterns", str(exc), path=anti_rel))
+
+    if paths.chapters_dir.is_dir():
+        for chapter_path in sorted(paths.chapters_dir.glob("chapter_*.json")):
+            rel = _rel_to_root(root, chapter_path)
+            try:
+                brief_raw = read_json_if_exists(chapter_path)
+                if brief_raw is None:
+                    continue
+                ChapterBrief.model_validate(brief_raw)
+                seed_checked += 1
+            except Exception as exc:
+                findings.append(finding("bad_chapter_brief", str(exc), path=rel))
+
+    reviews: list[tuple[int, Path]] = []
+    if paths.reviews_dir.is_dir():
+        for review_path in sorted(paths.reviews_dir.glob("chapter_*.review.json")):
+            match = _REVIEW_NAME_RE.match(review_path.name)
+            if match:
+                reviews.append((int(match.group(1)), review_path))
+
+    if not reviews:
+        findings.append(
+            finding(
+                "no_review_sample",
+                "有 .story-system 但无可重建 review 样本",
+                path=".story-system/reviews",
+            )
+        )
+
+    volume_last: dict[int, tuple[int, Any]] = {}
+    for chapter, review_path in reviews:
+        rel = _rel_to_root(root, review_path)
+        try:
+            rebuilt_volume, rebuilt_review = RuntimeContractBuilder(root).build_for_chapter(chapter)
+        except Exception as exc:
+            findings.append(
+                finding("rebuild_failed", str(exc), ref=str(chapter), path=rel, chapter=chapter)
+            )
+            continue
+        try:
+            disk_review = read_json_if_exists(review_path)
+        except Exception as exc:
+            findings.append(
+                finding("bad_review_json", str(exc), ref=str(chapter), path=rel, chapter=chapter)
+            )
+            continue
+        if _normalized_json(disk_review) != _normalized_json(rebuilt_review):
+            findings.append(
+                finding(
+                    "review_mismatch",
+                    f"章{chapter} review 与重建不一致",
+                    ref=str(chapter),
+                    path=rel,
+                    chapter=chapter,
+                )
+            )
+        volume = volume_num_for_chapter_from_state(root, chapter) or 1
+        volume_last[volume] = (chapter, rebuilt_volume)
+
+    for volume, (chapter, rebuilt_volume) in volume_last.items():
+        vol_path = paths.volume_json(volume)
+        rel = _rel_to_root(root, vol_path)
+        try:
+            disk_volume = read_json_if_exists(vol_path)
+        except Exception as exc:
+            findings.append(
+                finding(
+                    "bad_volume_json",
+                    str(exc),
+                    ref=str(volume),
+                    path=rel,
+                    chapter=chapter,
+                    volume=volume,
+                )
+            )
+            continue
+        if disk_volume is None:
+            findings.append(
+                finding(
+                    "missing_volume",
+                    f"缺 volume_{volume:03d}.json",
+                    ref=str(volume),
+                    path=rel,
+                    chapter=chapter,
+                    volume=volume,
+                )
+            )
+        elif _normalized_json(disk_volume) != _normalized_json(rebuilt_volume):
+            findings.append(
+                finding(
+                    "volume_mismatch",
+                    f"卷{volume} volume 与章{chapter}重建不一致",
+                    ref=str(volume),
+                    path=rel,
+                    chapter=chapter,
+                    volume=volume,
+                )
+            )
+
+    has_fail = any(item["code"] not in _CONTRACT_WARN_CODES for item in findings)
+    has_warn = any(item["code"] in _CONTRACT_WARN_CODES for item in findings)
+    status = "fail" if has_fail else ("warn" if has_warn else "pass")
+    if status == "fail":
+        repair = "重新生成 runtime contracts 或修正 MASTER_SETTING/磁盘合同"
+    elif status == "warn":
+        repair = "生成至少一份 review runtime contract 后再对账"
+    else:
+        repair = ""
     return result(
         "inv-5-contracts",
-        "runtime contract 重建对账",
-        "skip",
-        repair="纯 v7 无 .story-system 时跳过合同重建",
+        _CONTRACT_TITLE,
+        status,
+        findings=findings,
+        counts={
+            "reviews": len(reviews),
+            "volumes": len(volume_last),
+            "seed_schema_checked": seed_checked,
+        },
+        repair=repair,
     )
 
 
