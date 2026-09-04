@@ -122,7 +122,7 @@ def test_governance_page_has_seventh_ledger_section():
 
 `create_entry` 会写 journal（`action=add`）；本切片不断言 journal。F-001 `due=10` < 定稿 42 → 逾期；S-001 先建再 `已回收`，扫描器跳过已回收。
 
-- [ ] RED：
+- [x] RED：
 
 ```powershell
 python -X utf8 -m pytest webnovel-writer/scripts/data_modules/tests/test_dashboard_app.py -q --no-cov -p no:cacheprovider -k "governance"
@@ -136,7 +136,7 @@ python -X utf8 -m pytest webnovel-writer/scripts/data_modules/tests/test_dashboa
 
 **文件：** `governance.py`、`GovernancePage.jsx`、可选 `app.py` 注释、`frontend/dist`
 
-- [ ] `governance.py` 增加 `_ledger_view`，接入 `build_governance_snapshot`：
+- [x] `governance.py` 增加 `_ledger_view`，接入 `build_governance_snapshot`：
 
 ```python
 def _ledger_view(root: Path) -> dict[str, Any]:
@@ -190,15 +190,15 @@ def _ledger_view(root: Path) -> dict[str, Any]:
 
 `build_governance_snapshot` 增加 `"ledger": _ledger_view(root)`。
 
-- [ ] `_alerts` 的 `latest` 改为 `max(1, max_settled_chapter(root))`（与 ledger 同源）。若 `_latest_chapter_hint` 无其它调用则删除。
+- [x] `_alerts` 的 `latest` 改为 `max(1, max_settled_chapter(root))`（与 ledger 同源）。若 `_latest_chapter_hint` 无其它调用则删除。
 
-- [ ] `GovernancePage.jsx`：读 `snapshot.ledger`；⑥ 后增加第七段（计数一行、逾期、全量表、空态「无承诺账本条目」）。标题必须含原文 `⑦ 承诺账本`。
+- [x] `GovernancePage.jsx`：读 `snapshot.ledger`；⑥ 后增加第七段（计数一行、逾期、全量表、空态「无承诺账本条目」）。标题必须含原文 `⑦ 承诺账本`。
 
-- [ ] 可选：`app.py` 中 `/api/governance` 注释「六视图」改为「七视图」。
+- [x] 可选：`app.py` 中 `/api/governance` 注释「六视图」改为「七视图」。
 
-- [ ] GREEN：Task 1 命令去掉 RED 预期。
+- [x] GREEN：Task 1 命令去掉 RED 预期。
 
-- [ ] 前端产物：
+- [x] 前端产物：
 
 ```powershell
 Set-Location webnovel-writer/dashboard/frontend
@@ -211,7 +211,7 @@ npm run build
 
 ## Task 3：提交实现
 
-- [ ] 只 stage 实现 + 测试 + dist（不含 spec/plan）：
+- [x] 只 stage 实现 + 测试 + dist（不含 spec/plan）：
 
 ```text
 feat(dashboard): 治理面板增加承诺账本视图
@@ -223,8 +223,10 @@ feat(dashboard): 治理面板增加承诺账本视图
 
 ## 完成定义（实现期）
 
-- 新测试全绿；既有 `test_dashboard_app.py` / governance 端点全绿。
-- tmp 仓 `ledger` 有计数与逾期；扫描后 F-001 仍为 `open`。
-- 空账本不报错。
-- JSX / dist 含「⑦ 承诺账本」。
-- 全量回归与 README W1 留收尾。
+- [x] 新测试全绿；既有 `test_dashboard_app.py` / governance 端点全绿。
+- [x] tmp 仓 `ledger` 有计数与逾期；扫描后 F-001 仍为 `open`。
+- [x] 空账本不报错。
+- [x] JSX / dist 含「⑦ 承诺账本」。
+- [x] 全量回归与 README W1 留收尾。
+
+实现提交：`0f399fe`。Task 1–3 合并为一次提交。Playwright MCP 本轮不可用，真仓用 `GET /api/governance` + dist 文案对账。

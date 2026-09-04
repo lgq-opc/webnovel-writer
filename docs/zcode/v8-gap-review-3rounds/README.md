@@ -333,6 +333,25 @@ create_chapter_batch 不读详细大纲（无论叫什么名字）→ 标题自�
 
 偏差：① 无 ledger。② Task 1–3 合并为 `c0c5981`。③ 治理 fail 不改 `invariants` CLI 退出码。
 
+**阶段四 P4-2 完成（2026-09-04，Cursor；spec/plan 见 `docs/cursor/阶段四-dashboard账本视图/`；实现 `0f399fe`）**
+
+| 任务 | 状态 | 证据（验收原文 → 测试 / 命令输出） |
+|---|---|---|
+| P4-2 | ✅ `0f399fe` | 「governance.py 增承诺账本视图（各状态计数+逾期列表）」→ `test_governance_ledger_counts_and_overdue_without_writing`；fantasy01 `counts.open=4`，overdue `[]`。「GovernancePage 增第七段」→ JSX/dist `⑦ 承诺账本`。「面板可见 F-001~S-001 状态」→ 真仓 `GET /api/governance` ids `F-001,F-002,F-003,S-001` 全 `open`。 |
+
+**范围/实现对照（spec §6 原文 → 证据）：**
+
+| # | 方案原文 | 证据 |
+|---|---|---|
+| 1 | governance.py 增承诺账本视图（各状态计数+逾期列表） | snapshot 含 `ledger`；夹具 `open=1`/`已回收=1`；F-001 逾期且扫描后仍 `open` |
+| 2 | GovernancePage 增第七段 | `test_governance_page_has_seventh_ledger_section`；`GovernancePage-BmNCnMAj.js` 含 `⑦ 承诺账本` |
+| 3 | 面板可见 F-001~S-001 状态 | 真仓 HTTP `http://127.0.0.1:8766/api/governance`：四编号、`open`、`current_chapter=41` |
+| 4 | 回归 | `test_dashboard_app.py` 8/8；`pytest -o addopts="" -q` → `1583 passed in 126.71s`；`Total coverage: 83.03%`；evals fast 23/23；三校验器 OK；`Versions are in sync: 8.0.0` |
+
+额外：⑥ 逾期章号改走 `max_settled_chapter`；删除 `_latest_chapter_hint`。`foreshadow_scan(apply=False)`。未改 ForeshadowingPage。Playwright MCP 本轮不可用。
+
+偏差：① 无 ruling ledger。② Task 1–3 合并为 `0f399fe`。③ 浏览器 DOM 未走 Playwright，用 API + dist 文案代替。
+
 ### 依赖关系
 
 ```
