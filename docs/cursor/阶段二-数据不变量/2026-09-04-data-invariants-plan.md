@@ -155,48 +155,15 @@ feat(invariants): 添加六项报告骨架与统一 CLI
 
 ## Task 2：Inv-1 journal 与 Inv-2 素材轨迹
 
-- [ ] 新增 journal 测试：
-  - 合法 journal → pass；
-  - 普通 `domain=其他` → fail；
-  - `(bulk)` + `impact=["migration"]` → pass；
-  - 空 summary edit → warn；
-  - 非法枚举 → fail。
-- [ ] 新增素材测试：
-  - live ID 存在 → pass，删除行后 fail；
-  - v01 manifest + CSV + ID 齐全 → pass；
-  - 分别删除 manifest、CSV、manifest source_files 项、CSV 中 ID → fail；
-  - 无轨迹 → pass。
-- [ ] 运行 RED。
-- [ ] 实现 `check_journal`：
+**状态：已完成。** 定点 `test_invariant_check.py` + `test_author_journal.py` + `test_material_usage.py` → 45 passed。
 
-```python
-events = read_journal(root)
-schema_problems = validate_journal(root)
-unclassified = [
-    (index, event) for index, event in enumerate(events, 1)
-    if event.get("domain") == "其他"
-    and not (event.get("path") == "(bulk)" and "migration" in (event.get("impact") or []))
-]
-semantic = pending_semantic(root)
-status = "fail" if schema_problems or unclassified else ("warn" if semantic else "pass")
-```
-
-- [ ] 实现 `check_material_trajectory`：
-  - 用 `read_trajectory`，另逐行读取原文件以保留行号和坏 JSON finding；
-  - live 在 `素材/活/*.csv` 全表按 `id` 查；
-  - `vNN` 校验 manifest、source filename、同目录 CSV ID；
-  - 结果 counts 含 `rows/live/frozen/invalid`。
-- [ ] 运行：
-
-```powershell
-python -X utf8 -m pytest webnovel-writer/scripts/tests/test_invariant_check.py webnovel-writer/scripts/tests/test_author_journal.py webnovel-writer/scripts/tests/test_material_usage.py -q --no-cov -p no:cacheprovider
-```
-
-- [ ] 提交：
-
-```text
-feat(invariants): 校验 journal 积压与素材轨迹来源
-```
+- [x] 新增 journal 测试：合法 → pass；普通 `domain=其他` → fail；`(bulk)` + `impact=["migration"]` → pass；空 summary edit → warn；非法枚举 → fail。
+- [x] 新增素材测试：live ID 存在再删行 → fail；v01 manifest+CSV+ID → pass；分别删 manifest / CSV / source_files 项 / CSV 中 ID → fail；无轨迹 → pass。
+- [x] 运行 RED（骨架恒 pass，上述 fail/warn 断言全红）。
+- [x] 实现 `check_journal`：`validate_journal` + 未分类 `domain=其他`（migration `(bulk)` 豁免）+ `pending_semantic`（已 enrich 的 edit 不警告）。
+- [x] 实现 `check_material_trajectory`：逐行读轨迹保留行号；live 查 `素材/活/*.csv`；`vNN` 查 manifest / CSV / source_files；counts=`rows/live/frozen/invalid`。
+- [x] 运行定点测试 45 passed。
+- [x] 提交 `feat(invariants): 校验 journal 积压与素材轨迹来源`
 
 ## Task 3：Inv-3 力量与 Inv-4 条目
 
