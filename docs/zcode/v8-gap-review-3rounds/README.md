@@ -208,6 +208,27 @@ create_chapter_batch 不读详细大纲（无论叫什么名字）→ 标题自�
 | **P3-2 工坊同步执行器** | 新 `forge-sync` 命令：扫 journal 中 `power_anchor_sync:required` / `contract_rebuild:required` 未消费标记 → 提示作者执行锚点确认与 master-outline-sync；消费后标记 cleared | adopt 功法提案 → forge-sync 引导完成锚点同步 |
 | **P3-3 写回 JSON 播种 + CLI 修正** | ①promise-ledger 增 `seed-from-writeback`：读 `第NN卷-总纲写回.json` 的 foreshadow_writeback 数组建账本条目；②修 `learn` CLI 冗余参数（action 默认 learn）；③fantasy01 重复详细大纲去重（保留带后缀版） | 写回 8 条伏笔一键入账；`learn --from-journal` 直接可跑 |
 
+**阶段三 P3-1 完成（2026-09-04，Cursor；spec/plan 见 `docs/cursor/阶段三-settle后置钩子/`；实现 `6ed016f`）**
+
+| 任务 | 状态 | 证据（验收原文 → 测试 / 命令输出） |
+|---|---|---|
+| P3-1 | ✅ `6ed016f` | 「ch43 settle 一次跑完，轨迹/指纹/追读力三表自动更新」→ 真仓无 `0043-` 定稿（spec §4.5 用 43）。只读副本 `$env:TEMP/fantasy01-p3-1-smoke`（排除 `.git`）：补种 `场景写法:SP-001`（真仓无该表，否则门③拒）；`webnovel.py --project-root <副本> v7-write settle --chapter 43 --no-commit --summary-file`（摘要含 `hook_type`/`hook_strength`）→ `OK v7-write settle chapter=43 committed=False bypassed=False … post=materials:ok/2 style:fp=42,samples=0 reading:ok`。轨迹 `TRAJ_IDS ['SP-001', 'WT-001']`；`文风/指纹.yaml` 内容变化且 `fingerprint_chapters=42`；`get_chapter_reading_power(43)` → `hook_type=悬念, hook_strength=strong`。副本无 git → `--no-commit`；git add 由单测覆盖。 |
+
+**范围/实现对照（spec §6 原文 → 证据）：**
+
+| # | 方案原文 | 证据 |
+|---|---|---|
+| 1 | materials log（幂等闸已有） | 冒烟轨迹 2 行；`test_materials_logged_and_committed`；无卡 → `test_v7_write_post_hooks` 中 skipped 路径（`card_missing`） |
+| 2 | settle_style_domain（指纹+高分采样） | 冒烟 `style:fp=42,samples=0`；`test_fingerprint_written_and_committed`（`recorded==0`） |
+| 3 | reading_power（从摘要 front matter 提取） | 冒烟 `reading:ok` + index 行；`test_reading_power_from_summary_front_matter` / `test_reading_skipped_without_hook` |
+| 4 | 各自 try/except 不阻断 settle | `test_hook_error_does_not_block_settle`（定稿仍在，`materials.status==error`） |
+| 5 | CLI 输出后置结果一行 | 冒烟 stdout 含 `post=materials:ok/2`；`test_exit_0_with_bypass` 断言 `post=` |
+| 6 | 后置文件扩进本次 git add | `test_materials_logged_and_committed` / `test_fingerprint_written_and_committed`：`git -c core.quotepath=false ls-files` 含轨迹与指纹 |
+| 7 | 门禁拒绝不跑后置 | `test_gate_reject_skips_post_hooks`（blocking 审查 → 无 `0042-*`、无新指纹） |
+| 8 | 回归 | `pytest -o addopts="" -q --cov …` → `1550 passed, 23 warnings in 120.18s`；`Total coverage: 82.85%`；evals fast 23/23；`validate_plugin_package.py` OK；`validate_reference_wiring.py` drift=0；`sync_plugin_version.py --check` → `Versions are in sync: 8.0.0` |
+
+偏差：① 无 ledger（与 P2 相同，未走 SDD）。② 冒烟 `--no-commit`（副本排除 `.git`）；③ 真仓缺 `场景写法.csv`，副本补种 SP-001 才能过门③并验证轨迹，未改真仓。
+
 ### 阶段四：体检与体验（预计 3 个任务，~1 天）
 
 > 目标：doctor 成为一站式治理体检；面板/播种/命名补盲

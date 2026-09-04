@@ -9,6 +9,8 @@
 **技术栈：** Python 3.10+、pytest、git CLI。
 **Spec：** `docs/cursor/阶段三-settle后置钩子/2026-09-04-settle-post-hooks-spec.md`
 
+**执行记录（2026-09-04，Cursor）**：Task 1–3 完成。实现 commit `6ed016f`；spec/plan `c1c8267`。无 ledger（未走 SDD）。定点 `test_v7_write_post_hooks.py` + gates + `test_v7_write.py`。全量 `1550 passed` / cov 82.85%。fantasy01 只读副本 ch43 `--no-commit`：`post=materials:ok/2 style:fp=42,samples=0 reading:ok`。
+
 ## 全局约束
 
 - 后置在定稿写盘之后、`git add`/`commit` 之前。
@@ -42,7 +44,7 @@
 
 **文件：** 新增 `test_v7_write_post_hooks.py`；修改 `test_v7_write_gates.py` CLI 断言。
 
-- [ ] 写失败测试（夹具复用 gates 的 `_repo` / `_review` / `_decision` / CLEAN_BODY 模式，本文件自备以免循环导入）：
+- [x] 写失败测试（夹具复用 gates 的 `_repo` / `_review` / `_decision` / CLEAN_BODY 模式，本文件自备以免循环导入）：
 
 ```python
 def test_materials_logged_and_committed(tmp_path):
@@ -109,7 +111,7 @@ def test_gate_reject_skips_post_hooks(tmp_path):
 
 CLI：`test_exit_0_with_bypass` 增加 `assert "post=" in proc.stdout`。
 
-- [ ] 运行 RED：
+- [x] 运行 RED：
 
 ```powershell
 python -X utf8 -m pytest webnovel-writer/scripts/data_modules/tests/test_v7_write_post_hooks.py webnovel-writer/scripts/data_modules/tests/test_v7_write_gates.py::TestSettleCli -q --no-cov -p no:cacheprovider
@@ -121,13 +123,13 @@ python -X utf8 -m pytest webnovel-writer/scripts/data_modules/tests/test_v7_writ
 
 **文件：** `reading_power_projection.py`、`v7_write.py`
 
-- [ ] `settle_reading_power(root, chapter, summary_text) -> dict`：`extract_hook_fields`；无 `hook_type` 再读章摘要文件；仍无则 `skipped`；否则 `IndexManager.save_chapter_reading_power`。
-- [ ] `_run_post_hooks(repo, chapter, summary_text)` 按 spec §4.2。
-- [ ] `_git_add_settle_paths(repo)`：对候选路径 `exists` 且 `git check-ignore -q` 非 0 则 `git add -- <rel>`。
-- [ ] `settle`：写盘 + 绕过 journal 之后调用后置，再 add+commit。`result["post"] = ...`
-- [ ] 运行定点 GREEN。
+- [x] `settle_reading_power(root, chapter, summary_text) -> dict`：`extract_hook_fields`；无 `hook_type` 再读章摘要文件；仍无则 `skipped`；否则 `IndexManager.save_chapter_reading_power`。
+- [x] `_run_post_hooks(repo, chapter, summary_text)` 按 spec §4.2。
+- [x] `_git_add_settle_paths(repo)`：对候选路径 `exists` 且 `git check-ignore -q` 非 0 则 `git add -- <rel>`。
+- [x] `settle`：写盘 + 绕过 journal 之后调用后置，再 add+commit。`result["post"] = ...`
+- [x] 运行定点 GREEN。
 
-- [ ] 提交：
+- [x] 提交：
 
 ```text
 feat(settle): 成功后落账轨迹、指纹与追读力
@@ -137,11 +139,11 @@ feat(settle): 成功后落账轨迹、指纹与追读力
 
 ## Task 3：CLI 一行与回归
 
-- [ ] `main` settle 成功打印含 `post=_format_post(result["post"])`。
-- [ ] 运行：
+- [x] `main` settle 成功打印含 `post=_format_post(result["post"])`。
+- [x] 运行：
 
 ```powershell
 python -X utf8 -m pytest webnovel-writer/scripts/data_modules/tests/test_v7_write_post_hooks.py webnovel-writer/scripts/data_modules/tests/test_v7_write_gates.py webnovel-writer/scripts/data_modules/tests/test_v7_write.py -q --no-cov -p no:cacheprovider
 ```
 
-- [ ] 若 CLI 断言已在 Task 1 文件中，本任务只补 `_format_post` 与打印。
+- [x] 若 CLI 断言已在 Task 1 文件中，本任务只补 `_format_post` 与打印。
