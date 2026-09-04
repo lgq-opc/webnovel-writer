@@ -425,3 +425,48 @@ class TestPromiseInvariant:
         item = _check(book, "inv-4-promises")
         assert item["status"] == "fail"
         assert "voided_missing_journal_retcon" in _codes(item)
+
+
+def _write_stale_fixture(root: Path, items: list[dict]) -> None:
+    path = root / ".webnovel" / "stale.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps({"schema_version": "stale/1", "items": items}, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+
+class TestStaleAgeInvariant:
+    def test_old_stale_without_since_chapter_is_warn(self, tmp_path: Path):
+        import data_modules.invariant_check as invariant_check
+
+        _write_stale_fixture(
+            tmp_path,
+            [{"target": "x", "since": "2026-09-01T00:00:00+08:00", "consumed": False}],
+        )
+        assert invariant_check.check_stale_age(tmp_path)["status"] == "warn"
+        assert "unknown_stale_age" in _codes(invariant_check.check_stale_age(tmp_path))
+
+    def test_stale_older_than_one_volume_fails(self, tmp_path: Path):
+        import data_modules.invariant_check as invariant_check
+
+        (tmp_path / "book.yaml").write_text("卷规模: 40\n", encoding="utf-8")
+        _settled_chapter(tmp_path, 82)
+        _write_stale_fixture(tmp_path, [{"target": "x", "since_chapter": 41, "consumed": False}])
+        report = invariant_check.check_stale_age(tmp_path)
+        assert report["status"] == "fail"
+        assert report["findings"][0]["code"] == "stale_over_one_volume"
+
+    def test_consumed_and_within_volume_pass(self, tmp_path: Path):
+        import data_modules.invariant_check as invariant_check
+
+        (tmp_path / "book.yaml").write_text("卷规模: 40\n", encoding="utf-8")
+        _settled_chapter(tmp_path, 82)
+        _write_stale_fixture(
+            tmp_path,
+            [
+                {"target": "old", "since_chapter": 1, "consumed": True},
+                {"target": "fresh", "since_chapter": 42, "consumed": False},
+            ],
+        )
+        assert invariant_check.check_stale_age(tmp_path)["status"] == "pass"

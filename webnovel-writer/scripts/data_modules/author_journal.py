@@ -204,13 +204,16 @@ def _write_stale(project_root: str | Path, items: list[dict[str, Any]]) -> None:
 
 
 def mark_stale(project_root: str | Path, *, target: str, reason: str, impact: list[str] | None = None) -> None:
-    """标记 stale（同 target 覆盖合并，reason 取最新）。"""
+    """标记 stale（同 target 覆盖合并，reason 取最新）。新项记录 since_chapter。"""
+    from .dual_format_guard import max_settled_chapter
+
     items = [dict(item) for item in read_stale(project_root)]
     entry = {
         "target": target,
         "reason": reason,
         "impact": list(impact or []),
         "since": _utc_now_iso(),
+        "since_chapter": max_settled_chapter(project_root),
         "consumed": False,
     }
     items = [item for item in items if item.get("target") != target]

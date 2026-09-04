@@ -12,12 +12,14 @@ v7 仓库根经配置 `story_repo_root` 提供（S16 迁移器建立映射后填
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any, Optional
 
 from .write_gates import issue
 
 V7_FINALIZED_DIR = Path("定稿") / "正文"
+_SETTLED_NAME_RE = re.compile(r"^(\d{4})-.*\.md$")
 
 
 def has_v6_accepted_chapter(project_root: Path, chapter: int) -> bool:
@@ -39,6 +41,22 @@ def has_v7_settled_chapter(story_repo_root: Optional[Path | str], chapter: int) 
         return False
     prefix = f"{int(chapter):04d}-"
     return any(p.name.startswith(prefix) and p.suffix == ".md" for p in final_dir.iterdir())
+
+
+def max_settled_chapter(story_repo_root: Optional[Path | str]) -> int:
+    """当前最大定稿章号（`定稿/正文/NNNN-*.md`）；无定稿返回 0。"""
+    if not story_repo_root:
+        return 0
+    final_dir = Path(story_repo_root) / V7_FINALIZED_DIR
+    if not final_dir.is_dir():
+        return 0
+    chapters = [
+        int(match.group(1))
+        for path in final_dir.iterdir()
+        if path.is_file() and (match := _SETTLED_NAME_RE.match(path.name))
+    ]
+    return max(chapters) if chapters else 0
+
 
 
 def detect_chapter_formats(

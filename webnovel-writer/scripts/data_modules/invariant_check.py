@@ -10,8 +10,8 @@ import re
 from pathlib import Path
 from typing import Any, Callable
 
-from .author_journal import pending_semantic, read_journal, read_watermark, validate_journal
-from .dual_format_guard import has_v7_settled_chapter
+from .author_journal import pending_semantic, read_journal, read_stale, read_watermark, validate_journal
+from .dual_format_guard import has_v7_settled_chapter, max_settled_chapter
 from .material_store import _read_csv_rows
 from .material_usage import trajectory_path
 from .power_anchor import anchor_path, load_anchor, validate_chain
@@ -382,8 +382,45 @@ def check_contract_rebuild(root: Path) -> dict[str, Any]:
 
 
 def check_stale_age(root: Path) -> dict[str, Any]:
-    return result("inv-6-stale-age", "stale 不超过一卷", "pass")
-
+    root = Path(root)
+    items = [item for item in read_stale(root) if not item.get("consumed")]
+    findings: list[dict[str, Any]] = []
+    current = max_settled_chapter(root)
+    size = volume_size(root)
+    for item in items:
+        target = str(item.get("target") or "")
+        if "since_chapter" not in item:
+            findings.append(finding("unknown_stale_age", f"{target} 缺 since_chapter，无法换算卷龄", ref=target))
+            continue
+        try:
+            since_chapter = int(item.get("since_chapter"))
+        except (TypeError, ValueError):
+            findings.append(finding("unknown_stale_age", f"{target} since_chapter 无法解析", ref=target))
+            continue
+        age = current - since_chapter
+        if age > size:
+            findings.append(
+                finding(
+                    "stale_over_one_volume",
+                    f"{target} 未消费已超一卷（当前章 {current} - 起始章 {since_chapter} = {age} > 卷规模 {size}）",
+                    ref=target,
+                    current_chapter=current,
+                    since_chapter=since_chapter,
+                    volume_size=size,
+                )
+            )
+    fail = any(item["code"] == "stale_over_one_volume" for item in findings)
+    warn = any(item["code"] == "unknown_stale_age" for item in findings)
+    status = "fail" if fail else ("warn" if warn else "pass")
+    repair = "消费或推进超龄 stale；旧项补 since_chapter 后重标" if findings else ""
+    return result(
+        "inv-6-stale-age",
+        "stale 不超过一卷",
+        status,
+        findings=findings,
+        counts={"unconsumed": len(items), "current_chapter": current, "volume_size": size},
+        repair=repair,
+    )
 
 CHECKS: tuple[tuple[str, CheckFn], ...] = (
     ("inv-1-journal", check_journal),

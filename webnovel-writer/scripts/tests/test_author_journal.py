@@ -135,6 +135,22 @@ class TestStale:
         assert items[0]["reason"] == "b"
 
 
+    def test_mark_stale_records_current_max_settled_chapter(self, book: Path):
+        from data_modules.author_journal import mark_stale, read_stale
+
+        body = book / "定稿" / "正文" / "0042-夜袭.md"
+        body.parent.mkdir(parents=True, exist_ok=True)
+        body.write_text("---\n章号: 42\n---\n正文", encoding="utf-8")
+        mark_stale(book, target="timeline:recheck", reason="卷纲变更")
+        assert read_stale(book)[0]["since_chapter"] == 42
+
+    def test_mark_stale_without_settled_chapter_is_zero(self, book: Path):
+        from data_modules.author_journal import mark_stale, read_stale
+
+        mark_stale(book, target="timeline:recheck", reason="尚无定稿")
+        assert read_stale(book)[0]["since_chapter"] == 0
+
+
 class TestSemanticEnrichment:
     def test_pending_semantic_lists_empty_summaries(self, book: Path):
         from data_modules.author_journal import append_events, pending_semantic

@@ -178,47 +178,13 @@ feat(invariants): 添加六项报告骨架与统一 CLI
 
 ## Task 4：stale `since_chapter` 与 Inv-6
 
-**文件：**
-- `author_journal.py`
-- `invariant_check.py`
-- `test_author_journal.py`
-- `test_invariant_check.py`
+**状态：已完成。** `test_author_journal.py` + `test_invariant_check.py` 定点全绿。`max_settled_chapter` 放在 `dual_format_guard.py`（author_journal 不反向依赖校验器）。
 
-- [ ] 写失败测试：
-
-```python
-def test_mark_stale_records_current_max_settled_chapter(tmp_path):
-    body = tmp_path / "定稿" / "正文" / "0042-夜袭.md"
-    body.parent.mkdir(parents=True)
-    body.write_text("---\n章号: 42\n---\n正文", encoding="utf-8")
-    mark_stale(tmp_path, target="timeline:recheck", reason="卷纲变更")
-    assert read_stale(tmp_path)[0]["since_chapter"] == 42
-
-
-def test_old_stale_without_since_chapter_is_warn(tmp_path):
-    _write_stale_fixture(tmp_path, [{"target": "x", "since": "2026-09-01T00:00:00+08:00", "consumed": False}])
-    assert invariant_check.check_stale_age(tmp_path)["status"] == "warn"
-
-
-def test_stale_older_than_one_volume_fails(tmp_path):
-    (tmp_path / "book.yaml").write_text("卷规模: 40\n", encoding="utf-8")
-    _write_settled_chapter(tmp_path, 82)
-    _write_stale_fixture(tmp_path, [{"target": "x", "since_chapter": 41, "consumed": False}])
-    report = invariant_check.check_stale_age(tmp_path)
-    assert report["status"] == "fail"
-    assert report["findings"][0]["code"] == "stale_over_one_volume"
-```
-
-- [ ] 运行 RED。
-- [ ] 提取 `max_settled_chapter(root)`（建议放 `invariant_check.py` 不合适，因为 author_journal 不能反向依赖校验器；放 `dual_format_guard.py` 的公共 helper 或 `chapter_paths.py`）。
-- [ ] `mark_stale` 写 `since_chapter=max_settled_chapter(root)`。
-- [ ] `check_stale_age`：卷规模读 `book.yaml` 顶层标量，非法回退 50；差值严格 `>` 才 fail。
-- [ ] 运行定点测试。
-- [ ] 提交：
-
-```text
-feat(stale): 记录起始章并校验未消费项是否超过一卷
-```
+- [x] 失败测试：新 stale 记录最大定稿章；无定稿为 0；旧项无 `since_chapter` → warn；`82-41 > 40` → fail；已消费/未超一卷 → pass。
+- [x] 运行 RED。
+- [x] `mark_stale` 写 `since_chapter=max_settled_chapter(root)`；同 target 覆盖刷新该字段。
+- [x] `check_stale_age`：卷规模非法回退 50；差值严格 `>` 才 fail；已消费忽略。
+- [x] 提交 `feat(stale): 记录起始章并校验未消费项是否超过一卷`
 
 ## Task 5：Inv-5 runtime contract 重建对账
 
