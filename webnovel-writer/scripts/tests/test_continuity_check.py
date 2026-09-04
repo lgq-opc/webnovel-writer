@@ -142,3 +142,39 @@ class TestNameConflict:
 
         payload = json.loads(capsys.readouterr().out)
         assert payload["conflicts"] and payload["conflicts"][0]["name"] == "苏小白"
+
+
+def _plant_settled_chapter(root: Path, chapter: int, body: str) -> None:
+    folder = root / "定稿" / "正文"
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / f"{chapter:04d}-测.md").write_text(
+        f"---\n章: {chapter}\n---\n{body}\n", encoding="utf-8"
+    )
+
+
+def test_scan_flags_unlisted_nickname(book: Path):
+    from data_modules.continuity_check import scan_floating_names
+
+    _plant_settled_chapter(book, 41, "铁牙守门。铁牙又来了。")
+    found = {item["name"]: item for item in scan_floating_names(book, window=5, min_count=2)}
+    assert "铁牙" in found
+    assert found["铁牙"]["count"] >= 2
+
+
+def test_scan_skips_rostered_name(book: Path):
+    from data_modules.continuity_check import scan_floating_names
+
+    _plant_settled_chapter(book, 41, "苏小白走了。苏小白又回来。")
+    names = [item["name"] for item in scan_floating_names(book, window=5, min_count=2)]
+    assert "苏小白" not in names
+
+
+def test_cli_scan_exit_zero_with_warning(book: Path, capsys):
+    from data_modules.continuity_check import main
+
+    _plant_settled_chapter(book, 41, "铁牙守门。铁牙又来了。")
+    code = main(["--scan", "--project-root", str(book), "--format", "json"])
+    assert code == 0
+    import json
+    payload = json.loads(capsys.readouterr().out)
+    assert any(item["name"] == "铁牙" for item in payload.get("floaters") or [])

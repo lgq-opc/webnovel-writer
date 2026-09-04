@@ -154,7 +154,7 @@ def check_name_conflicts(
     """新名字 vs 已知名字池：编辑距离 ≤ max(1, 短名长//2) 或相似度 ≥ 阈值 或包含 → 撞名。"""
     name = str(name or "").strip()
     if not name:
-        return {"ok": False, "error": "missing_name", "conflicts": []}
+        return {"ok": False, "error": "missing_name", "conflicts": [], "floaters": []}
     conflicts: list[dict[str, Any]] = []
     for known in load_known_names(project_root):
         other = known["name"]
@@ -178,11 +178,70 @@ def check_name_conflicts(
         "name": name,
         "checked": len(load_known_names(project_root)),
         "conflicts": conflicts,
+        "floaters": [],
     }
 
 
+FLOATER_WINDOW = 5
+FLOATER_MIN_COUNT = 2
+_CJK_RUN_RE = re.compile(r"[\u4e00-\u9fa5]+")
+
+
+def _iter_floater_tokens(text: str):
+    for run in _CJK_RUN_RE.findall(text):
+        n = len(run)
+        if n < 2:
+            continue
+        for length in range(2, min(4, n) + 1):
+            yield run[:length]
+
+
+def _is_roster_affix(token: str, known: set[str]) -> bool:
+    return any(
+        (name.startswith(token) or token.startswith(name)) and name != token
+        for name in known
+    )
+
+
+def scan_floating_names(
+    project_root: str | Path,
+    *,
+    window: int = FLOATER_WINDOW,
+    min_count: int = FLOATER_MIN_COUNT,
+) -> list[dict[str, Any]]:
+    from data_modules.dual_format_guard import max_settled_chapter
+
+    root = Path(project_root)
+    latest = max_settled_chapter(root)
+    if latest <= 0:
+        return []
+    start = max(1, latest - max(1, int(window)) + 1)
+    known = {item["name"] for item in load_known_names(root)}
+    counts: dict[str, dict[str, Any]] = {}
+    body_dir = root / "定稿" / "正文"
+    for chapter in range(start, latest + 1):
+        matches = list(body_dir.glob(f"{chapter:04d}-*.md"))
+        if not matches:
+            continue
+        text = matches[0].read_text(encoding="utf-8")
+        if text.startswith("---"):
+            parts = text.split("---", 2)
+            text = parts[2] if len(parts) >= 3 else text
+        for token in _iter_floater_tokens(text):
+            if token in known or _is_roster_affix(token, known):
+                continue
+            slot = counts.setdefault(token, {"name": token, "count": 0, "chapters": []})
+            slot["count"] += 1
+            if chapter not in slot["chapters"]:
+                slot["chapters"].append(chapter)
+    return sorted(
+        (item for item in counts.values() if item["count"] >= int(min_count)),
+        key=lambda item: (-item["count"], item["name"]),
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
-    """CLI 入口：python -X utf8 continuity_check.py --name X [--format json]
+    """CLI 入口：python -X utf8 continuity_check.py --name X [--scan] [--format json]
 
     一般经 `webnovel.py name-check --name X` 调用（data-agent 新实体登记前必跑）。
     """
@@ -191,14 +250,29 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(description="年龄推演与命名冲突检查（T29）")
     parser.add_argument("--name", default="", help="待检新名字")
+    parser.add_argument("--scan", action="store_true", help="扫描近章未入册高频专名")
     parser.add_argument("--project-root", default=".")
     parser.add_argument("--format", choices=["text", "json"], default="text")
     args = parser.parse_args(argv)
 
     root = Path(args.project_root)
-    if not args.name:
-        parser.error("需要 --name")
-    report = check_name_conflicts(root, args.name)
+    if not args.name and not args.scan:
+        parser.error("需要 --name 或 --scan")
+    if args.name:
+        report = check_name_conflicts(root, args.name)
+    else:
+        report = {
+            "ok": True,
+            "schema_version": CONTINUITY_SCHEMA_VERSION,
+            "name": "",
+            "checked": len(load_known_names(root)),
+            "conflicts": [],
+            "floaters": [],
+        }
+    if args.scan:
+        report["floaters"] = scan_floating_names(root)
+    else:
+        report.setdefault("floaters", [])
 
     if args.format == "json":
         print(_json.dumps(report, ensure_ascii=False, indent=2))
@@ -216,6 +290,11 @@ def main(argv: list[str] | None = None) -> int:
             )
     else:
         print("OK 无撞名")
+    floaters = report.get("floaters") or []
+    if floaters:
+        print(f"WARNING 浮动名 {len(floaters)} 个：")
+        for item in floaters:
+            print(f"  {item['name']}")
     return 0
 
 

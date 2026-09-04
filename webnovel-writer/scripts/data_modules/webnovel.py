@@ -436,7 +436,11 @@ def cmd_name_check(args: argparse.Namespace) -> int:
     from data_modules import continuity_check
 
     root = _resolve_root_lenient(args.project_root)
-    argv = ["--name", args.name, "--project-root", str(root)]
+    argv = ["--project-root", str(root), "--format", args.format]
+    if getattr(args, "scan", False):
+        argv.append("--scan")
+    if args.name:
+        argv.extend(["--name", args.name])
     return continuity_check.main(argv)
 
 
@@ -1107,7 +1111,8 @@ def _main_impl() -> None:
     p_ledger.set_defaults(func=cmd_promise_ledger)
 
     p_name_check = sub.add_parser("name-check", help="命名冲突检查（T29/A5）：新名 vs 名册正名/别名（编辑距离+相似度+包含）")
-    p_name_check.add_argument("--name", required=True, help="待检新名字")
+    p_name_check.add_argument("--name", default="", help="待检新名字")
+    p_name_check.add_argument("--scan", action="store_true", help="扫描近章未入册高频专名")
     p_name_check.add_argument("--format", choices=["text", "json"], default="text", help="输出格式")
     p_name_check.set_defaults(func=cmd_name_check)
 
