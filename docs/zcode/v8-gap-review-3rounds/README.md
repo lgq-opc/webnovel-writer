@@ -66,6 +66,8 @@ create_chapter_batch 不读详细大纲（无论叫什么名字）→ 标题自�
 > **勘误 2026-09-04（复审 §6）**：「零治理检查」属实；「只有环境检查」是表象——`build_doctor_report`（`doctor.py:861-945`）本有 12 组项目检查（preflight / file / json / story_runtime / sqlite / total_words / projection_log / extraction / contract_version / run_log / rag / domain_contract），在 fantasy01 只跑出环境组是因为 doctor **对纯 v7 书仓解析不到项目根**（依赖 `.webnovel/state.json`，08 计划 T1 证据行已登记「phase 解析限制」但未排任务）。`_python_checks` 实为 version + 6 import = 7 项。修复见 P4-0。
 >
 > **P4-0 完成记录（2026-09-04）**：根解析已修。fantasy01 CLI doctor `phase=v7_story_repo`，§4.6 十二组前缀 12/12，`check_count=32`，不再只剩 python.*。P4-1 八组治理检查仍未建，不把本节改成「已有治理检查」。
+>
+> **P4-1 完成记录（2026-09-04）**：八组 `gov.*` 已发出（实现 `c0c5981`）。fantasy01 CLI doctor 仍 `ok=True`；`gov.inv-1-journal` warning（Inv-1 fail 映射，非 blocker）；`gov.inv-6-stale-age` / `gov.materials.health` warning；`gov.gallery.backlog` skipped。历史「零治理检查」实测句与勘误段保留，不改成从未缺过。
 
 ### 2.2 06 §12 六条数据不变量仅 1 条实现
 
@@ -304,6 +306,32 @@ create_chapter_batch 不读详细大纲（无论叫什么名字）→ 标题自�
 额外（方向 2）：`test_doctor_v7_missing_finalized_dir_errors` → `file.v7.dir.定稿/正文` error；fantasy01 无 `file.dir.设定集`；`test_doctor_cli_v7_emits_twelve_groups` + 真仓 `preflight.project_root` ok。
 
 偏差：① 无 ledger。② Task 1–3 合并为一次提交 `47e661c`。③ `_resolve_root_lenient` 入参改为 `Optional[str]`，避免 preflight 无根时 `Path(None)`。
+
+**阶段四 P4-1 完成（2026-09-04，Cursor；spec/plan 见 `docs/cursor/阶段四-doctor治理检查/`；实现 `c0c5981`）**
+
+| 任务 | 状态 | 证据（验收原文 → 测试 / 命令输出） |
+|---|---|---|
+| P4-1 | ✅ `c0c5981` | 「doctor 增 8 组检查（F-13）」→ tmp `test_doctor_v7_emits_eight_governance_checks` 八 id 全在且无 blocker；fantasy01 CLI `gov_present 8 / 8`。「验收：fantasy01 doctor 输出治理组结论」→ inv-1 warning、ok True、无 gov blocker。 |
+
+**范围/实现对照（spec §6 原文 → 证据）：**
+
+| # | 方案原文 | 证据 |
+|---|---|---|
+| 1 | journal 水位 | `gov.inv-1-journal`；`test_doctor_maps_invariant_fail_to_warning_not_blocker`；fantasy01 `warning`；**不**跑 git status |
+| 2 | stale 积压 | `gov.inv-6-stale-age`；fantasy01 `warning`（映射 Inv-6 warn） |
+| 3 | 轨迹-manifest | `gov.inv-2-material-trajectory`；fantasy01 `ok` |
+| 4 | 锚点-正文 | `gov.inv-3-power`；fantasy01 `ok` |
+| 5 | 条目状态机 | `gov.inv-4-promises`；fantasy01 `ok` |
+| 6 | 素材健康（复用 material_review stats） | `test_doctor_materials_health_warns_on_decayed_active`；`test_doctor_gallery_and_materials_skip_when_absent`；fantasy01 `gov.materials.health warning` |
+| 7 | 画廊积压 | `test_doctor_gallery_backlog_warns_after_two_volumes`；无文件 skip；fantasy01 `gov.gallery.backlog skipped` |
+| 8 | 合同对账（调 P2-3） | `gov.inv-5-contracts`；fantasy01 `skipped`（无 `.story-system` 对账） |
+| 9 | 验收：fantasy01 doctor 输出治理组结论 | CLI json：8 个 `gov.*`；inv-1 `warning`；`ok True`；`returncode 0`；`phase=v7_story_repo` |
+| 10 | MCP webnovel_doctor 自动受益 | `mcp/server.py` `_build_doctor` 仍 `["doctor", "--format", "json"]`；`test_server.py` 映射测覆盖；无新工具 |
+| 11 | 回归 | `test_doctor.py` / `test_invariant_check.py` 定点全绿；`pytest -o addopts="" -q` → `1580 passed in 129.05s`；`Total coverage: 83.03%`；evals fast 23/23；`validate_plugin_package.py` OK；`validate_reference_wiring.py` drift=0；`sync_plugin_version.py --check` → `Versions are in sync: 8.0.0` |
+
+额外：v6 INIT 缺文件 CLI 因 8 条 gov 涨到 >20000 字符被 `output_guard` 外置；`_parse_cli_json` 从 dump 读回。方案 A 不做 git dirty vs journal 未留账。
+
+偏差：① 无 ledger。② Task 1–3 合并为 `c0c5981`。③ 治理 fail 不改 `invariants` CLI 退出码。
 
 ### 依赖关系
 

@@ -44,7 +44,7 @@ README / 交接留收尾。
 
 复用 `_make_v7_repo`。
 
-- [ ] 增加：
+- [x] 增加：
 
 ```python
 _GOV_IDS = (
@@ -134,7 +134,7 @@ def test_doctor_gallery_and_materials_skip_when_absent(tmp_path, monkeypatch):
 
 journal 夹具用 `append_events`（与 `test_invariant_check.py` 同字段）。`素材/活/桥段.csv` 表名来自 `MATERIAL_TABLES`（「桥段」）。
 
-- [ ] RED：
+- [x] RED：
 
 ```powershell
 python -X utf8 -m pytest webnovel-writer/scripts/data_modules/tests/test_doctor.py -q --no-cov -p no:cacheprovider -k "governance or materials_health or gallery_backlog"
@@ -146,9 +146,9 @@ python -X utf8 -m pytest webnovel-writer/scripts/data_modules/tests/test_doctor.
 
 **文件：** `doctor.py`
 
-- [ ] 增加 `_inv_status_to_doctor(status: str) -> tuple[str, str]`：`fail|warn` → `(CHECK_WARNING, "warning")`；`skip` → `(CHECK_SKIPPED, "info")`；其余 → `(CHECK_OK, "info")`。
+- [x] 增加 `_inv_status_to_doctor(status: str) -> tuple[str, str]`：`fail|warn` → `(CHECK_WARNING, "warning")`；`skip` → `(CHECK_SKIPPED, "info")`；其余 → `(CHECK_OK, "info")`。
 
-- [ ] `_governance_checks(project_root: Path) -> list[dict]`：
+- [x] `_governance_checks(project_root: Path) -> list[dict]`：
 
 ```python
 from .invariant_check import run_invariants, volume_of_chapter, volume_size
@@ -167,7 +167,7 @@ def _current_volume(root: Path) -> int:
 
 画廊：收集 spec §4.4 三类文件；产物卷规则按 spec；`current_volume - produced >= 2` 计入积压。
 
-- [ ] `build_doctor_report` 在 `domains.contract` 块之后：
+- [x] `build_doctor_report` 在 `domains.contract` 块之后：
 
 ```python
         try:
@@ -184,9 +184,9 @@ def _current_volume(root: Path) -> int:
             ))
 ```
 
-- [ ] GREEN：Task 1 命令去掉 RED 预期，再跑全部 `test_doctor.py` 与 `scripts/tests/test_invariant_check.py`。
+- [x] GREEN：Task 1 命令去掉 RED 预期，再跑全部 `test_doctor.py` 与 `scripts/tests/test_invariant_check.py`。
 
-- [ ] 提交（实现 + 测试）：
+- [x] 提交（实现 + 测试）：
 
 ```text
 feat(doctor): 接入八组治理体检
@@ -196,7 +196,9 @@ feat(doctor): 接入八组治理体检
 
 ## 完成定义（实现期）
 
-- 新测试全绿；既有 doctor / invariant 全绿。
-- tmp v7 恒有 8 个 `gov.*`；治理组无 blocker。
-- journal `domain=其他` → `gov.inv-1-journal` warning 且 `ok is True`。
-- 全量回归与 README W1 留收尾。
+- [x] 新测试全绿；既有 doctor / invariant 全绿。
+- [x] tmp v7 恒有 8 个 `gov.*`；治理组无 blocker。
+- [x] journal `domain=其他` → `gov.inv-1-journal` warning 且 `ok is True`。
+- [x] 全量回归与 README W1 留收尾。
+
+实现提交：`c0c5981`。Task 1–3 合并为一次提交。CLI 外置化适配（`test_doctor_cli_reports_missing_init_file` 认 `EXTERNALIZED` dump）同 commit。
