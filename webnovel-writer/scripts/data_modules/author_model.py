@@ -326,7 +326,7 @@ def main(argv: list[str] | None = None) -> int:
     import json as _json
 
     parser = argparse.ArgumentParser(description="作者模型数据面（T16）")
-    parser.add_argument("action", choices=["learn", "apply", "show"])
+    parser.add_argument("action", nargs="?", default="learn", choices=["learn", "apply", "show"])
     parser.add_argument("--from-journal", action="store_true", help="learn 数据源（F-12 固定为 journal）")
     parser.add_argument("--volume", type=int, default=None, help="卷级归纳口径")
     parser.add_argument("--suggestion", default="", help="apply 的建议文件（缺省 作者/author_model-建议.md）")

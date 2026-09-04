@@ -120,13 +120,13 @@ python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJEC
 | `materials` | `list` / `validate` / `assemble` / `seed` / `log` / `trajectory` / `propose` / `candidates` / `adopt` / `discard` / `review` / `apply-ruling` | 素材十表：状态 / 校验 / 装配预览（定版 + 活层 top-K）/ 题材播种 / 章后使用轨迹 / 入库画廊三通道（propose → candidates → adopt 或 discard）/ 卷审统计 / 裁决落盘 |
 | `regen` | `save` / `list` / `diff` / `adopt` / `discard` | 总纲 regen 画廊（只增不改，采纳才入正典） |
 | `style-domain` | `migrate` / `fingerprint` / `golden-add` / `golden-list` / `golden-feed` | 文风宪法迁移 / 指纹 / 金句库 |
-| `learn` | `learn --from-journal` / `apply` / `show` | 学习闭环：卷级归纳 → 作者确认 → author_model 回写（注意 `learn learn --from-journal` 的子动作位置参数，见缺口 N9） |
+| `learn` | `learn --from-journal` / `apply` / `show` | 学习闭环：卷级归纳 → 作者确认 → author_model 回写（action 默认 `learn`，可省略） |
 | `power` | `extract` / `validate` / `battle` / `inflate` / `check` | 战力锚点提取与校验、战例 / 通胀账本、硬 ① ② 阻断校验 |
 | `forge` | `prepare` / `save` / `adopt` / `confirm` / `list` | 设定工坊提案流；`confirm` 才写设定域并留 `power_anchor_sync` / `contract_rebuild` 标记 |
 | `forge-sync` | `status` / `mark-cleared` | 扫 journal 未消费的 `power_anchor_sync` / `contract_rebuild`；引导 `power validate` 与 `master-outline-sync`；显式 mark-cleared 追加 `*:cleared` |
 | `prose-check` | — | 程序化文笔六项：高频词 / 长句比例 / said tag / 连续同主语 / 纯解释段 / 段落方差 |
 | `drafts` | `record` / `choose` / `link` / `report` | 多稿择优：rubric 六维评分 → 取均分最高稿 → 回填审查分 |
-| `promise-ledger` | `create` / `list` / `update` | 承诺账本（伏笔 F- / 悬念 S- / 感情线 R-）状态机 |
+| `promise-ledger` | `create` / `list` / `update` / `seed-from-writeback` | 承诺账本（伏笔 F- / 悬念 S- / 感情线 R-）状态机；写回 JSON 伏笔一键入账 |
 | `foreshadow-scan` | `scan` / `pending` | 逾期扫描（存在逾期非零退出 = 门禁）/ 本章应推进项 |
 | `name-check` | — | 新名 vs 名册正名 / 别名：编辑距离 + 相似度 + 包含三重检查 |
 | `volume-reconcile` | — | 卷纲-实际三方对账（节点覆盖率 / 伏笔兑现 / 战力里程碑）→ `大纲/卷纲/第NN卷-对账报告.md` |

@@ -14,6 +14,7 @@ override_ledger 与 v7 决策卡豁免的分裂），front matter：
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from typing import Any
@@ -34,6 +35,7 @@ LEGAL_TRANSITIONS: dict[str, tuple[str, ...]] = {
 DUE_SOON_WINDOW = 10
 _FRONT_FIELDS = ("编号", "类型", "名称", "状态", "埋设章", "最晚回收章", "回收章")
 _INT_FIELDS = {"埋设章", "最晚回收章", "回收章"}
+_CHAPTER_INT = re.compile(r"(\d+)")
 
 
 def ledger_dir(project_root: str | Path, kind: str | None = None) -> Path:
@@ -134,6 +136,88 @@ def create_entry(
         ],
     )
     return {"ok": True, "schema_version": LEDGER_SCHEMA_VERSION, "id": entry_id, "path": str(path)}
+
+
+def writeback_json_path(project_root: str | Path, volume: int) -> Path:
+    return Path(project_root) / "大纲" / "卷纲" / f"第{int(volume):02d}卷-总纲写回.json"
+
+
+def parse_chapter_ref(raw: Any, *, empty_means_zero: bool) -> int | None:
+    text = str(raw or "").strip()
+    if not text:
+        return 0 if empty_means_zero else None
+    match = _CHAPTER_INT.search(text)
+    if not match:
+        return None
+    value = int(match.group(1))
+    return value if value >= 1 else None
+
+
+def seed_from_writeback(project_root: str | Path, *, volume: int) -> dict[str, Any]:
+    """读第NN卷-总纲写回.json 的 foreshadow_writeback，经 create_entry 建伏笔账本。"""
+    root = Path(project_root)
+    source_rel = f"大纲/卷纲/第{int(volume):02d}卷-总纲写回.json"
+    source = writeback_json_path(root, volume)
+    empty: dict[str, Any] = {
+        "volume": int(volume), "source": source_rel, "created": [], "skipped": [], "failed": [],
+    }
+    if not source.is_file():
+        return {**empty, "ok": False, "error": "missing_file", "exit": 2}
+    try:
+        payload = json.loads(source.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {**empty, "ok": False, "error": "invalid_json", "exit": 2}
+    if not isinstance(payload, dict):
+        return {**empty, "ok": False, "error": "invalid_root", "exit": 2}
+    items = payload.get("foreshadow_writeback")
+    if not isinstance(items, list):
+        return {**empty, "ok": False, "error": "invalid_foreshadow_writeback", "exit": 2}
+
+    existing = {str(e["名称"]).strip(): str(e["编号"]) for e in load_entries(root, kind="伏笔")}
+    created: list[str] = []
+    skipped: list[dict[str, Any]] = []
+    failed: list[dict[str, Any]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            failed.append({"name": "", "error": "invalid_item"})
+            continue
+        name = str(item.get("content") or "").strip()
+        if not name:
+            failed.append({"name": "", "error": "missing_name"})
+            continue
+        if name in existing:
+            skipped.append({"name": name, "id": existing[name], "reason": "duplicate_name"})
+            continue
+        planted = parse_chapter_ref(item.get("buried_chapter"), empty_means_zero=False)
+        if planted is None:
+            failed.append({"name": name, "error": "unparseable_buried_chapter"})
+            continue
+        payoff_text = str(item.get("payoff_chapter") or "").strip()
+        due = 0 if not payoff_text else parse_chapter_ref(item.get("payoff_chapter"), empty_means_zero=False)
+        if due is None:
+            failed.append({"name": name, "error": "unparseable_payoff_chapter"})
+            continue
+        level = str(item.get("level") or "").strip()
+        note = f"level: {level}" if level else ""
+        result = create_entry(
+            root, kind="伏笔", name=name,
+            planted_chapter=planted, due_chapter=due, note=note,
+        )
+        if not result.get("ok"):
+            failed.append({"name": name, "error": str(result.get("error") or "create_failed")})
+            continue
+        created.append(str(result["id"]))
+        existing[name] = str(result["id"])
+    exit_code = 1 if failed else 0
+    return {
+        "ok": exit_code == 0,
+        "volume": int(volume),
+        "source": source_rel,
+        "created": created,
+        "skipped": skipped,
+        "failed": failed,
+        "exit": exit_code,
+    }
 
 
 def update_status(project_root: str | Path, *, entry_id: str, status: str, chapter: int | None = None) -> dict[str, Any]:
@@ -241,15 +325,15 @@ def pending_for_chapter(project_root: str | Path, *, chapter: int) -> dict[str, 
 
 
 def crud_main(argv: list[str] | None = None) -> int:
-    """CRUD CLI 入口：python -X utf8 promise_ledger.py CRUD {create|list|update}
+    """CRUD CLI 入口：python -X utf8 promise_ledger.py CRUD {create|list|update|seed-from-writeback}
 
-    一般经 `webnovel.py promise-ledger create|list|update` 调用。
+    一般经 `webnovel.py promise-ledger create|list|update|seed-from-writeback` 调用。
     """
     import argparse
     import json as _json
 
     parser = argparse.ArgumentParser(description="承诺账本 CRUD（T28）")
-    parser.add_argument("action", choices=["create", "list", "update"])
+    parser.add_argument("action", choices=["create", "list", "update", "seed-from-writeback"])
     parser.add_argument("--kind", default="", help="create/list：伏笔|悬念|感情线")
     parser.add_argument("--name", default="")
     parser.add_argument("--planted-chapter", type=int, default=0)
@@ -258,6 +342,7 @@ def crud_main(argv: list[str] | None = None) -> int:
     parser.add_argument("--id", default="")
     parser.add_argument("--status", default="")
     parser.add_argument("--chapter", type=int, default=None)
+    parser.add_argument("--volume", type=int, default=0, help="seed-from-writeback：卷号")
     parser.add_argument("--project-root", default=".")
     parser.add_argument("--format", choices=["text", "json"], default="text")
     args = parser.parse_args(argv)
@@ -272,14 +357,22 @@ def crud_main(argv: list[str] | None = None) -> int:
         )
     elif args.action == "list":
         report = {"ok": True, "entries": load_entries(root, kind=args.kind or None)}
+    elif args.action == "seed-from-writeback":
+        if not args.volume:
+            parser.error("seed-from-writeback 需要 --volume")
+        report = seed_from_writeback(root, volume=args.volume)
     else:
         if not args.id or not args.status:
             parser.error("update 需要 --id 与 --status")
         report = update_status(root, entry_id=args.id, status=args.status, chapter=args.chapter)
 
+    exit_code = report.get("exit")
+    if exit_code is None:
+        exit_code = 0 if report.get("ok", True) else 1
+
     if args.format == "json":
         print(_json.dumps(report, ensure_ascii=False, indent=2))
-        return 0 if report.get("ok", True) else 1
+        return int(exit_code)
 
     if args.action == "create":
         print(f"OK 已登记 {report.get('id')}" if report.get("ok") else f"ERROR {report.get('error')}")
@@ -288,9 +381,23 @@ def crud_main(argv: list[str] | None = None) -> int:
             print(f"{entry['编号']}「{entry['名称']}」[{entry['状态']}] 埋设{entry['埋设章']} 最晚{entry['最晚回收章']}")
         if not report["entries"]:
             print("（账本为空）")
+    elif args.action == "seed-from-writeback":
+        prefix = "OK" if int(exit_code) == 0 else "ERROR"
+        created = report.get("created") or []
+        skipped = report.get("skipped") or []
+        failed = report.get("failed") or []
+        print(
+            f"{prefix} seed-from-writeback volume={report.get('volume')} "
+            f"created={len(created)} skipped={len(skipped)} failed={len(failed)}"
+        )
+        names = {e["编号"]: e["名称"] for e in load_entries(root, kind="伏笔")}
+        for eid in created:
+            print(f"  {eid}「{names.get(eid, '')}」")
+        if report.get("error"):
+            print(f"  {report['error']}")
     else:
         print(f"OK {report.get('id')} → {report.get('status')}" + ("（无变化）" if report.get("unchanged") else "") if report.get("ok") else f"ERROR {report.get('error')} {report.get('from', '')}")
-    return 0 if report.get("ok", True) else 1
+    return int(exit_code)
 
 
 def main(argv: list[str] | None = None) -> int:

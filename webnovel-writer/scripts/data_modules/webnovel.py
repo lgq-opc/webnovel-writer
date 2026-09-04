@@ -408,7 +408,7 @@ def cmd_foreshadow_scan(args: argparse.Namespace) -> int:
 
 
 def cmd_promise_ledger(args: argparse.Namespace) -> int:
-    """承诺账本 CRUD（webnovel-copilot-300 M6/T28）：create/list/update。"""
+    """承诺账本 CRUD（webnovel-copilot-300 M6/T28）：create/list/update/seed-from-writeback。"""
     from data_modules import promise_ledger
 
     root = _resolve_root_lenient(args.project_root)
@@ -425,6 +425,8 @@ def cmd_promise_ledger(args: argparse.Namespace) -> int:
         argv.extend(["--id", args.id, "--status", args.status])
         if args.chapter:
             argv.extend(["--chapter", str(args.chapter)])
+    if args.action == "seed-from-writeback":
+        argv.extend(["--volume", str(args.volume)])
     return promise_ledger.crud_main(argv)
 
 
@@ -1039,7 +1041,7 @@ def _main_impl() -> None:
     p_style_domain.set_defaults(func=cmd_style_domain)
 
     p_learn = sub.add_parser("learn", help="学习闭环（F-12）：learn --from-journal 卷级归纳 / apply 确认回写 / show")
-    p_learn.add_argument("action", choices=["learn", "apply", "show"], help="子动作")
+    p_learn.add_argument("action", nargs="?", default="learn", choices=["learn", "apply", "show"], help="子动作（默认 learn）")
     p_learn.add_argument("--from-journal", action="store_true", help="learn 数据源（journal）")
     p_learn.add_argument("--volume", type=int, default=None, help="卷级归纳口径")
     p_learn.add_argument("--suggestion", default="", help="apply 的建议文件")
@@ -1089,8 +1091,8 @@ def _main_impl() -> None:
     p_fscan.add_argument("--format", choices=["text", "json"], default="text", help="输出格式")
     p_fscan.set_defaults(func=cmd_foreshadow_scan)
 
-    p_ledger = sub.add_parser("promise-ledger", help="承诺账本 CRUD（T28）：create/list/update")
-    p_ledger.add_argument("action", choices=["create", "list", "update"], help="子动作")
+    p_ledger = sub.add_parser("promise-ledger", help="承诺账本 CRUD（T28）：create/list/update/seed-from-writeback")
+    p_ledger.add_argument("action", choices=["create", "list", "update", "seed-from-writeback"], help="子动作")
     p_ledger.add_argument("--kind", choices=["伏笔", "悬念", "感情线"], default="", help="create/list：条目类型")
     p_ledger.add_argument("--name", default="", help="create：条目名称")
     p_ledger.add_argument("--planted-chapter", type=int, default=0, help="create：埋设章")
@@ -1099,6 +1101,7 @@ def _main_impl() -> None:
     p_ledger.add_argument("--id", default="", help="update：条目编号")
     p_ledger.add_argument("--status", choices=["open", "推进中", "已回收", "作废", "逾期"], default="", help="update：目标状态")
     p_ledger.add_argument("--chapter", type=int, default=None, help="update：回收章（已回收时）")
+    p_ledger.add_argument("--volume", type=int, default=0, help="seed-from-writeback：卷号")
     p_ledger.add_argument("--format", choices=["text", "json"], default="text", help="输出格式")
     p_ledger.set_defaults(func=cmd_promise_ledger)
 
