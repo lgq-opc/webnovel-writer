@@ -153,13 +153,14 @@ python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" mem
 
 核心约束：
 
+- 每章标题使用 `## 第N章：标题`（阿拉伯数字、全角冒号）；不要写成 `###` 或中文章号。
 - 每章固定 1 个 `CBN`、`2-4 个 CPN`、固定 1 个 `CEN`；`CPNs` 按时间顺序排列。
 - 相邻章节 `CEN -> 下一章 CBN` 必须逻辑承接（首章和末章除外）。
 - `必须覆盖节点`最多 4 个，建议 `CBN + CEN + 1~2 个核心 CPN`；可选节点只作建议，不作 fail 主依据。
 - `本章禁区`不超过 5 条，只写本章绝对不能发生的硬禁区，不写风格类建议。
 - 向后兼容：旧项目章纲缺失上述字段时，下游流程正常执行，仅跳过结构化检查。
 
-输出文件：`大纲/第{volume_id}卷-详细大纲.md`
+输出文件：`大纲/卷纲/第{volume_id}卷-详细大纲.md`
 
 ### Step 8：把新增设定写回现有设定集
 
@@ -292,7 +293,7 @@ python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" use
 必须汇报：
 - `大纲/第{volume_id}卷-节拍表.md`。
 - `大纲/第{volume_id}卷-时间线.md`。
-- `大纲/第{volume_id}卷-详细大纲.md`。
+- `大纲/卷纲/第{volume_id}卷-详细大纲.md`。
 - 新增设定写回了哪些设定集文件。
 - `大纲/第{volume_id}卷-总纲写回.json`。
 - `master-outline-sync`、`update-state`、Story System 合同刷新是否完成。

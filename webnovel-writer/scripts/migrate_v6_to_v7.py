@@ -205,7 +205,7 @@ def _migrate_outlines(project_root: Path, out: Path, report: MigrationReport) ->
     for detail in sorted(outline.glob("第*卷-详细大纲.md")):
         vol = re.search(r"第(\d+)卷", detail.name)
         stem = f"第{int(vol.group(1)):02d}卷" if vol else detail.stem
-        _copy(detail, target / "卷纲" / f"{stem}.md")
+        _copy(detail, target / "卷纲" / f"{stem}-详细大纲.md")
         report.outlines += 1
     for beats in sorted(outline.glob("第*卷-节拍表.md")):
         vol = re.search(r"第(\d+)卷", beats.name)

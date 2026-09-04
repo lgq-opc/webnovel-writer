@@ -821,6 +821,15 @@ def test_plan_skill_covers_outline_writeback_and_state_sync_contract():
     assert "update-state" in cmds, "plan 缺少 update-state 状态更新命令"
 
 
+def test_plan_skill_writes_canonical_detailed_outline_path():
+    """阶段二 P2-1：plan 详细大纲写规范路径，标题格式固定 ## 第N章：标题。"""
+    text = _read_text(SKILLS_DIR / "webnovel-plan" / "SKILL.md")
+    assert "大纲/卷纲/第{volume_id}卷-详细大纲.md" in text
+    assert "## 第N章：标题" in text
+    assert "大纲/第{volume_id}卷-详细大纲.md" not in text
+
+
+
 # ---------------------------------------------------------------------------
 # 8. B 类跨层新契约（plan §5.2-B / §4.5 写入所有权矩阵）
 #    tools↔落盘一致性现状已满足 → 作通过型守护；

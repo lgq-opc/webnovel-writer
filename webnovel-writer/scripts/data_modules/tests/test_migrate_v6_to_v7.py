@@ -75,7 +75,8 @@ class TestMigrateProject:
         assert (out / "定稿" / "设定" / "角色" / "苏小白.md").exists()
         assert (out / "定稿" / "记忆" / "章摘要" / "0001.md").read_text(encoding="utf-8") == "第一章摘要"
         assert (out / "大纲" / "总纲.md").exists()
-        assert (out / "大纲" / "卷纲" / "第01卷.md").exists()  # spec §2.1 零填充
+        assert (out / "大纲" / "卷纲" / "第01卷-详细大纲.md").exists()
+        assert not (out / "大纲" / "卷纲" / "第01卷.md").exists()
         assert (out / "定稿" / "设定" / "时间线.md").exists()
         assert (out / ".gitignore").exists()
 
