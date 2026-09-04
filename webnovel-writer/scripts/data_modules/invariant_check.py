@@ -11,13 +11,21 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .author_journal import pending_semantic, read_journal, read_watermark, validate_journal
+from .dual_format_guard import has_v7_settled_chapter
 from .material_store import _read_csv_rows
 from .material_usage import trajectory_path
+from .power_anchor import anchor_path, load_anchor, validate_chain
+from .promise_ledger import STATUS_VALUES, load_entries
 
 SCHEMA_VERSION = "invariants/1"
 _JOURNAL_TITLE = "journal 无未分类事件积压"
 _MATERIAL_TITLE = "素材使用轨迹与来源一致"
+_POWER_TITLE = "力量锚点战例与境界链"
+_PROMISE_TITLE = "承诺条目状态机与 retcon 双记录"
 _FROZEN_VERSION_RE = re.compile(r"^v\d+$")
+_RETCON_VOL_RE = re.compile(r"v(\d+)")
+_EVO_RETCON_RE = re.compile(r"^retcon-v(\d+)-")
+_DEFAULT_VOLUME_SIZE = 50
 
 CheckFn = Callable[[Path], dict[str, Any]]
 
@@ -222,12 +230,147 @@ def check_material_trajectory(root: Path) -> dict[str, Any]:
 
 
 def check_power_anchor(root: Path) -> dict[str, Any]:
-    return result("inv-3-power", "力量锚点战例与境界链", "pass")
+    root = Path(root)
+    path = anchor_path(root)
+    if not path.is_file():
+        return result("inv-3-power", _POWER_TITLE, "skip", repair="先运行 power extract --apply")
+    findings: list[dict[str, Any]] = []
+    for problem in validate_chain(root):
+        findings.append(finding("chain_invalid", problem, path="设定/力量锚点.yaml"))
+    battles = load_anchor(root).get("战例账本") or []
+    for battle in battles:
+        raw = battle.get("章")
+        try:
+            chapter = int(raw)
+        except (TypeError, ValueError):
+            findings.append(finding("invalid_battle_chapter", f"战例章号非整数：{raw}", ref=str(raw)))
+            continue
+        if not has_v7_settled_chapter(root, chapter):
+            findings.append(
+                finding(
+                    "missing_settled_chapter",
+                    f"战例章 {chapter} 无定稿正文",
+                    ref=str(chapter),
+                    path=f"定稿/正文/{chapter:04d}-*.md",
+                )
+            )
+    status = "fail" if findings else "pass"
+    repair = "补定稿正文或修正境界链/战例章号" if findings else ""
+    return result(
+        "inv-3-power",
+        _POWER_TITLE,
+        status,
+        findings=findings,
+        counts={"battles": len(battles), "chain_problems": sum(1 for item in findings if item["code"] == "chain_invalid")},
+        repair=repair,
+    )
+
+
+def volume_size(root: Path) -> int:
+    path = Path(root) / "book.yaml"
+    if path.is_file():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if line.startswith("卷规模:"):
+                try:
+                    value = int(line.split(":", 1)[1].strip())
+                except ValueError:
+                    break
+                if value > 0:
+                    return value
+    return _DEFAULT_VOLUME_SIZE
+
+
+def volume_of_chapter(chapter: int, size: int) -> int:
+    return (int(chapter) - 1) // int(size) + 1
+
+
+def _journal_retcon_volumes(root: Path) -> set[int]:
+    volumes: set[int] = set()
+    for event in read_journal(root):
+        if event.get("action") != "retcon":
+            continue
+        match = _RETCON_VOL_RE.search(str(event.get("path") or ""))
+        if match:
+            volumes.add(int(match.group(1)))
+    return volumes
+
+
+def _evolution_retcon_volumes(root: Path) -> set[int]:
+    volumes: set[int] = set()
+    directory = Path(root) / "演化"
+    if not directory.is_dir():
+        return volumes
+    for path in directory.glob("retcon-v*.json"):
+        match = _EVO_RETCON_RE.match(path.name)
+        if match:
+            volumes.add(int(match.group(1)))
+    return volumes
 
 
 def check_promise_states(root: Path) -> dict[str, Any]:
-    return result("inv-4-promises", "承诺条目状态机与 retcon 双记录", "pass")
-
+    root = Path(root)
+    entries = load_entries(root)
+    findings: list[dict[str, Any]] = []
+    size = volume_size(root)
+    journal_vols = _journal_retcon_volumes(root)
+    evo_vols = _evolution_retcon_volumes(root)
+    for entry in entries:
+        entry_id = str(entry.get("编号") or "")
+        status = str(entry.get("状态") or "")
+        planted = int(entry.get("埋设章") or 0)
+        recovered = int(entry.get("回收章") or 0)
+        path = str(entry.get("path") or "")
+        if status not in STATUS_VALUES:
+            findings.append(finding("invalid_status", f"{entry_id} 状态非法：{status}", ref=entry_id, path=path))
+            continue
+        if status == "已回收":
+            if recovered <= 0:
+                findings.append(finding("recovered_without_chapter", f"{entry_id} 已回收但缺回收章", ref=entry_id, path=path))
+            elif recovered < planted:
+                findings.append(
+                    finding(
+                        "recovered_before_planted",
+                        f"{entry_id} 回收章 {recovered} 早于埋设章 {planted}",
+                        ref=entry_id,
+                        path=path,
+                    )
+                )
+            continue
+        if status in ("open", "推进中", "逾期") and recovered:
+            findings.append(
+                finding("open_with_recovered_chapter", f"{entry_id} {status} 不应带回收章 {recovered}", ref=entry_id, path=path)
+            )
+            continue
+        if status == "作废":
+            volume = volume_of_chapter(planted or 1, size)
+            if volume not in journal_vols:
+                findings.append(
+                    finding(
+                        "voided_missing_journal_retcon",
+                        f"{entry_id} 作废缺卷{volume} journal retcon",
+                        ref=entry_id,
+                        path=path,
+                    )
+                )
+            if volume not in evo_vols:
+                findings.append(
+                    finding(
+                        "voided_missing_evolution_retcon",
+                        f"{entry_id} 作废缺卷{volume} 演化 retcon",
+                        ref=entry_id,
+                        path=path,
+                    )
+                )
+    result_status = "fail" if findings else "pass"
+    repair = "补回收章约束或同卷 journal+演化 retcon 双记录" if findings else ""
+    return result(
+        "inv-4-promises",
+        _PROMISE_TITLE,
+        result_status,
+        findings=findings,
+        counts={"entries": len(entries)},
+        repair=repair,
+    )
 
 def check_contract_rebuild(root: Path) -> dict[str, Any]:
     return result(

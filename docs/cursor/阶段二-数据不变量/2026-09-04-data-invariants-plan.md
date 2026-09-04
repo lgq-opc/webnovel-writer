@@ -167,49 +167,14 @@ feat(invariants): 添加六项报告骨架与统一 CLI
 
 ## Task 3：Inv-3 力量与 Inv-4 条目
 
-- [ ] 力量测试：
-  - 无 anchor → skip；
-  - 战例章有 `定稿/正文/0037-*.md` 且链合法 → pass；
-  - 缺正文 → fail；
-  - 境界序重复/名称重复 → fail；
-  - 非整数战例章 → fail。
-- [ ] 条目测试：
-  - 无条目 → pass；
-  - `已回收` 缺回收章、回收章早于埋设章 → fail；
-  - open 带回收章 → fail；
-  - 作废条目同卷 journal+演化 retcon 齐全 → pass；
-  - 分别缺一侧 → fail。
-- [ ] 运行 RED。
-- [ ] 实现 `check_power_anchor`：
+**状态：已完成。** 定点 `test_invariant_check.py` + `test_power_anchor.py` + `test_promise_ledger.py` → 48 passed。空 v7 书仓现为 4 pass / 2 skip（无锚点 + 无 `.story-system`）。
 
-```python
-path = root / "设定" / "力量锚点.yaml"
-if not path.is_file():
-    return result("inv-3-power", TITLE, "skip", repair="先运行 power anchor extract/apply")
-anchor = load_anchor(root)
-problems = list(validate_chain(anchor))
-for battle in anchor.get("战例账本") or []:
-    try:
-        chapter = int(battle.get("章"))
-    except (TypeError, ValueError):
-        problems.append("战例章号非整数")
-        continue
-    if not has_v7_settled_chapter(root, chapter):
-        problems.append(f"战例章 {chapter} 无定稿正文")
-```
-
-- [ ] 实现 `check_promise_states`：
-  - `load_entries` 的 parse 结果逐项验证字段约束；
-  - `_volume_of_chapter(chapter, size)` 统一 `(chapter-1)//size+1`；
-  - journal retcon 卷从 path `vNN` 解析；
-  - evolution retcon 卷从文件名解析；
-  - 作废条目要求卷同时属于两集合。
-- [ ] 运行定点测试。
-- [ ] 提交：
-
-```text
-feat(invariants): 校验战例正文、境界链与条目 retcon 状态
-```
+- [x] 力量测试：无 anchor → skip；战例章有定稿且链合法 → pass；缺正文 / 重名 / 非整数章 → fail。
+- [x] 条目测试：无条目 → pass；已回收缺回收章或早于埋设 / open 带回收章 → fail；作废需同卷 journal+演化 retcon，缺一侧 fail。
+- [x] 运行 RED。
+- [x] 实现 `check_power_anchor`：`anchor_path.is_file()` 才校验；`validate_chain` + `has_v7_settled_chapter`。
+- [x] 实现 `check_promise_states`：状态/回收章约束；`volume_of_chapter`；journal path `vNN` 与 `演化/retcon-vNN-*.json` 双集合。
+- [x] 提交 `feat(invariants): 校验战例正文、境界链与条目 retcon 状态`
 
 ## Task 4：stale `since_chapter` 与 Inv-6
 

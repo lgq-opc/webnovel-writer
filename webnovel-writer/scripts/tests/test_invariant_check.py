@@ -28,7 +28,7 @@ def test_empty_v7_book_always_returns_six_results(tmp_path: Path):
         "inv-5-contracts",
         "inv-6-stale-age",
     ]
-    assert report["summary"] == {"pass": 5, "fail": 0, "warn": 0, "skip": 1}
+    assert report["summary"] == {"pass": 4, "fail": 0, "warn": 0, "skip": 2}
     assert report["ok"] is True
 
 
@@ -272,3 +272,156 @@ class TestMaterialTrajectoryInvariant:
         assert item["status"] == "fail"
         assert "empty_entry_id" in _codes(item)
         assert "bad_json_row" in _codes(item)
+
+
+def _write_anchor(book: Path, *, chain: list[dict] | None = None, battles: list[dict] | None = None) -> None:
+    from data_modules.power_anchor import write_anchor
+
+    write_anchor(
+        book,
+        {
+            "境界链": chain
+            or [
+                {"序": 1, "名": "聚气"},
+                {"序": 2, "名": "凝罡"},
+            ],
+            "越级规则": {},
+            "战例账本": battles or [],
+            "通胀记录": [],
+        },
+    )
+
+
+def _settled_chapter(book: Path, chapter: int) -> None:
+    path = book / "定稿" / "正文" / f"{chapter:04d}-战例.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("正文\n", encoding="utf-8")
+
+
+def _rewrite_entry(path: str, **fields) -> None:
+    text = Path(path).read_text(encoding="utf-8")
+    head, _, body = text.partition("\n---\n")
+    lines = ["---"]
+    seen: set[str] = set()
+    for line in head.splitlines()[1:]:
+        if ":" not in line:
+            continue
+        key, _, value = line.partition(":")
+        key = key.strip()
+        if key in fields:
+            lines.append(f"{key}: {fields[key]}")
+            seen.add(key)
+        else:
+            lines.append(line)
+    for key, value in fields.items():
+        if key not in seen:
+            lines.append(f"{key}: {value}")
+    Path(path).write_text("\n".join(lines) + "\n---\n" + body.lstrip("\n"), encoding="utf-8")
+
+
+class TestPowerInvariant:
+    def test_missing_anchor_skips(self, book: Path):
+        item = _check(book, "inv-3-power")
+        assert item["status"] == "skip"
+
+    def test_battle_with_settled_chapter_passes(self, book: Path):
+        _write_anchor(book, battles=[{"章": 37, "胜负": "胜"}])
+        _settled_chapter(book, 37)
+        item = _check(book, "inv-3-power")
+        assert item["status"] == "pass"
+
+    def test_battle_missing_settled_chapter_fails(self, book: Path):
+        _write_anchor(book, battles=[{"章": 37, "胜负": "胜"}])
+        item = _check(book, "inv-3-power")
+        assert item["status"] == "fail"
+        assert "missing_settled_chapter" in _codes(item)
+
+    def test_duplicate_realm_name_fails(self, book: Path):
+        _write_anchor(
+            book,
+            chain=[{"序": 1, "名": "聚气"}, {"序": 2, "名": "聚气"}],
+        )
+        item = _check(book, "inv-3-power")
+        assert item["status"] == "fail"
+        assert "chain_invalid" in _codes(item)
+
+    def test_non_integer_battle_chapter_fails(self, book: Path):
+        _write_anchor(book, battles=[{"章": "abc", "胜负": "胜"}])
+        item = _check(book, "inv-3-power")
+        assert item["status"] == "fail"
+        assert "invalid_battle_chapter" in _codes(item)
+
+
+class TestPromiseInvariant:
+    def test_no_entries_passes(self, book: Path):
+        item = _check(book, "inv-4-promises")
+        assert item["status"] == "pass"
+
+    def test_recovered_without_or_before_planted_fails(self, book: Path):
+        from data_modules.promise_ledger import create_entry
+
+        created = create_entry(book, kind="伏笔", name="缺回收章", planted_chapter=20, due_chapter=80)
+        _rewrite_entry(created["path"], 状态="已回收", 回收章=0)
+        item = _check(book, "inv-4-promises")
+        assert item["status"] == "fail"
+        assert "recovered_without_chapter" in _codes(item)
+
+        _rewrite_entry(created["path"], 状态="已回收", 回收章=10)
+        item = _check(book, "inv-4-promises")
+        assert item["status"] == "fail"
+        assert "recovered_before_planted" in _codes(item)
+
+    def test_open_with_recovered_chapter_fails(self, book: Path):
+        from data_modules.promise_ledger import create_entry
+
+        created = create_entry(book, kind="伏笔", name="open带回收", planted_chapter=12, due_chapter=80)
+        _rewrite_entry(created["path"], 回收章=40)
+        item = _check(book, "inv-4-promises")
+        assert item["status"] == "fail"
+        assert "open_with_recovered_chapter" in _codes(item)
+
+    def test_voided_needs_journal_and_evolution_retcon(self, book: Path):
+        from data_modules.author_journal import append_events
+        from data_modules.promise_ledger import create_entry, update_status
+
+        created = create_entry(book, kind="伏笔", name="作废线", planted_chapter=12, due_chapter=80)
+        update_status(book, entry_id=created["id"], status="作废")
+        item = _check(book, "inv-4-promises")
+        assert item["status"] == "fail"
+
+        append_events(
+            book,
+            [
+                {
+                    "actor": "author",
+                    "action": "retcon",
+                    "domain": "设定",
+                    "path": "素材/定版/v01",
+                    "change_kind": "structure",
+                    "diff_stat": {"ins": 0, "del": 0},
+                    "summary": "卷1 retcon",
+                    "impact": [],
+                }
+            ],
+        )
+        item = _check(book, "inv-4-promises")
+        assert item["status"] == "fail"
+        assert "voided_missing_evolution_retcon" in _codes(item)
+
+        evo = book / "演化"
+        evo.mkdir(parents=True, exist_ok=True)
+        (evo / "retcon-v01-test.json").write_text("{}", encoding="utf-8")
+        item = _check(book, "inv-4-promises")
+        assert item["status"] == "pass"
+
+    def test_voided_missing_journal_retcon_fails(self, book: Path):
+        from data_modules.promise_ledger import create_entry, update_status
+
+        created = create_entry(book, kind="伏笔", name="缺journal", planted_chapter=12, due_chapter=80)
+        update_status(book, entry_id=created["id"], status="作废")
+        evo = book / "演化"
+        evo.mkdir(parents=True, exist_ok=True)
+        (evo / "retcon-v01-only.json").write_text("{}", encoding="utf-8")
+        item = _check(book, "inv-4-promises")
+        assert item["status"] == "fail"
+        assert "voided_missing_journal_retcon" in _codes(item)
