@@ -55,6 +55,35 @@ def test_load_chapter_execution_directive_from_volume_outline(tmp_path):
     assert directive["chapter_end_open_question"] == "谁改了借据？"
 
 
+def test_load_chapter_execution_directive_from_canonical_nested_outline(tmp_path):
+    """阶段二 P2-1：仅存在 大纲/卷纲/第01卷-详细大纲.md 时仍能加载 directive。"""
+    (tmp_path / ".webnovel").mkdir()
+    (tmp_path / ".webnovel" / "state.json").write_text(
+        json.dumps({"progress": {"volumes_planned": [{"volume": 1, "chapters_range": "1-50"}]}}),
+        encoding="utf-8",
+    )
+    path = tmp_path / "大纲" / "卷纲" / "第01卷-详细大纲.md"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        "\n".join(
+            [
+                "## 第1章：夜袭",
+                "- 目标：潜入粮仓",
+                "- 时间锚点：第42日夜",
+                "- CBN：翻墙",
+                "- CEN：点燃火把",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    directive = load_chapter_execution_directive(tmp_path, 1)
+
+    assert directive["goal"] == "潜入粮仓"
+    assert directive["time_anchor"] == "第42日夜"
+    assert directive["cbn"] == "翻墙"
+
+
 def test_load_chapter_outline_truncates_by_field_priority(tmp_path):
     """P2-2：截断时优先保留 CBN/CPNs/CEN/必须覆盖节点/本章禁区。"""
     from chapter_outline_loader import load_chapter_outline

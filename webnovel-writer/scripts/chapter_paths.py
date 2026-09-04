@@ -22,7 +22,6 @@ except ImportError:  # pragma: no cover
 
 
 _CHAPTER_NUM_RE = re.compile(r"第(?P<num>\d+)章")
-_OUTLINE_HEADING_RE = re.compile(r"^#{1,6}\s*第\s*(?P<num>\d+)\s*章[：:]\s*(?P<title>.+?)\s*$", re.MULTILINE)
 _SPLIT_OUTLINE_FILENAME_RE = re.compile(r"^第0*(?P<num>\d+)章[-—_ ]+(?P<title>.+?)\.md$")
 
 
@@ -57,11 +56,13 @@ def _safe_title_for_filename(title: str) -> str:
 
 
 def _extract_title_from_outline_text(outline_text: str, chapter_num: int) -> str:
-    for match in _OUTLINE_HEADING_RE.finditer(outline_text):
-        if int(match.group("num")) != chapter_num:
-            continue
-        return _safe_title_for_filename(match.group("title"))
-    return ""
+    try:
+        from data_modules.outline_paths import extract_chapter_heading
+    except ImportError:  # pragma: no cover
+        from scripts.data_modules.outline_paths import extract_chapter_heading
+
+    heading = extract_chapter_heading(outline_text, chapter_num)
+    return _safe_title_for_filename(heading) if heading else ""
 
 
 def _extract_title_from_split_outline_filename(outline_dir: Path, chapter_num: int) -> str:

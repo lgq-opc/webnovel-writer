@@ -101,6 +101,24 @@ class TestNewSections:
         assert "## 文风宪法" in md and "一律用短句" in md
         assert "## 本章章纲节选" in md and "兽潮南逃" in md and "别的" not in md
 
+    def test_outline_excerpt_prefers_canonical_over_legacy_nested(self, tmp_path):
+        repo = _v7_repo(tmp_path)
+        (repo / "大纲" / "卷纲" / "第02卷.md").write_text("## 第42章：旧路径\n不应出现\n", encoding="utf-8")
+        (repo / "大纲" / "卷纲" / "第02卷-详细大纲.md").write_text("## 第42章：风暴前夜\n规范路径正文\n", encoding="utf-8")
+
+        md, _ = build_context_pack(repo, _decision())
+
+        assert "规范路径正文" in md
+        assert "不应出现" not in md
+
+    def test_outline_excerpt_falls_back_to_legacy_nested(self, tmp_path):
+        repo = _v7_repo(tmp_path)
+        (repo / "大纲" / "卷纲" / "第02卷.md").write_text("## 第42章：风暴前夜\n仅旧 nested\n", encoding="utf-8")
+
+        md, _ = build_context_pack(repo, _decision())
+
+        assert "仅旧 nested" in md
+
     def test_protagonist_and_pov_discipline(self, tmp_path):
         repo = _v7_repo(tmp_path)
 

@@ -88,26 +88,22 @@ def _find_split_outline_file(outline_dir: Path, chapter_num: int) -> Path | None
 
 
 def _find_volume_outline_file(project_root: Path, chapter_num: int) -> Path | None:
-    outline_dir = project_root / "大纲"
+    try:
+        from data_modules.outline_paths import resolve_detailed_outline
+    except ImportError:  # pragma: no cover
+        from scripts.data_modules.outline_paths import resolve_detailed_outline
+
     volume_num = volume_num_for_chapter_from_state(project_root, chapter_num) or volume_num_for_chapter(chapter_num)
-    candidates = [
-        outline_dir / f"第{volume_num}卷-详细大纲.md",
-        outline_dir / f"第{volume_num}卷 - 详细大纲.md",
-        outline_dir / f"第{volume_num}卷 详细大纲.md",
-    ]
-    return next((path for path in candidates if path.exists()), None)
+    return resolve_detailed_outline(project_root, volume_num)
 
 
 def _extract_outline_section(content: str, chapter_num: int) -> str | None:
-    patterns = [
-        rf"###\s*第\s*{chapter_num}\s*章[：:]\s*(.+?)(?=###\s*第\s*\d+\s*章|##\s|$)",
-        rf"###\s*第{chapter_num}章[：:]\s*(.+?)(?=###\s*第\d+章|##\s|$)",
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, content, re.DOTALL)
-        if match:
-            return match.group(0).strip()
-    return None
+    try:
+        from data_modules.outline_paths import extract_chapter_section
+    except ImportError:  # pragma: no cover
+        from scripts.data_modules.outline_paths import extract_chapter_section
+
+    return extract_chapter_section(content, chapter_num)
 
 
 def _parse_chinese_chapter_num(value: str) -> int | None:

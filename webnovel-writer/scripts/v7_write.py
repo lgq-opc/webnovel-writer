@@ -247,25 +247,17 @@ def _sec_materials(repo: Path) -> dict[str, Any]:
 
 
 def _sec_outline_excerpt(repo: Path, decision: dict[str, Any], chapter: int) -> str:
-    """当卷详细大纲中本章小节；先 `第NN卷-详细大纲.md` 再 `第NN卷.md`（P2-1 统一路径前的兼容读）。"""
+    """当卷详细大纲中本章小节（规范路径优先，旧 nested / v6 平铺只读兼容）。"""
+    from data_modules.outline_paths import extract_chapter_section, resolve_detailed_outline
+
     vol = int(decision.get("volume") or 0)
     if not vol:
         size = int(_book_yaml_scalar(repo, "卷规模") or 0)
         vol = (chapter - 1) // size + 1 if size else 1
-    base = Path(repo) / "大纲" / "卷纲"
-    for name in (f"第{vol:02d}卷-详细大纲.md", f"第{vol:02d}卷.md"):
-        p = base / name
-        if not p.is_file():
-            continue
-        text = p.read_text(encoding="utf-8")
-        m = re.search(rf"^(#+)\s*第\s*0*{chapter}\s*章[^\n]*\n", text, re.M)
-        if not m:
-            continue
-        level = len(m.group(1))
-        rest = text[m.end():]
-        nxt = re.search(rf"^#{{1,{level}}}\s", rest, re.M)
-        return (m.group(0) + (rest[: nxt.start()] if nxt else rest)).strip()
-    return ""
+    path = resolve_detailed_outline(repo, vol)
+    if path is None:
+        return ""
+    return extract_chapter_section(path.read_text(encoding="utf-8"), chapter) or ""
 
 
 def _sec_protagonist(repo: Path) -> dict[str, Any]:

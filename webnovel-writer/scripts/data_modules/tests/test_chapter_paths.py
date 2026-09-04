@@ -27,6 +27,24 @@ def test_default_chapter_draft_path_uses_outline_heading_title(tmp_path):
     assert draft_path.name == "第0001章-测试标题.md"
 
 
+def test_extract_chapter_title_from_canonical_h2_and_chinese_numeral(tmp_path):
+    module = _load_module()
+    path = tmp_path / "大纲" / "卷纲" / "第01卷-详细大纲.md"
+    path.parent.mkdir(parents=True)
+    path.write_text("## 第一章：规范标题\n正文", encoding="utf-8")
+
+    assert module.extract_chapter_title(tmp_path, 1) == "规范标题"
+
+
+def test_extract_chapter_title_from_v6_space_variant(tmp_path):
+    module = _load_module()
+    outline_dir = tmp_path / "大纲"
+    outline_dir.mkdir(parents=True, exist_ok=True)
+    (outline_dir / "第1卷 详细大纲.md").write_text("## 第1章：空格路径\n正文", encoding="utf-8")
+
+    assert module.extract_chapter_title(tmp_path, 1) == "空格路径"
+
+
 def test_default_chapter_draft_path_falls_back_to_split_outline_filename(tmp_path):
     module = _load_module()
 
