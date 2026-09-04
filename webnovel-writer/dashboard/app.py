@@ -309,7 +309,7 @@ def create_app(project_root: str | Path | None = None) -> FastAPI:
 
     @app.get("/api/governance")
     def governance_snapshot():
-        """治理六视图只读快照（M7/T32，F-14）：三区/冻结/journal/素材/通胀/红点。"""
+        """治理七视图只读快照（M7/T32，F-14；P4-2）：三区/冻结/journal/素材/通胀/红点/账本。"""
         from dashboard.governance import build_governance_snapshot
 
         return build_governance_snapshot(_get_project_root())

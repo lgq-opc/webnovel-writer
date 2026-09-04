@@ -1,12 +1,13 @@
-"""治理视图数据层（webnovel-copilot-300 · M7/T32，F-14）。
+"""治理视图数据层（webnovel-copilot-300 · M7/T32，F-14；P4-2 增账本）。
 
-为 dashboard 提供六组只读治理视图的数据快照（纯文件读取，缺文件优雅降级）：
+为 dashboard 提供七组只读治理视图的数据快照（纯文件读取，缺文件优雅降级）：
 1. outline_zones 总纲三区状态（甲区冻结/乙区活跃/丙区锚点的小节数与行数）；
 2. freeze 冻结进度（定版 v{NN} manifest 清单 + 演化 freeze/retcon 事件）；
 3. journal 时间线（作者域事件流最近 50 条，新→旧）；
 4. materials 素材热力（十表条数 + 使用轨迹 top 条目）；
 5. inflation 通胀曲线（力量锚点通胀记录 + 战例账本计数）；
-6. alerts 红点（stale 未消费 / 伏笔逾期 / 画廊积压）。
+6. alerts 红点（stale 未消费 / 伏笔逾期 / 画廊积压）；
+7. ledger 承诺账本（各状态计数 + 全量条目 + 逾期列表）。
 
 红线：只读；任何子视图失败返回空结构，不影响整体快照。
 """
@@ -157,9 +158,10 @@ def _alerts(root: Path) -> dict[str, Any]:
 
     overdue: list[dict[str, Any]] = []
     try:
+        from data_modules.dual_format_guard import max_settled_chapter
         from data_modules.promise_ledger import foreshadow_scan
 
-        latest = _latest_chapter_hint(root)
+        latest = max(1, max_settled_chapter(root))
         overdue = [
             {"编号": e["编号"], "名称": e["名称"], "最晚回收章": e["最晚回收章"]}
             for e in foreshadow_scan(root, current_chapter=latest, apply=False)["overdue"]
@@ -176,15 +178,53 @@ def _alerts(root: Path) -> dict[str, Any]:
     return {"stale": stale, "overdue": overdue, "gallery_files": gallery}
 
 
-def _latest_chapter_hint(root: Path) -> int:
-    body_dir = root / "定稿" / "正文"
-    latest = 1
-    if body_dir.is_dir():
-        for path in body_dir.glob("*.md"):
-            match = re.match(r"(\d{1,4})", path.stem)
-            if match:
-                latest = max(latest, int(match.group(1)))
-    return latest
+def _ledger_view(root: Path) -> dict[str, Any]:
+    empty_counts = {"open": 0, "推进中": 0, "已回收": 0, "作废": 0, "逾期": 0}
+    empty = {
+        "current_chapter": 0,
+        "counts": dict(empty_counts),
+        "entries": [],
+        "overdue": [],
+    }
+    try:
+        from data_modules.dual_format_guard import max_settled_chapter
+        from data_modules.promise_ledger import STATUS_VALUES, foreshadow_scan, load_entries
+
+        chapter = max(1, max_settled_chapter(root))
+        entries = load_entries(root)
+        scan = foreshadow_scan(root, current_chapter=chapter, apply=False)
+        counts = {key: 0 for key in STATUS_VALUES}
+        for entry in entries:
+            status = str(entry.get("状态") or "")
+            if status in counts:
+                counts[status] += 1
+        return {
+            "current_chapter": chapter,
+            "counts": counts,
+            "entries": [
+                {
+                    "编号": entry["编号"],
+                    "类型": entry["类型"],
+                    "名称": entry["名称"],
+                    "状态": entry["状态"],
+                    "埋设章": entry["埋设章"],
+                    "最晚回收章": entry["最晚回收章"],
+                    "回收章": entry["回收章"],
+                }
+                for entry in entries
+            ],
+            "overdue": [
+                {
+                    "编号": item["编号"],
+                    "名称": item["名称"],
+                    "最晚回收章": item["最晚回收章"],
+                    "状态": item["状态"],
+                }
+                for item in scan.get("overdue") or []
+            ],
+        }
+    except Exception:
+        return empty
 
 
 def build_governance_snapshot(project_root: str | Path) -> dict[str, Any]:
@@ -197,4 +237,5 @@ def build_governance_snapshot(project_root: str | Path) -> dict[str, Any]:
         "materials": _materials_heat(root),
         "inflation": _inflation_curve(root),
         "alerts": _alerts(root),
+        "ledger": _ledger_view(root),
     }

@@ -3,7 +3,7 @@ import { useDashboardContext } from '../App.jsx'
 import { fetchGovernance } from '../api.js'
 import Badge from '../components/Badge.jsx'
 
-// 治理面板（webnovel-copilot-300 M7/T32，F-14）：六组只读治理视图。
+// 治理面板（webnovel-copilot-300 M7/T32，F-14；P4-2）：七组只读治理视图。
 function Section({ title, children }) {
     return (
         <section className="card" style={{ marginBottom: 16 }}>
@@ -40,6 +40,10 @@ export default function GovernancePage() {
     const materials = snapshot.materials || {}
     const inflation = snapshot.inflation || {}
     const alerts = snapshot.alerts || {}
+    const ledger = snapshot.ledger || {}
+    const ledgerCounts = ledger.counts || {}
+    const ledgerEntries = ledger.entries || []
+    const ledgerOverdue = ledger.overdue || []
 
     return (
         <div>
@@ -129,6 +133,25 @@ export default function GovernancePage() {
                         stale {item.target}：{item.reason}
                     </p>
                 ))}
+            </Section>
+
+            <Section title="⑦ 承诺账本">
+                <p>
+                    当前章 {ledger.current_chapter || 0}｜open {ledgerCounts.open || 0}｜推进中 {ledgerCounts['推进中'] || 0}｜已回收 {ledgerCounts['已回收'] || 0}｜作废 {ledgerCounts['作废'] || 0}｜逾期 {ledgerCounts['逾期'] || 0}
+                </p>
+                {ledgerOverdue.map(item => (
+                    <p key={`overdue-${item.编号}`} style={{ color: '#e5534b' }}>
+                        逾期 {item.编号}「{item.名称}」最晚回收章 {item.最晚回收章}（{item.状态}）
+                    </p>
+                ))}
+                {ledgerEntries.length === 0 && <Empty text="无承诺账本条目" />}
+                <ul>
+                    {ledgerEntries.map(item => (
+                        <li key={item.编号}>
+                            {item.编号}「{item.名称}」{item.类型} {item.状态} 最晚回收章 {item.最晚回收章}
+                        </li>
+                    ))}
+                </ul>
             </Section>
         </div>
     )

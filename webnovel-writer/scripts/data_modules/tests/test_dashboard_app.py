@@ -467,8 +467,78 @@ def test_dashboard_governance_snapshot_endpoint(monkeypatch, tmp_path):
 
     assert response.status_code == 200
     payload = response.json()
-    for key in ("outline_zones", "freeze", "journal", "materials", "inflation", "alerts"):
+    for key in ("outline_zones", "freeze", "journal", "materials", "inflation", "alerts", "ledger"):
         assert key in payload, f"治理视图缺 {key}"
     assert payload["journal"] and payload["journal"][0]["summary"] == "改钩子"
     assert payload["materials"]["tables"]
     assert "stale" in payload["alerts"] and "overdue" in payload["alerts"]
+
+
+def _plant_settled(project_root: Path, name: str = "0042-夜袭.md") -> None:
+    body = project_root / "定稿" / "正文"
+    body.mkdir(parents=True, exist_ok=True)
+    (body / name).write_text("正文\n", encoding="utf-8")
+
+
+def test_governance_ledger_counts_and_overdue_without_writing(monkeypatch, tmp_path):
+    from data_modules.promise_ledger import create_entry, load_entries, update_status
+
+    project_root = tmp_path / "book"
+    _build_project_data(project_root)
+    _plant_settled(project_root)
+    create_entry(
+        project_root,
+        kind="伏笔",
+        name="熔炉残响",
+        planted_chapter=12,
+        due_chapter=10,
+        entry_id="F-001",
+    )
+    create_entry(
+        project_root,
+        kind="悬念",
+        name="天裂来历",
+        planted_chapter=1,
+        due_chapter=300,
+        entry_id="S-001",
+    )
+    update_status(project_root, entry_id="S-001", status="已回收", chapter=40)
+    client = _create_dashboard_client(monkeypatch, project_root)
+
+    payload = client.get("/api/governance").json()
+    ledger = payload["ledger"]
+    assert ledger["current_chapter"] == 42
+    assert ledger["counts"]["open"] == 1
+    assert ledger["counts"]["已回收"] == 1
+    ids = [e["编号"] for e in ledger["entries"]]
+    assert ids == ["F-001", "S-001"]
+    overdue_ids = [e["编号"] for e in ledger["overdue"]]
+    assert overdue_ids == ["F-001"]
+    assert payload["alerts"]["overdue"][0]["编号"] == "F-001"
+    still = {e["编号"]: e["状态"] for e in load_entries(project_root)}
+    assert still["F-001"] == "open"
+    assert still["S-001"] == "已回收"
+
+
+def test_governance_empty_ledger_is_empty_structure(monkeypatch, tmp_path):
+    project_root = tmp_path / "book"
+    _build_project_data(project_root)
+    client = _create_dashboard_client(monkeypatch, project_root)
+    ledger = client.get("/api/governance").json()["ledger"]
+    assert ledger["entries"] == []
+    assert ledger["overdue"] == []
+    assert ledger["counts"]["open"] == 0
+    assert set(ledger["counts"]) >= {"open", "推进中", "已回收", "作废", "逾期"}
+
+
+def test_governance_page_has_seventh_ledger_section():
+    page = (
+        Path(__file__).resolve().parents[3]
+        / "dashboard"
+        / "frontend"
+        / "src"
+        / "pages"
+        / "GovernancePage.jsx"
+    )
+    text = page.read_text(encoding="utf-8")
+    assert "⑦ 承诺账本" in text
