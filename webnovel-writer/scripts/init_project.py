@@ -30,7 +30,7 @@ import re
 # 安全修复：导入安全工具函数
 from security_utils import sanitize_commit_message, atomic_write_json, is_git_available
 from project_locator import write_current_project_pointer
-from genre_taxonomy import resolve_genre_input, resolve_template_stems
+from genre_taxonomy import resolve_genre_input, resolve_template_stems, seed_genre_label
 
 
 # Windows 编码兼容性修复
@@ -638,7 +638,7 @@ def init_project(
             f"Domains: +{len(domain_report['created_dirs'])} dirs, "
             f"+{len(domain_report['created_files'])} files (已存在不动)"
         )
-        seed_report = seed_materials(project_path, genre=canonical_genre)
+        seed_report = seed_materials(project_path, genre=seed_genre_label(genre))
         if seed_report["seeded"]:
             print(f"Materials: 播种 {sum(seed_report['seeded'].values())} 条（题材 {canonical_genre}）")
     except Exception as e:

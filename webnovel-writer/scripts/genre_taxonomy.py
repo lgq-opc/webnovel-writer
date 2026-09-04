@@ -60,6 +60,7 @@ class GenreEntry:
 class GenreResolution:
     raw_label: str
     canonical_genre: str = ""
+    canonical_genres: list[str] = field(default_factory=list)
     matched_labels: list[str] = field(default_factory=list)
     template_files: list[str] = field(default_factory=list)
     route_tags: list[str] = field(default_factory=list)
@@ -225,12 +226,23 @@ def resolve_genre_input(raw_label: Optional[str], *, index_path: Optional[str] =
 
     resolution.canonical_genre = _choose_canonical(matched, resolution.warnings)
     for entry in matched:
+        canon = entry.canonical_genre
+        if canon and canon != "全部" and canon not in resolution.canonical_genres:
+            resolution.canonical_genres.append(canon)
+    for entry in matched:
         _append_unique(resolution.route_tags, entry.route_tags)
         _append_unique(resolution.trope_tags, entry.trope_tags)
         _append_unique(resolution.format_tags, entry.format_tags)
         if entry.template_file:
             _append_unique(resolution.template_files, [entry.template_file])
     return resolution
+
+
+def seed_genre_label(raw: str) -> str:
+    resolved = resolve_genre_input(raw)
+    if resolved.canonical_genres:
+        return "+".join(resolved.canonical_genres)
+    return str(raw or "").strip()
 
 
 def resolve_canonical_genre(genre: Optional[str], *, index_path: Optional[str] = None) -> Optional[str]:

@@ -185,6 +185,7 @@ class TestSeed:
             ["TR-001", "write", "桥段", "知识补充", "k", "i", "玄幻|仙侠", "cmd", "摘要1", "展开1", "退婚流", "爽点1", "毒点1"],
             ["TR-002", "write", "桥段", "知识补充", "k", "i", "全部", "cmd", "摘要2", "展开2", "火葬场", "爽点2", "毒点2"],
             ["TR-003", "write", "桥段", "知识补充", "k", "i", "现言", "cmd", "摘要3", "展开3", "契约婚姻", "爽点3", "毒点3"],
+            ["TR-XIAN", "write", "桥段", "知识补充", "k", "i", "仙侠", "cmd", "摘要X", "展开X", "飞升", "爽点X", "毒点X"],
         ]
         _write_csv(src / "桥段套路.csv", base_header + ["桥段名称", "核心爽点", "毒点"], bridge_rows)
         rhythm_rows = [
@@ -201,6 +202,24 @@ class TestSeed:
         ]
         _write_csv(src / "写作技法.csv", base_header + ["技法类型", "技法名称", "适用场景", "毒点", "正例", "反例"], craft_rows)
         return src
+
+    def test_seed_compound_genre_includes_xianxia_rows(self, book: Path, source_dir: Path):
+        from data_modules.material_store import seed_materials
+        from genre_taxonomy import seed_genre_label
+
+        (book / "u").mkdir(parents=True, exist_ok=True)
+        (book / "m").mkdir(parents=True, exist_ok=True)
+        urban = seed_materials(book / "u", genre="都市", source_dir=source_dir)
+        mixed = seed_materials(
+            book / "m",
+            genre=seed_genre_label("都市+仙侠+科幻"),
+            source_dir=source_dir,
+        )
+        urban_ids = {r["id"] for r in urban["rows"]["桥段"]}
+        mixed_ids = {r["id"] for r in mixed["rows"]["桥段"]}
+        assert "TR-XIAN" in mixed_ids
+        assert "TR-XIAN" not in urban_ids
+        assert urban_ids <= mixed_ids
 
     def test_seed_filters_by_genre_and_caps(self, book: Path, source_dir: Path):
         from data_modules.material_store import seed_materials

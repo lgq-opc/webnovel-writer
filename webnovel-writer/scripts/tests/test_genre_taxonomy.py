@@ -55,3 +55,12 @@ def test_unresolved_reported():
 def test_resolve_canonical_genre_fallback_keeps_raw():
     assert resolve_canonical_genre("完全不存在的题材xx") == "完全不存在的题材xx"
     assert resolve_canonical_genre("玄幻") == "玄幻"
+
+
+def test_compound_label_keeps_union_and_single_canonical():
+    from genre_taxonomy import resolve_genre_input, seed_genre_label
+
+    resolved = resolve_genre_input("都市+仙侠+科幻")
+    assert resolved.canonical_genre == "都市"
+    assert resolved.canonical_genres == ["都市", "仙侠", "科幻"]
+    assert seed_genre_label("都市+仙侠+科幻") == "都市+仙侠+科幻"
