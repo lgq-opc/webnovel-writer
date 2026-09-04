@@ -152,17 +152,18 @@ def cmd_where(args: argparse.Namespace) -> int:
     return 0
 
 
-def _resolve_root_lenient(raw: str) -> Path:
+def _resolve_root_lenient(raw: Optional[str]) -> Path:
     """宽松解析：v6 项目走 _resolve_root；纯 v7 story-repo（book.yaml）直接用给定目录。"""
     try:
         return _resolve_root(raw)
     except FileNotFoundError:
-        candidate = Path(raw)
-        if candidate.is_dir():
-            from data_modules import domain_contract
+        if raw:
+            candidate = Path(raw)
+            if candidate.is_dir():
+                from data_modules import domain_contract
 
-            if domain_contract.is_story_repo(candidate):
-                return candidate
+                if domain_contract.is_story_repo(candidate):
+                    return candidate
         raise
 
 
@@ -494,7 +495,7 @@ def _build_preflight_report(explicit_project_root: Optional[str]) -> dict:
     project_root_error = ""
     story_runtime: dict = {}
     try:
-        resolved_root = _resolve_root(explicit_project_root)
+        resolved_root = _resolve_root_lenient(explicit_project_root)
         project_root = str(resolved_root)
         checks.append({"name": "project_root", "ok": True, "path": project_root})
         story_runtime = build_story_runtime_health(resolved_root)

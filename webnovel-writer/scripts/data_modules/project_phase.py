@@ -19,6 +19,7 @@ from .projection_log import latest_projection_run, projection_status_from_run
 
 
 PHASE_NO_PROJECT = "no_project"
+PHASE_V7_STORY_REPO = "v7_story_repo"
 PHASE_UNKNOWN = "unknown"
 PHASE_INIT_SCAFFOLDED = "init_scaffolded"
 PHASE_INIT_READY = "init_ready"
@@ -31,6 +32,7 @@ PHASE_PROJECTION_FAILED = "projection_failed"
 
 PHASES = (
     PHASE_NO_PROJECT,
+    PHASE_V7_STORY_REPO,
     PHASE_UNKNOWN,
     PHASE_INIT_SCAFFOLDED,
     PHASE_INIT_READY,
@@ -326,6 +328,24 @@ def resolve_project_phase(project_root: str | Path | None, chapter: int | None =
     root = Path(project_root)
     state_path = root / ".webnovel" / "state.json"
     if not state_path.is_file():
+        from .domain_contract import is_story_repo
+        from .dual_format_guard import max_settled_chapter
+
+        if is_story_repo(root):
+            latest = max_settled_chapter(root)
+            if chapter is not None:
+                try:
+                    target = max(0, int(chapter))
+                except (TypeError, ValueError):
+                    target = latest
+            else:
+                target = latest
+            return ProjectPhaseSnapshot(
+                project_root=str(root),
+                phase=PHASE_V7_STORY_REPO,
+                target_chapter=target,
+                latest_accepted_chapter=latest,
+            )
         return ProjectPhaseSnapshot(
             project_root=str(root),
             phase=PHASE_NO_PROJECT,

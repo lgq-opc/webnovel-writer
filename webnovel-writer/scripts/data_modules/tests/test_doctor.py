@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import json
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
-from .test_project_phase import _make_contracts, _make_init_ready
+from .test_project_phase import _make_contracts, _make_init_ready, _make_v7_repo
 from .test_project_phase import _write_json
 
 
@@ -349,3 +352,62 @@ def test_doctor_total_words_reconcile_within_tolerance_passes(tmp_path, monkeypa
         item for item in report["checks"]
         if item["id"] == "state.total_words_reconcile" and item["status"] == doctor_module.CHECK_WARNING
     ]
+
+
+_SCRIPTS = Path(__file__).resolve().parents[2]
+_GROUP_PREFIXES = (
+    "preflight.",
+    "file.",
+    "json.",
+    "story_runtime.",
+    "sqlite.",
+    "state.total_words_reconcile",
+    "projection_log.",
+    "commit.extraction_warnings",
+    "contract.schema_version",
+    "run_log.",
+    "rag.",
+    "domains.contract",
+)
+
+
+def _group_hits(checks: list[dict]) -> set[str]:
+    ids = [str(item.get("id") or "") for item in checks]
+    return {prefix for prefix in _GROUP_PREFIXES if any(i == prefix or i.startswith(prefix) for i in ids)}
+
+
+def test_doctor_v7_runs_project_groups_not_only_python(tmp_path, monkeypatch):
+    _make_v7_repo(tmp_path)
+    monkeypatch.setattr(doctor_module, "_python_checks", lambda: [])
+    report = doctor_module.build_doctor_report(tmp_path)
+    assert report["phase"] == "v7_story_repo"
+    ids = [c["id"] for c in report["checks"]]
+    assert "project.root" not in ids
+    assert any(i.startswith("file.v7.") for i in ids)
+    assert not any(i.startswith("file.dir.设定集") or i.startswith("file.required.设定集") for i in ids)
+    tw = [c for c in report["checks"] if c["id"] == "state.total_words_reconcile"]
+    assert tw and tw[0]["status"] == doctor_module.CHECK_SKIPPED
+
+
+def test_doctor_v7_missing_finalized_dir_errors(tmp_path, monkeypatch):
+    _make_v7_repo(tmp_path, settled=None)
+    shutil.rmtree(tmp_path / "定稿" / "正文")
+    monkeypatch.setattr(doctor_module, "_python_checks", lambda: [])
+    report = doctor_module.build_doctor_report(tmp_path)
+    match = [c for c in report["checks"] if c["id"] == "file.v7.dir.定稿/正文"]
+    assert match and match[0]["status"] == doctor_module.CHECK_ERROR
+    assert report["ok"] is False
+
+
+def test_doctor_cli_v7_emits_twelve_groups(tmp_path):
+    _make_v7_repo(tmp_path)
+    proc = subprocess.run(
+        [sys.executable, "-X", "utf8", str(_SCRIPTS / "webnovel.py"),
+         "--project-root", str(tmp_path), "doctor", "--format", "json"],
+        capture_output=True, text=True, encoding="utf-8",
+    )
+    payload = json.loads(proc.stdout)
+    hits = _group_hits(payload["checks"])
+    assert hits == set(_GROUP_PREFIXES)
+    pre = [c for c in payload["checks"] if c["id"] == "preflight.project_root"]
+    assert pre and pre[0]["status"] == doctor_module.CHECK_OK

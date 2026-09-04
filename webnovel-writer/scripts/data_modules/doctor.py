@@ -19,6 +19,7 @@ from .project_phase import (
     PHASE_INIT_READY,
     PHASE_INIT_SCAFFOLDED,
     PHASE_NO_PROJECT,
+    PHASE_V7_STORY_REPO,
     ProjectPhaseSnapshot,
     contract_files_for_chapter,
     resolve_project_phase,
@@ -85,7 +86,22 @@ def _read_json(path: Path) -> tuple[dict[str, Any], str]:
     return payload, ""
 
 
+V7_FILE_CHECKS = (
+    ("file.v7.book.yaml", "book.yaml", True),
+    ("file.v7.dir.定稿/正文", "定稿/正文", False),
+    ("file.v7.dir.大纲", "大纲", False),
+    ("file.v7.dir.作者", "作者", False),
+)
+
+
 def _expected_profile(snapshot: ProjectPhaseSnapshot) -> dict[str, Any]:
+    if snapshot.phase == PHASE_V7_STORY_REPO:
+        return {
+            "phase": snapshot.phase,
+            "target_chapter": snapshot.target_chapter,
+            "files": ["book.yaml"],
+            "dirs": ["定稿/正文", "大纲", "作者"],
+        }
     expected_files = list(INIT_REQUIRED_FILES)
     expected_dirs = list(INIT_REQUIRED_DIRS)
     if snapshot.phase not in {PHASE_NO_PROJECT, PHASE_INIT_SCAFFOLDED, PHASE_INIT_READY}:
@@ -127,7 +143,30 @@ def _preflight_checks(preflight_report: dict[str, Any] | None) -> list[dict[str,
     return checks
 
 
+def _v7_file_checks(project_root: Path) -> list[dict[str, Any]]:
+    checks: list[dict[str, Any]] = []
+    for check_id, rel, is_file in V7_FILE_CHECKS:
+        path = project_root / rel
+        exists = path.is_file() if is_file else path.is_dir()
+        checks.append(
+            _check(
+                check_id,
+                status=CHECK_OK if exists else CHECK_ERROR,
+                severity="info" if exists else "blocker",
+                message=f"v7 required {'file' if is_file else 'directory'} {rel}",
+                path=str(path),
+                expected="exists",
+                actual="exists" if exists else "missing",
+                impact="" if exists else "v7 书仓骨架不完整。",
+                repair="" if exists else f"补齐 {rel}",
+            )
+        )
+    return checks
+
+
 def _file_checks(project_root: Path, snapshot: ProjectPhaseSnapshot) -> list[dict[str, Any]]:
+    if snapshot.phase == PHASE_V7_STORY_REPO:
+        return _v7_file_checks(project_root)
     checks: list[dict[str, Any]] = []
     for rel in INIT_REQUIRED_DIRS:
         path = project_root / rel
@@ -417,7 +456,17 @@ def _total_words_reconcile_check(project_root: Path) -> list[dict[str, Any]]:
     try:
         state = json.loads(state_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
-        return []
+        return [
+            _check(
+                "state.total_words_reconcile",
+                status=CHECK_SKIPPED,
+                severity="info",
+                message="v7 无 state.json，跳过 total_words 对账",
+                path=str(state_path),
+                expected="state.json with progress.total_words",
+                actual="missing",
+            )
+        ]
     progress = state.get("progress") if isinstance(state, dict) else {}
     if not isinstance(progress, dict):
         return []
@@ -877,7 +926,7 @@ def build_doctor_report(
                 severity="blocker",
                 message="project root not resolved",
                 path=str(project_root or ""),
-                expected=".webnovel/state.json",
+                expected="book.yaml or .webnovel/state.json",
                 actual="missing",
                 impact="无法判断项目状态，也不能安全运行写作链路。",
                 repair="先运行 /webnovel-init，或运行 webnovel.py use <project_root> 绑定已有项目。",

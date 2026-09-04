@@ -21,8 +21,10 @@ from data_modules.project_phase import (  # noqa: E402
     PHASE_DRAFT_IN_PROGRESS,
     PHASE_INIT_READY,
     PHASE_INIT_SCAFFOLDED,
+    PHASE_NO_PROJECT,
     PHASE_PROJECTION_FAILED,
     PHASE_READY_TO_COMMIT,
+    PHASE_V7_STORY_REPO,
     COMMIT_ARTIFACT_FILES,
     resolve_project_phase,
 )
@@ -50,6 +52,15 @@ def _make_init_ready(project_root: Path) -> None:
             )
         else:
             path.write_text("placeholder\n", encoding="utf-8")
+
+
+def _make_v7_repo(root: Path, *, settled: str | None = "0042-夜袭.md") -> Path:
+    (root / "book.yaml").write_text("书名: 测试\n", encoding="utf-8")
+    for rel in ("定稿/正文", "大纲", "作者"):
+        (root / rel).mkdir(parents=True, exist_ok=True)
+    if settled:
+        (root / "定稿" / "正文" / settled).write_text("正文\n", encoding="utf-8")
+    return root
 
 
 def _make_contracts(project_root: Path, chapter: int = 1) -> None:
@@ -167,3 +178,33 @@ def test_project_phase_treats_projection_log_pending_as_blocking(tmp_path):
 
     assert snapshot.phase == PHASE_PROJECTION_FAILED
     assert "latest_commit_projection_incomplete" in snapshot.blocking
+
+
+def test_v7_book_yaml_is_story_repo_phase(tmp_path):
+    _make_v7_repo(tmp_path)
+    snapshot = resolve_project_phase(tmp_path)
+    assert snapshot.phase == PHASE_V7_STORY_REPO
+    assert snapshot.project_root
+    assert snapshot.latest_accepted_chapter == 42
+    assert snapshot.target_chapter == 42
+
+
+def test_v7_ignores_v6_zhengwen_flat_dir(tmp_path):
+    _make_v7_repo(tmp_path, settled=None)
+    (tmp_path / "正文").mkdir()
+    (tmp_path / "正文" / "第0099章.md").write_text("旧\n", encoding="utf-8")
+    snapshot = resolve_project_phase(tmp_path)
+    assert snapshot.phase == PHASE_V7_STORY_REPO
+    assert snapshot.latest_accepted_chapter == 0
+
+
+def test_state_json_wins_over_book_yaml(tmp_path):
+    _make_init_ready(tmp_path)
+    (tmp_path / "book.yaml").write_text("书名: 混\n", encoding="utf-8")
+    snapshot = resolve_project_phase(tmp_path)
+    assert snapshot.phase == PHASE_INIT_READY
+
+
+def test_empty_dir_without_state_or_yaml_is_no_project(tmp_path):
+    snapshot = resolve_project_phase(tmp_path)
+    assert snapshot.phase == PHASE_NO_PROJECT
