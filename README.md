@@ -1,7 +1,7 @@
 # Webnovel Writer
 
 [![License](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-8.0.0-brightgreen.svg)](marketplace.json)
+[![Version](https://img.shields.io/badge/version-8.1.0-brightgreen.svg)](marketplace.json)
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 [![ZCode](https://img.shields.io/badge/ZCode-Native-blue.svg)](https://cdn-zcode.z.ai)
 [![Marketplace](https://img.shields.io/badge/ZCode-Marketplace-black.svg)](marketplace.json)
@@ -360,7 +360,8 @@ git push origin feature/your-feature
 
 | 版本 | 主要变化 |
 |------|----------|
-| **v8.0.0 (当前)** | 「作者主权+300章连贯」工程落地（webnovel-copilot-300） |
+| **v8.1.0 (当前)** | 40 项缺口四阶段修复：上下文包 7→10 section、settle 三门禁+后置落账、章纲一致性闸、六项数据不变量、doctor 治理体检、面板承诺账本视图、复合题材播种与浮动名扫描 |
+| **v8.0.0** | 「作者主权+300章连贯」工程落地（webnovel-copilot-300） |
 | **v7.1.0** | ZCode 原生化：.zcode-plugin 清单、webnovel MCP 服务、/webnovel:* 命令、userConfig 书项目根配置 |
 | **v7.0.0** | v7 Story-Repo 新架构上线：一键迁移、双格式守卫、两章实跑落定，上下文配额按书校准 |
 | **v6.5.0** | Phase C/D 收官：上下文预算实装（−68%）、L0 设定摘要（−93%）、往返压缩与大输出外置化、读侧提速 |
