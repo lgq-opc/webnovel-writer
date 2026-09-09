@@ -1,0 +1,33 @@
+# TODO：源自 2026-09-10 v8-author 复审报告
+
+> 详细证据见 [docs/reviews/2026-09-10-v8-author-review.md](reviews/2026-09-10-v8-author-review.md)。
+> 状态标记沿用 AGENTS.md 约定：`[x]` 已完成且有代码/测试证据，`[~]` 部分完成，`[ ]` 未完成，`[blocked]` 被阻塞。
+
+## P0（阻断级）
+
+- 无。
+
+## P1
+
+- [ ] **补一条跑测试套件的 CI workflow**：新增/扩展 `.github/workflows/`，在 push/PR 触及 `webnovel-writer/scripts/**`、`webnovel-writer/mcp/**`、`webnovel-writer/dashboard/**` 时自动跑 `pytest`（含覆盖率门槛），而不是只校验发版元数据。建议同时跑 `validate_reference_wiring.py` 等四个校验脚本。证据：`.github/workflows/plugin-release.yml`、`plugin-version.yml` 当前均不含 `pytest`。
+- [ ] **修复 `test_runtime_compat.py` 两个平台耦合用例**：`test_fix_sys_argv_opt_in_repairs_powershell_mojibake`、`test_fix_sys_argv_opt_in_accepts_true_variants` 需 `monkeypatch.setattr(sys, "platform", "win32")`（或等价方式），使其不依赖运行机器的真实系统平台。修复后应在 Linux/Mac 上也能通过，为上一条 CI 打基础。证据：`runtime_compat.py:51` `if sys.platform != "win32": return`。
+- [ ] **重写或标注 `docs/architecture/overview.md`**：要么整体更新为 v8.1.0 现状（8 skill / 14 MCP 工具 / 13 命令 / v7 book-repo / doctor 治理八组 / 六项不变量），要么在文件顶部加醒目提示"本文档描述 v6 架构，现状请看 X/Y/Z"并链接到 `docs/guides/v7-write-path.md`、`docs/zcode/webnovel-copilot-300/04-architecture.md` 等现行文档。
+
+## P2
+
+- [ ] **同步 `AGENTS.md`「当前状态」段落**：版本号 v8.0.0→v8.1.0；"57 提交领先 master"→实测 122 提交；"尚未打 tag/推送"→已推送（tag `v8.1.0`，commit `21a0980`/`26a3d8d`）。建议以后把"发版流程 checklist"里加一项"同步 AGENTS.md 状态段"，避免再次遗漏。
+- [ ] **`dual_format_guard` 缺配置时输出 warning**：v6 侧（`STORY_REPO_ROOT` 环境变量为空）或 v7 侧（`git config dualformat.v6root` 缺失且 decision 无 `v6_project_root`）导致守卫静默跳过时，至少打印一条 warning 或写入 journal，避免用户误以为"唯一写入路径守卫"总是生效。证据：`v7_write.py` 内 `_v6_root_from_git_config`、`config.py:231` `DataModulesConfig.story_repo_root`。
+- [ ] **给 `security_utils.py` 补测试至更高覆盖率**（当前 53%），尤其 `git_graceful_operation` 异常分支（322-343 行）与 `restore_from_backup`（540-554 行）；评估是否需要给安全关键模块单独设更高的覆盖率门槛（而非依赖整体 80% 均摊）。
+- [ ] **视情况扩充 `skills/webnovel-write`、`skills/webnovel-review` 的 evals 集**（当前分别只有 3 条、1 条），或至少明确记录"生成质量目前主要靠 fantasy01 真仓人工冒烟验证，非自动化"这一验证方式的边界，写进对应 SKILL.md 或 README 的"已知限制"章节，避免后来者误以为已有充分自动化覆盖。
+- [ ] **跟踪交接文档登记的数据缺口**：fantasy01 真仓 `定稿/设定/名册/苏小白.md` 缺失导致"主角卡"字段不全（见 `docs/cursor/项目复审/2026-09-04-会话交接.md`），标注"不阻塞"但应补一条正式 TODO 项防止遗忘。
+
+## P3
+
+- [ ] **MCP server 参数加前导 `-` 字符白名单校验**（`project_root`/`table` 等字符串/数组参数），降低理论上的参数注入面，非阻断项。
+- [ ] **同步 `AGENTS.md` 里的远程仓库地址**：文档写 `git@github.com:alittleseven/webnovel-writer.git`，实际 `origin` 为 `https://github.com/lgq-opc/webnovel-writer.git`。
+- [ ] **（可选）补充 ADR 归档约定**：如果团队认可"重大架构决策分散记录在各 `docs/zcode/<任务>/` spec 里、不额外抽 ADR"的现状，建议在 AGENTS.md 里显式写一句说明这个分工，减少"docs/decisions/ 只有 1 篇是不是漏了"的误判成本。
+
+## 已验证无需处理（供归档参考）
+
+- 六项交接假设（ResourceWarning / 六条不变量 / 主角卡注入 / Inv-5 warn / README 徽章现状 / target_chapter 一致性）已于 2026-09-09 全部验证通过，无需重复处理。
+- README 徽章/Star History 指向上游 fork 是维护者主动确认保留的现状，非缺陷。
