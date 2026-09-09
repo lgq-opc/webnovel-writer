@@ -1,9 +1,49 @@
-# v8-author 分支独立复审报告（2026-09-10）
+# v8-author 分支独立复审报告（首次 2026-09-10，复审 2026-09-09）
 
 > 审阅人：Claude Sonnet 5（只读审阅，未改动业务代码）
-> 范围：分支 `v8-author`（HEAD `26a3d8d`，v8.1.0 已发版并推送）
+> 首次范围：分支 `v8-author`（HEAD `26a3d8d`，v8.1.0 已发版并推送）
+> 复审范围：分支 `v8-author`（HEAD `53894b8`）
 > 方法：直接读代码 + 实跑测试/校验脚本 + 两个只读调研子代理交叉验证 + git 历史核对
 > 标注约定：**事实** = 本人或子代理亲自读代码/跑命令验证；**推断** = 基于事实的判断，未做穷举验证
+
+---
+
+## 复审说明（2026-09-09）：与首次审阅（2026-09-10, HEAD `26a3d8d`）的增量对照
+
+> 注：本节标题日期与仓库内既有历史日期顺序不完全一致（`26a3d8d`/`53894b8` 等提交在仓库时间线中标注为
+> 「2026-09-10」附近，而本次复审的实际执行日期为 2026-09-09），此为项目既有时间线安排，不影响下述核实结论。
+
+**结论先行**：`v8-author` 分支自首次审阅以来只新增了 1 个提交 `53894b8`（内容是把首次审阅报告本身 + TODO 清单加入仓库），**没有任何业务代码或既有文档的改动**（`git show --stat 53894b8` 只涉及 `docs/TODO-from-v8-author-review.md`、`docs/reviews/2026-09-10-v8-author-review.md` 两个新文件）。因此本轮复审的性质是「用独立命令重新核验首次审阅的每一条结论是否仍然成立」，而不是「审阅新代码」。
+
+### 逐项复核结果
+
+| 编号 | 首次结论 | 复审结果（本次独立重跑，证据） |
+|---|---|---|
+| P1-1 CI 未跑测试套件 | 是 | **仍成立，字节级不变**：`.github/workflows/plugin-release.yml`、`plugin-version.yml` 内容与首次审阅时逐字一致（`on/paths/steps` 均未改动），两者都不含 `pytest` 调用；仓库也没有 `.pre-commit-config.yaml` 或任何 `.git/hooks/*`（非 `.sample`）本地钩子作为替代防线（本次新查，首次报告未提及这一点，见下方新增 P2-5 关联说明）。 |
+| P1-2 两条平台耦合测试必然失败 | 是 | **仍成立，逐条复现**：`pytest` 重跑结果为 `2 failed, 1581 passed, 5 skipped`（`27 warnings`，首次记录为 `2 warnings`——差异来自本次虚拟环境里 `starlette`/`fastapi` 依赖版本比首次更新，产生了额外的 `DeprecationWarning`，与本条发现的成立与否无关，见下方新增 P2-5），失败用例仍是 `test_fix_sys_argv_opt_in_repairs_powershell_mojibake`、`test_fix_sys_argv_opt_in_accepts_true_variants`，`runtime_compat.py:51` 的 `if sys.platform != "win32": return` 逻辑未变。覆盖率同为 **81.22%**（`TOTAL 24125 4530 81%`，与首次数字逐位一致）。 |
+| P1-3 `overview.md` 停留在 v6 | 是 | **仍成立**：`git log -1 --format=%ad -- docs/architecture/overview.md` 仍是 `Thu Jun 4 13:28:09 2026`，`grep -c "v7\|v8\|book.yaml\|MCP\|定稿" docs/architecture/overview.md` 仍为 `0`。 |
+| P2-1 `AGENTS.md` 状态段落未同步 | 是 | **仍成立**：`AGENTS.md:50-52` 仍写「v8.0.0……57 提交领先 master，尚未打 tag / 推送」及旧远程地址，与实际 `v8.1.0`/123 提交（`git log --oneline origin/master..origin/v8-author \| wc -l` = 123，比首次记录的 122 又多了 1，恰好是 `53894b8` 这条审阅记录提交本身）不符。**该文件本次审阅期间同样未被触碰**——两次审阅之间产生的唯一提交是纯文档新增，`AGENTS.md` 不在其内。 |
+| P2-2 `dual_format_guard` 配置来源不对称、静默降级 | 是 | **仍成立**：`v7_write.py:723` 仍是 `if v6_root:` 式提前返回，`config.py:231` 的 `story_repo_root` 仍来自 `STORY_REPO_ROOT` 环境变量，两侧取值逻辑未变。 |
+| P2-3 `security_utils.py` 等安全模块覆盖率偏低 | 是 | **仍成立，逐位复现**：`security_utils.py` 仍为 **53%**（223 行、104 行未覆盖，缺口行号 `35-37, 82, 89, 136, 143, 175, 200-205, 230-234, 271-272, 287-292, 322-343, 429-430, 462-463, 490-491, 521-523, 540-554, 563-628`，与首次报告逐一核对一致）；`status_reporter.py` 34%、`update_state.py` 39%、`runtime_compat.py` 40%、`project_memory.py` 54%、`validate_release_notes.py` 51%，五个数字全部与首次一致。 |
+| P2-4 创作/审查技能 evals 集薄 | 是 | **仍成立**：`skills/webnovel-write/evals/evals.json` 仍为 3 条，`skills/webnovel-review/evals/evals.json` 仍为 1 条。 |
+| P3-1 MCP 参数缺前导 `-` 校验 | 是 | **仍成立**：`grep -n 'startswith("-")' mcp/server.py` 无命中；本次额外做了一次首次审阅未做的动态核实——直接 `import` `mcp/server.py` 并读取其工具表，确认能正常导入且工具数为 `14`（与文档一致），未发现导入期异常，但仍未做完整 stdio round-trip，局限性与首次相同。 |
+| P3-2 `AGENTS.md` 远程地址与实际 `origin` 不一致 | 是 | **仍成立**：`git remote -v` 仍为 `https://github.com/lgq-opc/webnovel-writer.git`，`AGENTS.md` 仍写 `git@github.com:alittleseven/...`。 |
+| 交接文档「苏小白.md 缺失」数据缺口 | 未变（不可复核） | 该缺口发生在外部测试书仓 `fantasy01`，**本次审阅环境中不存在该目录**（`find / -iname "*fantasy01*"` 无命中），因此本轮无法独立重新核实，状态维持首次报告记录（文档已登记，未处理）。 |
+| 四个校验脚本（版本/发布说明/插件包/引用布线） | 全绿 | **仍全绿，逐字一致**：`sync_plugin_version.py --check` → `8.1.0`；`validate_plugin_package.py` → `errors:0 warnings:0`；`validate_reference_wiring.py` → `assets=63 consumers=53 drift=0`；`validate_release_notes.py` → `version 8.1.0`。 |
+
+### 本轮新发现
+
+**【P2-5】三个 `requirements.txt` 全部使用无上界的 `>=` 声明，且仓库内无任何锁文件，与 P1-1（无 CI）叠加后放大了"依赖漂移不可见"的风险**
+
+**事实**：根 `requirements.txt`、`webnovel-writer/scripts/requirements.txt`、`webnovel-writer/dashboard/requirements.txt` 三个文件里的全部依赖声明（`aiohttp`、`filelock`、`pydantic`、`pytest`、`pytest-cov`、`pytest-asyncio`、`pytest-timeout`、`fastapi`、`httpx`、`uvicorn[standard]`、`watchdog`）均为 `>=X.Y.Z` 形式，没有任何上界；`find . -iname "*.lock"` 在仓库全范围内无命中（无 `requirements.lock`、无 `poetry.lock`、无 `pip-compile` 产物）。本次复审环境里的 venv 实测装到了比首次审阅更新的 `starlette`/`fastapi` 补丁版本（体现为 pytest 警告数从 2 条变为 27 条，均为新版 `starlette.testclient`/`anyio` 的 `DeprecationWarning`，非本项目代码触发），可作为"同一份 `requirements.txt` 在不同时间点 `pip install` 会装出不同依赖树"的直接旁证。
+
+**推断**：这是 P1-1（无 CI 跑测试）的放大因子而非独立新问题——如果只有开发者本人在自己机器上（大概率装过一次依赖后长期不重装）手动跑测试，依赖漂移的影响有限；但一旦有新协作者、新 CI 环境或未来重建虚拟环境，`pip install -r requirements.txt` 完全可能装到引入破坏性变更的新次版本/大版本依赖（尤其 `pydantic>=2.0.0`、`fastapi>=0.115.0` 这类演进较快的库），且没有任何自动化机制（CI）或锁文件能提前发现。建议与 P1-1 一起处理：补 CI 的同时，用 `pip freeze`/`pip-compile` 固化一份锁文件作为"已知良好"基线，`requirements.txt` 保留宽松范围但锁文件用于 CI 和发版验证。
+
+### 本轮方法补充说明
+
+- 本次复审在两个此前遗留的临时虚拟环境（`/tmp/wnw_venv`、`/tmp/venv-review`，均为 `pytest 9.1.1`）中重跑，未重建全新环境；因此本轮**不能**作为"全新环境可复现"的独立证据，只能证明"同一份代码在另一次独立命令执行下结果不变"。
+- 新增了一处首次审阅未做的动态验证：直接 `import mcp/server.py` 确认其可正常加载、工具表数量与文档一致（见上表 P3-1 行），但仍未做完整 stdio 协议往返测试，局限性与首次报告一致。
+- 未发现任何 P0/P1/P2/P3 结论因本轮复核而被推翻或降级；新增 1 条 P2 级发现（P2-5，依赖锁定缺失）。
 
 ---
 
@@ -149,4 +189,5 @@ def _fix_sys_argv() -> None:
 
 - 本报告基于 2026-09-10 时点的 `v8-author` 分支（HEAD `26a3d8d`）快照；未审阅任何真实用户书仓数据（仅代码与文档）。
 - pytest 是在 Linux + Python 3.13.5 + 全新 venv 中运行的，与项目主要开发环境（Windows + `-X utf8`）不同，这正是 P1-2 发现得以暴露的原因，同时也意味着本报告没有在 Windows 环境二次确认 1581 passed 的具体用例是否与项目历史记录的用例集合完全一致（只做了整体通过率层面的核实）。
-- MCP/CLI/dashboard 的行为验证以静态读码 + 已有测试断言为主，未实际启动 MCP stdio server 或 dashboard 服务做端到端手工调用。
+- MCP/CLI/dashboard 的行为验证以静态读码 + 已有测试断言为主，未实际启动 MCP stdio server 或 dashboard 服务做端到端手工调用（2026-09-09 复审补做了一次 `mcp/server.py` 的模块导入级动态核实，见「复审说明」一节 P3-1 行，但仍非完整 stdio 往返）。
+- 2026-09-09 复审是在两个此前遗留的临时虚拟环境中重跑（未重建全新环境），详见文首「复审说明」一节的「本轮方法补充说明」；结论层面与 2026-09-10 首次审阅完全一致，未发现被推翻或降级的条目，新增 1 条 P2 级发现（依赖锁定缺失）。
