@@ -1,0 +1,46 @@
+# requirements.lock —「已知良好」依赖基线（TODO-from-v8-author-review P2-5）
+# 生成方式：Python 3.13.5 干净 venv 中 `pip install -r requirements.txt` 后 `pip freeze`（2026-09-10）
+# 用途：CI（.github/workflows/plugin-tests.yml）与发版验证按本锁安装，保证测试结果可复现；
+#       requirements.txt 保留宽松范围供人工升级，升级后应重新生成本锁。
+# 重新生成：python -m venv <dir> && <dir>/python -m pip install -r requirements.txt && <dir>/python -m pip freeze > requirements.lock
+aiohappyeyeballs==2.7.1
+aiohttp==3.14.3
+aiosignal==1.4.0
+annotated-doc==0.0.5
+annotated-types==0.8.0
+anyio==4.15.1
+attrs==26.1.0
+certifi==2026.7.22
+click==8.5.0
+colorama==0.4.6
+coverage==7.16.0
+fastapi==0.141.1
+filelock==3.32.6
+frozenlist==1.8.0
+h11==0.16.0
+httpcore==1.0.9
+httptools==0.8.0
+httpx==0.28.1
+idna==3.19
+iniconfig==2.3.0
+multidict==6.8.0
+packaging==26.3
+pluggy==1.6.0
+propcache==0.5.2
+pydantic==2.13.5
+pydantic_core==2.46.5
+Pygments==2.21.0
+pytest==9.1.1
+pytest-asyncio==1.4.0
+pytest-cov==7.1.0
+pytest-timeout==2.4.0
+python-dotenv==1.2.3
+PyYAML==6.0.3
+starlette==1.6.0
+typing-inspection==0.4.4
+typing_extensions==4.16.0
+uvicorn==0.52.4
+watchdog==6.0.0
+watchfiles==1.2.0
+websockets==17.1
+yarl==1.24.5

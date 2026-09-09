@@ -65,6 +65,8 @@ def test_fix_sys_argv_opt_in_repairs_powershell_mojibake(monkeypatch):
 
     from runtime_compat import _fix_sys_argv
 
+    # _fix_sys_argv 首行按 sys.platform != "win32" 短路，打桩避免用例与运行平台耦合
+    monkeypatch.setattr(sys, "platform", "win32")
     monkeypatch.setattr(sys, "argv", ["webnovel.py", "--query", "榧犵帇"])
     monkeypatch.setenv("WEBNOVEL_FIX_ARGV_MOJIBAKE", "1")
     _fix_sys_argv()
@@ -76,6 +78,7 @@ def test_fix_sys_argv_opt_in_accepts_true_variants(monkeypatch):
 
     from runtime_compat import _fix_sys_argv
 
+    monkeypatch.setattr(sys, "platform", "win32")
     for value in ("true", "yes", "on", "TRUE"):
         monkeypatch.setenv("WEBNOVEL_FIX_ARGV_MOJIBAKE", value)
         monkeypatch.setattr(sys, "argv", ["webnovel.py", "--query", "钀х値"])

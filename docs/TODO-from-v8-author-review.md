@@ -13,8 +13,8 @@
 
 ## P1
 
-- [ ] **补一条跑测试套件的 CI workflow**：新增/扩展 `.github/workflows/`，在 push/PR 触及 `webnovel-writer/scripts/**`、`webnovel-writer/mcp/**`、`webnovel-writer/dashboard/**` 时自动跑 `pytest`（含覆盖率门槛），而不是只校验发版元数据。建议同时跑 `validate_reference_wiring.py` 等四个校验脚本。证据：`.github/workflows/plugin-release.yml`、`plugin-version.yml` 当前均不含 `pytest`。
-- [ ] **修复 `test_runtime_compat.py` 两个平台耦合用例**：`test_fix_sys_argv_opt_in_repairs_powershell_mojibake`、`test_fix_sys_argv_opt_in_accepts_true_variants` 需 `monkeypatch.setattr(sys, "platform", "win32")`（或等价方式），使其不依赖运行机器的真实系统平台。修复后应在 Linux/Mac 上也能通过，为上一条 CI 打基础。证据：`runtime_compat.py:51` `if sys.platform != "win32": return`。
+- [x] **补一条跑测试套件的 CI workflow**：新增/扩展 `.github/workflows/`，在 push/PR 触及 `webnovel-writer/scripts/**`、`webnovel-writer/mcp/**`、`webnovel-writer/dashboard/**` 时自动跑 `pytest`（含覆盖率门槛），而不是只校验发版元数据。建议同时跑 `validate_reference_wiring.py` 等四个校验脚本。证据：`.github/workflows/plugin-release.yml`、`plugin-version.yml` 当前均不含 `pytest`。**（2026-09-10 已完成：新增 `.github/workflows/plugin-tests.yml`，ubuntu+py3.13 仅装 `requirements.lock`，跑全量 pytest + 四校验脚本；真实 Linux 结果待 workflow 首次触发确认）**
+- [x] **修复 `test_runtime_compat.py` 两个平台耦合用例**：`test_fix_sys_argv_opt_in_repairs_powershell_mojibake`、`test_fix_sys_argv_opt_in_accepts_true_variants` 需 `monkeypatch.setattr(sys, "platform", "win32")`（或等价方式），使其不依赖运行机器的真实系统平台。修复后应在 Linux/Mac 上也能通过，为上一条 CI 打基础。证据：`runtime_compat.py:51` `if sys.platform != "win32": return`。**（2026-09-10 已完成：两条用例已打桩；模拟 linux 平台红→绿验证，Windows 主环境全量 1588 passed / 83.03%）**
 - [ ] **重写或标注 `docs/architecture/overview.md`**：要么整体更新为 v8.1.0 现状（8 skill / 14 MCP 工具 / 13 命令 / v7 book-repo / doctor 治理八组 / 六项不变量），要么在文件顶部加醒目提示"本文档描述 v6 架构，现状请看 X/Y/Z"并链接到 `docs/guides/v7-write-path.md`、`docs/zcode/webnovel-copilot-300/04-architecture.md` 等现行文档。
 
 ## P2
@@ -24,7 +24,7 @@
 - [ ] **给 `security_utils.py` 补测试至更高覆盖率**（当前 53%），尤其 `git_graceful_operation` 异常分支（322-343 行）与 `restore_from_backup`（540-554 行）；评估是否需要给安全关键模块单独设更高的覆盖率门槛（而非依赖整体 80% 均摊）。
 - [ ] **视情况扩充 `skills/webnovel-write`、`skills/webnovel-review` 的 evals 集**（当前分别只有 3 条、1 条），或至少明确记录"生成质量目前主要靠 fantasy01 真仓人工冒烟验证，非自动化"这一验证方式的边界，写进对应 SKILL.md 或 README 的"已知限制"章节，避免后来者误以为已有充分自动化覆盖。
 - [ ] **跟踪交接文档登记的数据缺口**：fantasy01 真仓 `定稿/设定/名册/苏小白.md` 缺失导致"主角卡"字段不全（见 `docs/cursor/项目复审/2026-09-04-会话交接.md`），标注"不阻塞"但应补一条正式 TODO 项防止遗忘。（2026-09-09 复审：该测试书仓不在本仓库/本次审阅环境中，未能独立复核，状态维持不变）
-- [ ] **给依赖声明补锁文件**：根 `requirements.txt`、`webnovel-writer/scripts/requirements.txt`、`webnovel-writer/dashboard/requirements.txt` 全部为无上界的 `>=` 声明，仓库内无任何 `*.lock`/`pip-compile` 产物。建议生成一份 `pip freeze` 锁文件作为 CI 与发版验证的"已知良好"基线，`requirements.txt` 本身可保留宽松范围供人工升级。与上面「补 CI」一条一起处理，二者叠加才能防止"依赖漂移导致测试结果不可复现"。证据：2026-09-09 复审新发现（P2-5），见报告「本轮新发现」一节；实测本次虚拟环境已装到比首次审阅更新的 `starlette`/`fastapi` 补丁版本（pytest 警告数从 2 条变为 27 条）。
+- [x] **给依赖声明补锁文件**：根 `requirements.txt`、`webnovel-writer/scripts/requirements.txt`、`webnovel-writer/dashboard/requirements.txt` 全部为无上界的 `>=` 声明，仓库内无任何 `*.lock`/`pip-compile` 产物。建议生成一份 `pip freeze` 锁文件作为 CI 与发版验证的"已知良好"基线，`requirements.txt` 本身可保留宽松范围供人工升级。与上面「补 CI」一条一起处理，二者叠加才能防止"依赖漂移导致测试结果不可复现"。证据：2026-09-09 复审新发现（P2-5），见报告「本轮新发现」一节；实测本次虚拟环境已装到比首次审阅更新的 `starlette`/`fastapi` 补丁版本（pytest 警告数从 2 条变为 27 条）。**（2026-09-10 已完成：新增根 `requirements.lock`（py3.13.5 干净 venv freeze，41 包）；仅装锁的干净 venv pip check 通过，全量 pytest 1588 passed / 81.35%，四校验脚本全绿）**
 
 ## P3
 
