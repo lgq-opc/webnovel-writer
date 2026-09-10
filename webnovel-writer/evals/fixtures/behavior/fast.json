@@ -154,11 +154,6 @@
       "description": "reviewer writes review_results.json directly (restricted Write); data-agent writes only tmp artifacts."
     },
     {
-      "id": "commit_drives_projection",
-      "type": "commit_projection_runtime",
-      "description": "ChapterCommitService remains the projection driver."
-    },
-    {
       "id": "dashboard_read_only",
       "type": "dashboard_read_only",
       "description": "Dashboard exposes GET-only API semantics."

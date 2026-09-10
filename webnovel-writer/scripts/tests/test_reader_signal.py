@@ -61,27 +61,7 @@ class TestProduction:
         assert result["applied"] is False
         assert result["reason"] == "not_required"
 
-    def test_projection_chain_persists_reading_power(self, root: Path):
-        """T25 验收（生产端）：chapter-commit 投影后 chapter_reading_power 有自动写入。"""
-        from data_modules.config import DataModulesConfig
-        from data_modules.chapter_commit_service import ChapterCommitService
-        from data_modules.index_manager import IndexManager
 
-        service = ChapterCommitService(root)
-        payload = service.apply_projections(_commit_payload(37))
-
-        assert payload["projection_status"].get("reading_power") == "done"
-        rows = IndexManager(DataModulesConfig.from_project_root(root)).get_recent_reading_power(5)
-        assert any(row.get("chapter") == 37 and row.get("hook_type") == "危机钩" for row in rows)
-
-    def test_rejected_commit_skips_reading_power(self, root: Path):
-        from data_modules.chapter_commit_service import ChapterCommitService
-
-        payload = _commit_payload(38)
-        payload["meta"]["status"] = "rejected"
-        payload = ChapterCommitService(root).apply_projections(payload)
-
-        assert payload["projection_status"].get("reading_power") == "skipped"
 
 
 class TestConsumption:
@@ -105,30 +85,6 @@ class TestConsumption:
         ]
         assert derive_differentiation_reminder(recent) == ""
 
-    def test_load_context_carries_reader_signal(self, root: Path):
-        """T25 验收（消费端）：第三章任务书基础包含同型钩子差异化提醒。"""
-        from data_modules.chapter_commit_service import ChapterCommitService
-        from data_modules.config import DataModulesConfig
-        from data_modules.index_manager import IndexManager
-        from data_modules.memory_contract_adapter import MemoryContractAdapter
-
-        manager = IndexManager(DataModulesConfig.from_project_root(root))
-        manager.save_chapter_reading_power(
-            __import__("data_modules.index_manager", fromlist=["ChapterReadingPowerMeta"]).ChapterReadingPowerMeta(
-                chapter=1, hook_type="危机钩", hook_strength="strong"
-            )
-        )
-        manager.save_chapter_reading_power(
-            __import__("data_modules.index_manager", fromlist=["ChapterReadingPowerMeta"]).ChapterReadingPowerMeta(
-                chapter=2, hook_type="危机钩", hook_strength="strong"
-            )
-        )
-
-        pack = MemoryContractAdapter(DataModulesConfig.from_project_root(root)).load_context(3)
-
-        signal = pack.sections.get("reader_signal")
-        assert signal, "reader_signal section 进入基础包"
-        assert "差异化" in signal["differentiation_reminder"]
 
     def test_reader_signal_degrades_without_index_db(self, tmp_path: Path):
         from data_modules.reader_signal_builder import build_reader_signal

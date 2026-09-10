@@ -119,34 +119,6 @@ class TestLoadLatestAcceptedWithPointer:
         assert _load_latest_accepted_commit(paths, 3)["marker"] == "COMMIT-1"
 
 
-class TestPersistUpdatesPointer:
-    def test_persist_commit_writes_pointer(self, tmp_path):
-        from data_modules.chapter_commit_service import ChapterCommitService
-
-        service = ChapterCommitService(tmp_path)
-        service.persist_commit(_commit(2))
-        service.persist_commit(_commit(3, status="rejected"))
-
-        pointer = json.loads(
-            (tmp_path / ".story-system" / "commits" / "latest.json").read_text(encoding="utf-8")
-        )
-        assert pointer["latest_chapter"] == 3  # max 语义
-        assert pointer["latest_accepted_chapter"] == 2  # rejected 不推进 accepted
-
-    def test_persist_backfill_does_not_regress_pointer(self, tmp_path):
-        """回头补写：3 已存在指针，补写 1 不得使指针回退。"""
-        from data_modules.chapter_commit_service import ChapterCommitService
-
-        service = ChapterCommitService(tmp_path)
-        service.persist_commit(_commit(3))
-
-        service_back = ChapterCommitService(tmp_path)
-        service_back.persist_commit(_commit(1))
-
-        pointer = json.loads(
-            (tmp_path / ".story-system" / "commits" / "latest.json").read_text(encoding="utf-8")
-        )
-        assert pointer["latest_chapter"] == 3
 
 
 class TestRuntimeSourcesIntegration:

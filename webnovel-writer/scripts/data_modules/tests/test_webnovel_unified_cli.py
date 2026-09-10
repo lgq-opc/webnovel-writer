@@ -306,37 +306,6 @@ def test_webnovel_story_system_runtime_forwards(monkeypatch, tmp_path):
     assert "--emit-runtime-contracts" in called["argv"]
 
 
-def test_webnovel_commit_forwards(monkeypatch, tmp_path):
-    module = _load_webnovel_module()
-    project_root = tmp_path / "book"
-    (project_root / ".webnovel").mkdir(parents=True, exist_ok=True)
-    (project_root / ".webnovel" / "state.json").write_text("{}", encoding="utf-8")
-    called = {}
-
-    def _fake_run_script(script_name, argv):
-        called["script_name"] = script_name
-        called["argv"] = list(argv)
-        return 0
-
-    monkeypatch.setattr(module, "_run_script", _fake_run_script)
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        [
-            "webnovel", "--project-root", str(project_root), "chapter-commit", "--chapter", "3",
-            "--review-result", "a.json",
-            "--fulfillment-result", "b.json",
-            "--disambiguation-result", "c.json",
-            "--extraction-result", "d.json",
-        ],
-    )
-
-    with pytest.raises(SystemExit) as exc:
-        module.main()
-
-    assert int(exc.value.code or 0) == 0
-    assert called["script_name"] == "chapter_commit.py"
-    assert called["argv"].count("--review-result") == 1
 
 
 def test_webnovel_commit_requires_all_artifacts(monkeypatch, tmp_path):
@@ -724,62 +693,6 @@ def test_write_gate_cli_runs_prewrite(monkeypatch, tmp_path, capsys):
     assert report["ok"] is True
 
 
-def test_projections_retry_cli_runs(monkeypatch, tmp_path, capsys):
-    module = _load_webnovel_module()
-    project_root = tmp_path / "book"
-    _make_cli_init_ready_project(project_root)
-    commit_path = project_root / ".story-system" / "commits" / "chapter_001.commit.json"
-    commit_path.parent.mkdir(parents=True, exist_ok=True)
-    commit_path.write_text(
-        json.dumps(
-            {
-                "meta": {"chapter": 1, "status": "rejected"},
-                "review_result": {"blocking_count": 1},
-                "fulfillment_result": {
-                    "planned_nodes": [],
-                    "covered_nodes": [],
-                    "missed_nodes": [],
-                    "extra_nodes": [],
-                },
-                "disambiguation_result": {"pending": []},
-                "extraction_result": {"accepted_events": [], "state_deltas": [], "entity_deltas": []},
-                "projection_status": {
-                    "state": "pending",
-                    "index": "pending",
-                    "summary": "pending",
-                    "memory": "pending",
-                    "vector": "pending",
-                },
-            },
-            ensure_ascii=False,
-        ),
-        encoding="utf-8",
-    )
-
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        [
-            "webnovel",
-            "--project-root",
-            str(project_root),
-            "projections",
-            "retry",
-            "--chapter",
-            "1",
-            "--format",
-            "json",
-        ],
-    )
-
-    with pytest.raises(SystemExit) as exc:
-        module.main()
-
-    captured = capsys.readouterr()
-    report = json.loads(captured.out)
-    assert int(exc.value.code or 0) == 0
-    assert report["schema_version"] == "webnovel-projections/v1"
-    assert report["projection_status"]["state"] == "done"
 
 
 def test_where_reports_empty_workspace_without_traceback(monkeypatch, tmp_path, capsys):
@@ -987,82 +900,8 @@ def test_review_pipeline_forwards_with_resolved_project_root(monkeypatch, tmp_pa
     ]
 
 
-def test_project_memory_forwards_with_resolved_project_root(monkeypatch, tmp_path):
-    module = _load_webnovel_module()
-
-    book_root = (tmp_path / "book").resolve()
-    called = {}
-
-    def _fake_resolve(explicit_project_root=None):
-        return book_root
-
-    def _fake_run_script(script_name, argv):
-        called["script_name"] = script_name
-        called["argv"] = list(argv)
-        return 0
-
-    monkeypatch.setattr(module, "_resolve_root", _fake_resolve)
-    monkeypatch.setattr(module, "_run_script", _fake_run_script)
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        [
-            "webnovel",
-            "--project-root",
-            str(tmp_path),
-            "project-memory",
-            "add-pattern",
-            "--pattern-type",
-            "format",
-            "--description",
-            '内心独白使用双引号""',
-        ],
-    )
-
-    with pytest.raises(SystemExit) as exc:
-        module.main()
-
-    assert int(exc.value.code or 0) == 0
-    assert called["script_name"] == "project_memory.py"
-    assert called["argv"] == [
-        "--project-root",
-        str(book_root),
-        "add-pattern",
-        "--pattern-type",
-        "format",
-        "--description",
-        '内心独白使用双引号""',
-    ]
 
 
-def test_project_memory_add_pattern_escapes_quotes(tmp_path):
-    _ensure_scripts_on_path()
-    import project_memory as project_memory_module
-
-    project_root = (tmp_path / "book").resolve()
-    (project_root / ".webnovel").mkdir(parents=True, exist_ok=True)
-    (project_root / ".webnovel" / "state.json").write_text(
-        json.dumps({"progress": {"current_chapter": 3}}, ensure_ascii=False),
-        encoding="utf-8",
-    )
-
-    description = "正文格式规范：内心独白使用双引号\"\"，系统界面保留方括号[]"
-    result = project_memory_module.add_pattern(
-        project_root,
-        pattern_type="format",
-        description=description,
-        category="写作规范",
-        importance="high",
-    )
-
-    memory_path = project_root / ".webnovel" / "project_memory.json"
-    raw_text = memory_path.read_text(encoding="utf-8")
-    payload = json.loads(raw_text)
-
-    assert result["status"] == "success"
-    assert '\\"\\"' in raw_text
-    assert payload["patterns"][0]["description"] == description
-    assert payload["patterns"][0]["source_chapter"] == 3
 
 
 def test_review_pipeline_main_creates_output_directories(tmp_path):

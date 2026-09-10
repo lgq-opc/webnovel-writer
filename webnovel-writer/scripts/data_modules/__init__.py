@@ -54,9 +54,6 @@ __all__ = [
     "ScratchpadManager",
     "MemoryWriter",
     "MemoryOrchestrator",
-    # Memory Contract
-    "MemoryContract",
-    "MemoryContractAdapter",
 ]
 
 
@@ -97,8 +94,6 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "MemoryWriter": (".memory.writer", "MemoryWriter"),
     "MemoryOrchestrator": (".memory.orchestrator", "MemoryOrchestrator"),
     # Memory Contract
-    "MemoryContract": (".memory_contract", "MemoryContract"),
-    "MemoryContractAdapter": (".memory_contract_adapter", "MemoryContractAdapter"),
 }
 
 

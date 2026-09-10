@@ -208,37 +208,11 @@ def _eval_artifact_ownership(root: Path, case: dict[str, Any]) -> dict[str, Any]
     )
 
 
-def _eval_commit_projection_runtime(root: Path, case: dict[str, Any]) -> dict[str, Any]:
-    scripts_dir = _plugin_root(root) / "scripts"
-    if str(scripts_dir) not in sys.path:
-        sys.path.insert(0, str(scripts_dir))
-    from data_modules.chapter_commit_service import ChapterCommitService
-
-    with tempfile.TemporaryDirectory() as tmp:
-        project_root = Path(tmp)
-        (project_root / ".webnovel").mkdir(parents=True, exist_ok=True)
-        (project_root / ".webnovel" / "state.json").write_text("{}", encoding="utf-8")
-        service = ChapterCommitService(project_root)
-        payload = service.build_commit(
-            chapter=1,
-            review_result={"blocking_count": 1},
-            fulfillment_result={"planned_nodes": [], "covered_nodes": [], "missed_nodes": [], "extra_nodes": []},
-            disambiguation_result={"pending": []},
-            extraction_result={"accepted_events": [], "state_deltas": [], "entity_deltas": []},
-        )
-        projected = service.apply_projections(payload)
-        state_path = project_root / ".webnovel" / "state.json"
-        state = json.loads(state_path.read_text(encoding="utf-8"))
-    ok = (
-        projected.get("projection_status", {}).get("state") == "done"
-        and state.get("progress", {}).get("chapter_status", {}).get("1") == "chapter_rejected"
-    )
-    return _result(
-        case,
-        passed=ok,
-        reason="chapter commit drives state projection" if ok else "chapter commit projection failed",
-        evidence=[str(projected.get("projection_status"))],
-    )
+# v6 退役 Phase 2：原 `_eval_commit_projection_runtime` 随 v6 写链退役而移除。
+# 它真跑 ChapterCommitService（v6 提交链）并断言 state 投影推进——属于**直接测 v6 代码**
+# 的评测，代码删除后评测本身也无意义（不是被跳过，是契约消失）。
+# 红线未撤销：v7 写链的落定契约由 SKILL 契约守卫（write_blocks_before_commit /
+# skill_write_contract）与 v7_write 自身的门禁测试承担。
 
 
 def _eval_dashboard_read_only(root: Path, case: dict[str, Any]) -> dict[str, Any]:
@@ -520,7 +494,6 @@ EVALUATORS = {
     "write_blocking_gate": _eval_write_blocking_gate,
     "data_agent_boundary": _eval_data_agent_boundary,
     "artifact_ownership": _eval_artifact_ownership,
-    "commit_projection_runtime": _eval_commit_projection_runtime,
     "dashboard_read_only": _eval_dashboard_read_only,
     "user_report_probe": _eval_user_report_probe,
     "author_workflow_probe": _eval_author_workflow_probe,

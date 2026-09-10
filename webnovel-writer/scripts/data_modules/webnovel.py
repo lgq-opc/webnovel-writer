@@ -89,8 +89,6 @@ PASSTHROUGH_TOOLS = {
     "init",
     "book-init",
     "story-system",
-    "memory-contract",
-    "project-memory",
 }
 
 
@@ -751,22 +749,6 @@ def cmd_write_gate(args: argparse.Namespace) -> int:
     return 0 if report.get("ok") else 1
 
 
-def cmd_projections(args: argparse.Namespace) -> int:
-    from .projections import format_projection_report, replay_projections, retry_projection
-
-    root = _resolve_root(args.project_root)
-    if args.projection_action == "retry":
-        report = retry_projection(root, chapter=args.chapter)
-    else:
-        report = replay_projections(
-            root,
-            start_chapter=args.from_chapter,
-            end_chapter=args.to_chapter,
-        )
-    print(format_projection_report(report, args.format))
-    return 0 if report.get("ok") else 1
-
-
 def cmd_user_report(args: argparse.Namespace) -> int:
     from .user_report import build_user_report, format_user_report
 
@@ -1232,18 +1214,6 @@ def _main_impl() -> None:
     )
     p_write_gate.set_defaults(func=cmd_write_gate)
 
-    p_projections = sub.add_parser("projections", help="从已有 commit 补跑或重放 projection")
-    projections_sub = p_projections.add_subparsers(dest="projection_action", required=True)
-    p_projection_retry = projections_sub.add_parser("retry", help="补跑单章 projection")
-    p_projection_retry.add_argument("--chapter", type=int, required=True, help="目标章节号")
-    p_projection_retry.add_argument("--format", choices=["json", "text"], default="json", help="输出格式")
-    p_projection_retry.set_defaults(func=cmd_projections)
-    p_projection_replay = projections_sub.add_parser("replay", help="按章节范围重放 projection")
-    p_projection_replay.add_argument("--from-chapter", type=int, required=True, help="起始章节号")
-    p_projection_replay.add_argument("--to-chapter", type=int, required=True, help="结束章节号")
-    p_projection_replay.add_argument("--format", choices=["json", "text"], default="json", help="输出格式")
-    p_projection_replay.set_defaults(func=cmd_projections)
-
     p_user_report = sub.add_parser("user-report", help="渲染作者友好的最终报告")
     p_user_report.add_argument("--stage", choices=["init", "plan", "write", "review"], required=True, help="报告阶段")
     p_user_report.add_argument("--chapter", type=int, default=None, help="目标章节号")
@@ -1370,19 +1340,6 @@ def _main_impl() -> None:
     p_story_events.add_argument("--limit", type=int, default=200, help="查询条数")
     p_story_events.add_argument("--health", action="store_true", help="输出事件链健康信息")
 
-    p_commit = sub.add_parser("chapter-commit", help="转发到 chapter_commit.py")
-    p_commit.add_argument("--chapter", type=int, required=True, help="目标章节号")
-    p_commit.add_argument("--review-result", required=True, help="review_result JSON 文件")
-    p_commit.add_argument("--fulfillment-result", required=True, help="fulfillment_result JSON 文件")
-    p_commit.add_argument("--disambiguation-result", required=True, help="disambiguation_result JSON 文件")
-    p_commit.add_argument("--extraction-result", required=True, help="extraction_result JSON 文件")
-
-    p_memory_contract = sub.add_parser("memory-contract", help="转发到 memory_cli.py")
-    p_memory_contract.add_argument("args", nargs=argparse.REMAINDER)
-
-    p_project_memory = sub.add_parser("project-memory", help="转发到 project_memory.py")
-    p_project_memory.add_argument("args", nargs=argparse.REMAINDER)
-
     p_review_pipeline = sub.add_parser("review-pipeline", help="转发到 review_pipeline.py")
     p_review_pipeline.add_argument("--chapter", type=int, required=True, help="目标章节号")
     p_review_pipeline.add_argument("--review-results", required=True, help="reviewer 原始结果 JSON 文件")
@@ -1505,21 +1462,6 @@ def _main_impl() -> None:
         if args.health:
             return_args.append("--health")
         raise SystemExit(_run_script("story_events.py", return_args))
-    if tool == "chapter-commit":
-        return_args = [*forward_args, "--chapter", str(args.chapter)]
-        if args.review_result:
-            return_args.extend(["--review-result", str(args.review_result)])
-        if args.fulfillment_result:
-            return_args.extend(["--fulfillment-result", str(args.fulfillment_result)])
-        if args.disambiguation_result:
-            return_args.extend(["--disambiguation-result", str(args.disambiguation_result)])
-        if args.extraction_result:
-            return_args.extend(["--extraction-result", str(args.extraction_result)])
-        raise SystemExit(_run_script("chapter_commit.py", return_args))
-    if tool == "memory-contract":
-        raise SystemExit(_run_script("memory_cli.py", [*forward_args, *rest]))
-    if tool == "project-memory":
-        raise SystemExit(_run_script("project_memory.py", [*forward_args, *rest]))
     if tool == "review-pipeline":
         return_args = [
             *forward_args,
