@@ -152,7 +152,16 @@
   - **回归测试**：新增 `scripts/tests/test_conftest_tmp_cleanup.py`（6 条）——造含只读文件的树模拟 `.git/objects`，断言删得干净、缺失路径不抛、深层只读不残留父目录、幂等；另有一条**守住夹具本身**的用例（断言造出来的文件确实带只读位），否则前几条会退化成空测。
   - **验收证据**：①修复前单跑 `test_v7_write.py`（31 用例）净增 **30** 个目录 → 修复后净增 **0**；②新测试文件本身（含造只读树）跑完遗留 **0**；③**全量：残留 3333 → 25**（降 99.2%），`1653 passed` / 0 error / 覆盖率 83.38%。残余 25 个的成因见 F8（句柄未释放，非只读文件）。
   - **一处测试陷阱（留档）**：测试里**不能写 `import conftest`**——pytest 以裸名注册 conftest，**仓根**那个 `conftest.py`（N-1 统一子进程编码契约用的）先占位，裸名会解析到它而非 `scripts/conftest.py`。故新测试按文件路径 `importlib` 加载。
-- [ ] **F6（P3）v7 仓的 `_resolve_chapter` 未覆盖纯 `定稿/正文` 形态**：`story_runtime_health._resolve_chapter` 仍只看 `.story-system` 与 `.webnovel/state.json`，不看 `定稿/正文`。`fantasy01-v2` 因有迁移残留 commits 解析出 40（正确）；一个只有 `定稿/正文` 而无两者痕迹的新 v7 仓会解析出 0，落到 `chapter_unspecified` 早返回分支（该分支现已带 `write_mode`，措辞正确，但会多一条 warning）。
+- [x] **F6（P3）v7 仓的 `_resolve_chapter` 未覆盖纯 `定稿/正文` 形态**：`story_runtime_health._resolve_chapter` 仍只看 `.story-system` 与 `.webnovel/state.json`，不看 `定稿/正文`。`fantasy01-v2` 因有迁移残留 commits 解析出 40（正确）；一个只有 `定稿/正文` 而无两者痕迹的新 v7 仓会解析出 0，落到 `chapter_unspecified` 早返回分支。**（2026-09-10 已修复）**
+  - **为什么值得修**：缺陷只对**干净的新 v7 仓**暴露——而"新书"恰恰是最需要正确报告的场合；老书因留有迁移残迹而侥幸正常，所以它一直没被发现。
+  - **修法**：把 `定稿/正文` 的落定章并入候选，**复用 `dual_format_guard.max_settled_chapter`**——与 `story_runtime_sources._v7_fallback_sources` 同一口径，不另立一套"落定"定义。**仅对 v7 生效**：v6 仓即便意外存在 `定稿/正文`，也不该被它抬高章号（有测试守住）。
+  - **验收证据**：构造仓（`book.yaml` + `定稿/正文` 含第 1、7 章 + 空 `.story-system/volumes/`，无 `state.json`）——
+    | | 修复前 | 修复后 |
+    |---|---|---|
+    | `build_story_runtime_health` | `chapter: 0`，`fallback_sources: ['chapter_unspecified']` | **`chapter: 7`**，`mainline_ready: True`，`fallback_sources: []` |
+    
+    真书 `fantasy01-v2` 不受影响（`blocking: 0 warnings: 1`，与修复前一致）。
+  - **新增 5 条测试**：纯 v7 仓按落定章解析、无落定章时仍如实报 `chapter_unspecified`（别把"未知"说成 0 号章）、显式传参优先、v6 仓解析不变、**v6 仓不被意外存在的 `定稿/正文` 抬高章号**。
 
 ## 已验证无需处理（供归档参考）
 
