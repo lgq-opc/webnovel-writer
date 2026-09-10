@@ -1,6 +1,7 @@
 # TODO：源自 2026-09-10 v8-author 复审报告
 
 > 详细证据见 [docs/reviews/2026-09-10-v8-author-review.md](reviews/2026-09-10-v8-author-review.md)（含 2026-09-09 复审补充章节）。
+> 落实核验（11 项 `[x]` 是否属实 + 新发现 N 系列）见 [docs/reviews/2026-09-10-v8-author-fix-verification.md](reviews/2026-09-10-v8-author-fix-verification.md)。
 > 状态标记沿用 AGENTS.md 约定：`[x]` 已完成且有代码/测试证据，`[~]` 部分完成，`[ ]` 未完成，`[blocked]` 被阻塞。
 
 ## 2026-09-09 复审更新
@@ -31,6 +32,14 @@
 - [x] **MCP server 参数加前导 `-` 字符白名单校验**（`project_root`/`table` 等字符串/数组参数），降低理论上的参数注入面，非阻断项。**（2026-09-10 已完成：`call_tool` 入口统一 `_reject_leading_dash()`——字符串值与数组元素含前导 `-` 一律按 invalid arguments 拒绝，覆盖全部 14 工具；测试 4 条新增全绿）**
 - [x] **同步 `AGENTS.md` 里的远程仓库地址**：文档写 `git@github.com:alittleseven/webnovel-writer.git`，实际 `origin` 为 `https://github.com/lgq-opc/webnovel-writer.git`。**（2026-09-10 已完成：AGENTS.md 已写 `git@github.com:lgq-opc/webnovel-writer.git`，与本地 origin 一致）**
 - [x] **（可选）补充 ADR 归档约定**：如果团队认可"重大架构决策分散记录在各 `docs/zcode/<任务>/` spec 里、不额外抽 ADR"的现状，建议在 AGENTS.md 里显式写一句说明这个分工，减少"docs/decisions/ 只有 1 篇是不是漏了"的误判成本。**（2026-09-10 已完成：AGENTS.md「注意事项」新增 ADR 约定一条）**
+
+## 2026-09-10 落实核验新增（N 系列，源自 fix-verification 报告）
+
+> 上述 P1–P3 的 11 项 `[x]` 已逐条独立核验属实，未发现本次修复引入的回归。以下为核验中发现、**此前两轮审阅未暴露的既有问题**（非本次回归；根因是问题只在中文 Windows locale 暴露，而前两轮在 Linux 跑）。
+
+- [ ] **N-1（P1，证据可复现性）文档记录的测试命令在中文 Windows 上不是全绿**：按 `requirements.lock` 干净 venv 实测——`python -X utf8 -m pytest`（AGENTS.md 原样命令）= **1618 collected / 23 failed**；`run_tests.ps1 -Mode full`（裸 `python -m pytest`）= **2 failed**；只有 `PYTHONUTF8=1` 才 0 failed。根因＝测试里 `subprocess.run(..., text=True)` 的编码假设与实际子进程输出不一致（`-X utf8` 模式子进程按 GBK 输出→父进程 UTF-8 解码崩；非 UTF-8 模式 git 输出 UTF-8→父进程 GBK 解码崩）。项目自身设计文档（`story-repo-spec` 等）本就要求 Windows 设 `PYTHONUTF8=1`，但 AGENTS.md/run_tests.ps1 未落实。修复路径：①文档侧统一加 `PYTHONUTF8=1`；②测试侧给 `subprocess.run` 显式 `encoding="utf-8"` 并让子进程入口走 UTF-8。
+- [ ] **N-2（P3，CI 维护）CI 结构性看不到 N-1**：`plugin-tests.yml` 固定 `ubuntu-latest`（locale UTF-8），N-1 不出现；另 `gh run view` 有 Actions `checkout@v4`/`setup-python@v5` 的 Node.js 20 弃用告警，建议后续升版。
+- [ ] **N-3（观察）AGENTS.md 领先提交数为滚动快照**：文件写 125，实测 132（文件已自带「引用前重新实测」提示，非缺陷；可考虑只写命令不写数字）。
 
 ## 已验证无需处理（供归档参考）
 
