@@ -63,8 +63,12 @@
   - **实现**：`domain_contract.py` 新增 `has_v6_contract_chain()` 与 `resolve_write_mode() -> "v6"|"v7"`（判据三条，任一命中即 v6：无 `book.yaml`、有 `.webnovel/state.json`、有 v6 合同链；**方向刻意偏向 v6**——误判 v6 只是多报告警，误判 v7 等于拆闸门）；`RuntimeSourceSnapshot`/health 报告透出 `write_mode`；`doctor` 按形态给 status/impact/repair；`invariant_check` 的 `Inv-5 合同重建` 对 v7 直接 skip。
   - **证据（真实书仓，修复前后）**：`--project-root .../fantasy01-v2 doctor` → `warnings: 3` → **`warnings: 1`**；`story_runtime.health` 的误导 repair 消失，`--format json` 中该条 `status: "ok"` 且 `"write_mode": "v7"`、`"mainline_ready": true`；剩下的 `run_log.step_coverage` 与本缺陷无关（见下 F4）。
   - **不削弱 v6 的证据**：构造 v6 形态仓跑真实 CLI，`mainline_ready=false` 与「补齐 Story System 合同」原样保留；`Inv-5` 仍 `status=fail`。新增测试 14 条（health 4 / doctor 4 / domain_contract 4 / invariant 2），其中 4 条专为"v6 闸门未被削弱"设卡。
+  - **⚠️ 独立核验补齐的残留缺口（同日二轮修复）**：上述"v7 仓不再报 v6 合同缺失"**是形状相关的，不是全称**。独立核验构造出反例——纯 v7 仓（`book.yaml` + `定稿/正文` + 落定章，无 `state.json`）**只要 `.story-system` 残留任一 `volumes`/`chapters`/`reviews` 目录**，`has_v6_contract_chain` 即返回真 → 判回 `v6` → 原 F1 缺陷（`mainline_ready=false` + 「补齐 Story System 合同…」进 `recommended_actions` + Inv-5 `fail`）**原样复现**。根因是原判据只看目录**存在**，而空目录同样是迁移残留、并非合同链——**该错误期望还被写进了测试** `test_contract_chain_pins_v6`（建空 `volumes/` 后断言 `has_v6_contract_chain is True`）。
+  - **二轮修法**：锚点目录改为**必须非空**（残留里只要有一份真合同文件仍判 v6，保守方向不变）；同步修正该测试并新增两条——空目录不构成链（判 v7）、空目录夹一份真合同仍判 v6。
+  - **二轮证据**：复现核验员的构造用例 → `has_v6_contract_chain=False`、`resolve_write_mode=v7`；跑 doctor → `write_mode=v7`、Inv-5 由 `fail` 变 `skip`、误导 repair 出现次数 **0**。定向测试 93 项全绿。
+  - **该缺口不是"拆闸门"方向**（是 v7 误判为 v6，多报告警），故 F1 的原始风险结论不变：独立核验**未发现任何 v6→v7 的可复现误判路径**，v6 闸门确实未被削弱。
 - [x] **F2（P2）`v7-write` 子命令抛裸 traceback，且 `--help` 不工作**：`webnovel.py v7-write decision --help` 未捕获 `FileNotFoundError` 刷屏；根因是 `v7_args` 用 `nargs=REMAINDER`，`--help` 被当透传参数吃掉、到不了 argparse，于是继续解析项目根并崩。
-  - **实现**：新增 `_resolve_root_or_report()`（复用 `cmd_where` 既有模式：捕获→stderr 诊断→返回 None），替换**全部 22 处**未捕获的 `_resolve_root_lenient` 调用点；`cmd_v7_write` 先剥离 `--`、再检查透传参数含 `-h/--help` 则跳过根解析直接转发。
+  - **实现**：新增 `_resolve_root_or_report()`（复用 `cmd_where` 既有模式：捕获→stderr 诊断→返回 None），替换**全部 23 处**未捕获的 `_resolve_root_lenient` 调用点（22 个 `cmd_*` handler + 1 处 boundary；剩余 1 处 `_resolve_root_lenient` 在 `webnovel.py:563` 的 `try/except FileNotFoundError` 内，非未捕获、故意保留）。⚠️ **订正**：原提交 `bd892e4` 的 message 与实际不符，写的是「22 处」——独立核验实测为 23 处，无误漏，仅计数低报 1；以本条为准。
   - **证据**：修复前 `v7-write decision --help` → `Traceback ... FileNotFoundError`；修复后 → 打印 **v7_write 自己的** 帮助（含 `--repo`/`--json`，可确认非外层入口帮助）、`EXIT=0`。无项目根时 → 干净中文诊断 + `EXIT=1`、stderr 无 `Traceback`（`style-domain`/`learn` 同类命令一并生效）。
 - [x] **F3（P2）`pack` 缺决策卡时静默产出降级上下文包**：`decision_from_card` 在决策卡不存在时静默返回空壳 `{"chapter": N, "title": "", "entities": []}`，`pack` 照常退出 0 并写出「## 决策卡」为空壳的上下文包——不报错、不警告，作者会拿着缺决策卡的包去写正文。
   - **实现**：`decision_from_card` 缺卡返回 `None`（抽出 `decision_card_path()`）；`pack` 分支遇 `None` 时 stderr 打印缺失文件全路径 + 正确顺序（先 decision 再 pack），`EXIT=1` 且**在写文件之前返回**。
@@ -72,6 +76,18 @@
   - **端到端反证（本轮"能开始写章"的实证）**：补齐决策 JSON 后重跑 `decision` → `pack`，上下文包的决策卡段**完整填充**（title/pov/time_anchor/目标字数/目标/节点），`used=3,606`。验证用产物已清理，书仓 `git status` 干净。
   - **一处既有测试随之修正**：`test_webnovel_cli_v7_write.py::test_v7_write_forwarding_pack` 原先在**没有决策卡**的仓上跑 `pack` 并断言退出 0——它固化的正是 F3 这个缺陷本身。已补最小决策卡夹具，使其继续只验证"转发"这件事。
 - [ ] **N-4（P2，同类隐患，生产侧未修）生产代码中 `subprocess.run(text=True)` 未显式 `encoding`**：全仓 **12 处**（`v7_write.py` 3、`security_utils.py` 2、`backup_manager.py`/`init_project.py`/`author_sync.py`/`scale_drill.py`/`validate_release_notes.py`/`mcp/server.py`/`hooks/session_start.py` 各 1）。它们拉起的子进程有两类——`git`（输出 UTF-8）与**带 `-X utf8` 的 Python 子进程**（输出 UTF-8）——**两类都要求父进程处于 UTF-8 模式**；若父进程以裸 `python`（非 UTF-8 模式）启动，`text=True` 会按 GBK 解码 UTF-8 输出而崩。本轮按既定口径只治测试侧（N-1），生产侧未动。修复方向：给这些调用点显式 `encoding="utf-8"`，或在 CLI/钩子入口统一设置 UTF-8 模式。
+
+### 独立核验结论（2026-09-10，evidence-verifier，只读）
+
+对本轮 F1/F2/F3 与 N-1 的修复做了独立核验（不采信实施者自述，自建临时仓实跑）。结论：
+
+- **F1 的原始风险不成立**：未发现任何 v6→v7 的可复现误判路径，v6 闸门未被削弱（构造 `state.json` 仓与 `state.json + commits` 仓实跑，`write_mode=v6`、原 repair 与 Inv-5 `fail` 原样保留）。
+- **但发现一处残留缺口**（见 F1 条目内「独立核验补齐」），已二轮修复。
+- **N-1 的决定性证据由核验方给出**：用 `--confcutdir` 关掉仓根 conftest 后，原 23 项失败**恰好复现**（21 `test_reference_search` + 2 `test_validate_csv`，均 `UnicodeDecodeError`）；不关则全绿。证明 conftest 是承重件且加载路径正确；并确认未用 `errors="replace"` 掩盖真缺陷。
+- **测试质量**：7 个新增/改动用例逐条读过，**无空测试、无把修复前错误行为固化为期望值**（全部测试文件 0 删除行）。
+- **两处数字修正**（不影响功能）：F2 称"替换 22 处"，实为 **23 处**（22 个 handler + 1 处 boundary）；另核验指出全量 `1645 passed / 83.38%` 未由核验方独立复跑，仅存实施方日志。
+- **环境观察（已修）**：仓库根堆积 `.coverage.<host>.<pid>` 并行覆盖率文件（一次全量后 47 个），而 `.gitignore` 只忽略精确名 `.coverage` → 已补 `.coverage.*`。
+- **核验未能覆盖**：因改动在核验中途被提交，无法回退到修复前代码执行"新测试必红"的反证，该判断为读父提交 diff 的推断；真实书仓 `fantasy01-v2` 的 `warnings 3→1` 按指令未由核验方触碰复核（由实施方实测）。
 
 ### F 系列遗留（本轮发现但未处理，需独立排期）
 

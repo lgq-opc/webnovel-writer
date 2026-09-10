@@ -81,13 +81,22 @@ def has_v6_contract_chain(project_root: str | Path) -> bool:
 
     只认 `.story-system` 目录本身会把「迁移残留」误判成 v6：放弃 v6 线的纯 v7 仓
     可能仍留着 commits/events（历史落定记录），却已无合同链。
+
+    **锚点目录必须非空**（2026-09-10 独立核验补齐）：空目录同样是迁移残留，不是合同链。
+    原先只看目录存在，导致「book.yaml + 空的 .story-system/volumes/」的纯 v7 仓被判回
+    v6，doctor 重新输出「补齐 Story System 合同…」并让 Inv-5 fail——即 F1 缺陷原样复现。
+    残留里只要有一份真合同文件（如 volumes/volume_001.json），仍判 v6，保守方向不变。
     """
     story_root = Path(project_root) / ".story-system"
     if not story_root.is_dir():
         return False
     if (story_root / _V6_CONTRACT_ANCHOR).is_file():
         return True
-    return any((story_root / rel).is_dir() for rel in _V6_CONTRACT_DIRS)
+    for rel in _V6_CONTRACT_DIRS:
+        candidate = story_root / rel
+        if candidate.is_dir() and any(candidate.iterdir()):
+            return True
+    return False
 
 
 def resolve_write_mode(project_root: str | Path) -> str:

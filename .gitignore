@@ -9,6 +9,9 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .coverage
+# 并行覆盖率数据（coverage 在多进程/并行跑时产出 .coverage.<host>.<pid>）——
+# 只忽略精确名 .coverage 会让这些文件堆在 git status 里（实测一次全量后 47 个）。
+.coverage.*
 htmlcov/
 .venv/
 venv/

@@ -63,7 +63,37 @@ class TestResolveWriteMode:
     def test_contract_chain_pins_v6(self, v7_book: Path):
         from data_modules.domain_contract import has_v6_contract_chain, resolve_write_mode
 
-        (v7_book / ".story-system" / "volumes").mkdir(parents=True)
+        volumes = v7_book / ".story-system" / "volumes"
+        volumes.mkdir(parents=True)
+        (volumes / "volume_001.json").write_text("{}", encoding="utf-8")
+
+        assert has_v6_contract_chain(v7_book) is True
+        assert resolve_write_mode(v7_book) == "v6"
+
+    def test_empty_story_system_dirs_are_not_a_contract_chain(self, v7_book: Path):
+        """空目录是迁移残留，不是合同链——误判 v6 会让 v7 作者去补 v6 合同（F1 原缺陷）。
+
+        2026-09-10 独立核验发现：原判据只看目录存在，于是「book.yaml + 空的
+        .story-system/volumes/」的纯 v7 仓被判回 v6，doctor 重新输出
+        「补齐 Story System 合同…」并让 Inv-5 fail。
+        """
+        from data_modules.domain_contract import has_v6_contract_chain, resolve_write_mode
+
+        for rel in ("volumes", "chapters", "reviews"):
+            (v7_book / ".story-system" / rel).mkdir(parents=True, exist_ok=True)
+
+        assert has_v6_contract_chain(v7_book) is False
+        assert resolve_write_mode(v7_book) == "v7"
+
+    def test_one_real_contract_file_among_empty_dirs_still_pins_v6(self, v7_book: Path):
+        """残留里只要有一份真合同，仍判 v6（方向保持保守）。"""
+        from data_modules.domain_contract import has_v6_contract_chain, resolve_write_mode
+
+        for rel in ("volumes", "reviews"):
+            (v7_book / ".story-system" / rel).mkdir(parents=True, exist_ok=True)
+        chapters = v7_book / ".story-system" / "chapters"
+        chapters.mkdir(parents=True, exist_ok=True)
+        (chapters / "chapter_001.json").write_text("{}", encoding="utf-8")
 
         assert has_v6_contract_chain(v7_book) is True
         assert resolve_write_mode(v7_book) == "v6"
