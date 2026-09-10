@@ -181,7 +181,9 @@ def _inspect_vector_db(project_root: Path) -> dict:
 
     if exists and size_bytes > 0:
         try:
-            with sqlite3.connect(_lp().win_long_abs(vector_db)) as conn:
+            # F8 生产侧同类修复：`with sqlite3.connect(...)` 不关闭连接，
+            # 需显式 closing 包一层——与本文件其余连接处（9 处）保持一致写法。
+            with closing(sqlite3.connect(_lp().win_long_abs(vector_db))) as conn:
                 cursor = conn.cursor()
                 table_exists = cursor.execute(
                     "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'vectors'"

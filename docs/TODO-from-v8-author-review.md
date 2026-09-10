@@ -102,6 +102,10 @@
     - `scripts/data_modules/tests/test_dual_format_guard.py` 两处 `_v7_repo(tmp_path.parent, [1])` —— **`tmp_path.parent` 就是 `.tmp/pytest/` 本身**，跳出了夹具管理的目录。两个用例还写到**同一路径**，存在互相污染风险。已改用 `tmp_path_factory.mktemp("v7-side")`（pytest 自己管理、按运行数轮转回收）。
   - **验收证据**：`test_db.py` + `test_webnovel_unified_cli.py` 合跑遗留 **0**；`test_validate_csv.py` 遗留 **0**；`test_dual_format_guard.py` 17 项全绿。**全量：残留 25 → 1**（`1658 passed` / 0 warning / 覆盖率 83.38% / `EXIT=0`）。
   - **一处非缺陷的残留（说明，避免误判为未修完）**：`.tmp/pytest/pytest-of-<user>/pytest-<N>/` 是 **pytest 内置 `tmp_path` / `tmp_path_factory` 的保留目录**——pytest 按设计保留最近 3 次运行的 basetemp 并回收更早的，属**有界保留**而非泄漏。（`mcp/tests` 未覆盖 `scripts/conftest.py` 的自定义 `tmp_path`，故走内置实现。）
+  - **生产侧同类修复（同日追加）**：`with sqlite3.connect(...)` 这个陷阱在生产代码里同样存在，本条目顺手清掉——短命 CLI 进程靠退出兜底看不出，但同进程内有后续操作时同样会挡住删除/改名。
+    - `data_modules/db.py`：`connect()` 新增 `_AutoClosingConnection`（`__exit__` 里 `finally: self.close()`）并通过 `factory=` 装上。**一处覆盖全部 data_modules 调用方**（`doctor.py` ×2、`vector_projection_writer.py`，以及未来新增的）。不经 `with` 的用法完全不受影响。
+    - `dashboard/app.py:184`：改用 `closing(sqlite3.connect(...))`——该文件其余 **9 处**连接本就都用了 `closing`，只有这一处漏网。
+    - **RED/GREEN 证据在 pytest 外**：conftest 的 patch 会让 `db.connect` 在测试内"已经"会关闭连接，**测试环境掩盖了这个缺陷**，无法写出真正的 RED 用例。故用独立探针脚本（不经 pytest）验证：修复前 `with` 块后删库文件报 `PermissionError: [WinError 32]`；修复后连接已关闭（`ProgrammingError`）、库文件可删。`test_db.py` 另补 3 条用例固化契约——一旦 conftest 的 patch 被移除，它们会立刻抓住回归。
 
 ### F 系列遗留（本轮发现但未处理，需独立排期）
 
