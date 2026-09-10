@@ -131,6 +131,40 @@ def test_tools_call_invalid_arguments(monkeypatch):
     assert "invalid arguments" in result["content"][0]["text"]
 
 
+def test_tools_call_rejects_leading_dash_in_string(monkeypatch):
+    # P3-1：字符串实参不得以 - 开头（防下游 argparse 误解析为 flag）
+    monkeypatch.setattr(server.subprocess, "run", None)  # 不应触达子进程
+    result = server.call_tool("webnovel_setting_read", {"name": "--help"})
+    assert result["isError"] is True
+    assert "invalid arguments" in result["content"][0]["text"]
+
+
+def test_tools_call_rejects_leading_dash_project_root(monkeypatch):
+    monkeypatch.setattr(server.subprocess, "run", None)
+    result = server.call_tool("webnovel_where", {"project_root": "-rf/tmp"})
+    assert result["isError"] is True
+
+
+def test_tools_call_rejects_leading_dash_in_array(monkeypatch):
+    monkeypatch.setattr(server.subprocess, "run", None)
+    result = server.call_tool("webnovel_materials_status", {"table": ["characters", "--verbose"]})
+    assert result["isError"] is True
+
+
+def test_tools_call_allows_plain_values(monkeypatch):
+    captured = {}
+
+    def fake_run_cli(cli_args):
+        captured["args"] = cli_args
+        return {"content": [{"type": "text", "text": "ok"}], "isError": False}
+
+    monkeypatch.setattr(server, "run_webnovel_cli", fake_run_cli)
+    result = server.call_tool("webnovel_setting_read", {"name": "力量体系", "max_chars": 100})
+
+    assert result["isError"] is False
+    assert "--name" in captured["args"]
+
+
 # ---------------------------------------------------------------------------
 # 子进程执行分支（mock subprocess.run）
 # ---------------------------------------------------------------------------

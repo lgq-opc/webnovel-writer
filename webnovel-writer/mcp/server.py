@@ -403,6 +403,15 @@ def run_webnovel_cli(cli_args: list[str]) -> dict[str, Any]:
     }
 
 
+def _reject_leading_dash(arguments: dict[str, Any]) -> None:
+    """字符串与数组元素实参不得以 - 开头，防止下游 argparse 误解析为 flag（P3-1 加固）。"""
+    for key, value in arguments.items():
+        items = (value,) if isinstance(value, str) else tuple(value) if isinstance(value, list) else ()
+        for item in items:
+            if isinstance(item, str) and item.startswith("-"):
+                raise ValueError(f"argument {key!r} must not start with '-': {item!r}")
+
+
 def call_tool(name: str, arguments: Optional[dict[str, Any]]) -> dict[str, Any]:
     tool = _TOOLS_BY_NAME.get(name)
     if tool is None:
@@ -411,7 +420,9 @@ def call_tool(name: str, arguments: Optional[dict[str, Any]]) -> dict[str, Any]:
             "isError": True,
         }
     try:
-        cli_args = tool["build"](dict(arguments or {}))
+        clean_arguments = dict(arguments or {})
+        _reject_leading_dash(clean_arguments)
+        cli_args = tool["build"](clean_arguments)
     except (KeyError, TypeError, ValueError) as exc:
         return {
             "content": [{"type": "text", "text": f"invalid arguments for {name}: {exc}"}],
