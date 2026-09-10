@@ -136,10 +136,10 @@ class TestUncheckedOtherSideWarning:
 
 
 class TestPrewriteGateIntegration:
-    def test_prewrite_blocks_when_v7_already_settled(self, tmp_path, monkeypatch):
+    def test_prewrite_blocks_when_v7_already_settled(self, tmp_path, tmp_path_factory, monkeypatch):
         _make_init_ready(tmp_path)
         _make_contracts(tmp_path, chapter=1)
-        repo = _v7_repo(tmp_path.parent, [1])
+        repo = _v7_repo(tmp_path_factory.mktemp("v7-side"), [1])
         # 预置环境变量（monkeypatch 自动还原，防跨测试污染）；真实使用走项目 .env
         monkeypatch.setenv("STORY_REPO_ROOT", str(repo))
 
@@ -168,10 +168,10 @@ class TestPrewriteGateIntegration:
         assert report["ok"] is True  # warning 不阻断
         assert any(item["code"] == "dual_format_guard_config_missing" for item in report["warnings"])
 
-    def test_prewrite_no_config_warning_when_v7_root_set(self, tmp_path, monkeypatch):
+    def test_prewrite_no_config_warning_when_v7_root_set(self, tmp_path, tmp_path_factory, monkeypatch):
         _make_init_ready(tmp_path)
         _make_contracts(tmp_path, chapter=1)
-        repo = _v7_repo(tmp_path.parent, [1])
+        repo = _v7_repo(tmp_path_factory.mktemp("v7-side"), [1])
         monkeypatch.setenv("STORY_REPO_ROOT", str(repo))
 
         report = run_write_gate(tmp_path, chapter=1, stage="prewrite")

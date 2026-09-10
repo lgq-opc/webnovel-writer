@@ -89,11 +89,19 @@
 - **环境观察（已修）**：仓库根堆积 `.coverage.<host>.<pid>` 并行覆盖率文件（一次全量后 47 个），而 `.gitignore` 只忽略精确名 `.coverage` → 已补 `.coverage.*`。
 - **核验未能覆盖**：因改动在核验中途被提交，无法回退到修复前代码执行"新测试必红"的反证，该判断为读父提交 diff 的推断；真实书仓 `fantasy01-v2` 的 `warnings 3→1` 按指令未由核验方触碰复核（由实施方实测）。
 
-- [ ] **F8（P3）测试资源未释放导致少量临时目录仍残留（由 F7 修复后新暴露）**：F7 修好后全量泄漏从 3333 → **25**，剩下的 25 个不再是只读文件，而是**被占用的句柄**。`rmtree_safely` 的 5 次重试仍删不掉，最终以 `warnings.warn` 留在 pytest 摘要里（全量 46 条 warning，其中约 21 条是它）。
-  - **实测证据**（F7 修复后一次全量）：25 个残留目录里的内容分布为 `book`×7、`book/.env`×6、`test.db`×4、`.webnovel`×4、`workspace`×3、`命名规则.csv`×2、`vectors.db`×2、`.env.example`×2 等。
-  - **两类成因**（warning 原文指名到文件）：① **SQLite 连接未关闭** —— `WinError 32`，路径指名 `book\.webnovel\index.db` / `test.db` / `vectors.db`；② **子进程 cwd 未释放** —— 路径指名 `...\workspace`，`test_webnovel_unified_cli` 等用例以子进程跑 CLI 并把被测目录当 cwd。
-  - **性质**：这是**既有的测试卫生问题**，一直被旧的 `ignore_errors=True` 遮住——不是 F7 引入的。F7 只是让它可见了。
-  - **修复方向**：测试侧对 SQLite 用 `contextlib.closing` / fixture 收尾确保 `conn.close()`；对以子进程跑 CLI 且传 `cwd=` 的用例，确认 subprocess 已完全退出再结束。修完 `.tmp/pytest` 应能在全量后保持 0 残留。
+- [x] **F8（P3）测试资源未释放导致少量临时目录仍残留（由 F7 修复后新暴露）**：F7 修好后全量泄漏从 3333 → **25**，剩下的 25 个不再是只读文件，而是**被占用的句柄**。`rmtree_safely` 的 5 次重试仍删不掉，最终以 `warnings.warn` 留在 pytest 摘要里（全量 46 条 warning，其中约 21 条是它）。**（2026-09-10 已修复）**
+  - **实测证据**（先跑一次全量、把每条告警的「测试名 + 被锁文件」映射出来，而不是凭目录名猜）：共 **16 个用例**泄漏——**13 个 SQLite 文件锁**（`test.db`×4 全是 `test_db.py::test_connect_*`；`vectors.db`×5；`index.db`×4）+ **3 个 cwd 占用**（`test_webnovel_unified_cli.py` 的 `where` / `preflight` / `backup` 三例，锁在 `...\workspace`）。
+  - **根因一（13 个）：`with sqlite3.connect(...) as conn:` 不关连接。** `sqlite3.Connection.__exit__` **只提交/回滚事务，不关闭连接**——这是极常见的误写，多以为 `with` 会关。连接一直开着 → 库文件被占 → 夹具 teardown 删不掉目录（`WinError 32`）。项目自带的 `data_modules/db.py:connect()` 内部也走 `sqlite3.connect`，同受此累。
+  - **根因二（3 个）：测试把「进程自己的 cwd」切进了临时目录。** `monkeypatch.chdir(tmp_path / "workspace")` ——Windows **不允许删除仍是某进程 cwd 的目录**。monkeypatch 确实会还原，但**夹具 teardown 的先后顺序不保证**，`tmp_path` 的清理可能先于 monkeypatch 的还原跑。
+  - **修法（都在 `scripts/conftest.py`，只作用于测试进程，不改生产语义）**：
+    1. 新增 `_ClosingConnection(sqlite3.Connection)`，`__exit__` 里 `finally: self.close()`；`_safe_sqlite_connect` 用 `kwargs.setdefault("factory", _ClosingConnection)` 装上。一处改动覆盖全部 13 个（因 `db.connect()` 也走被 patch 的 `sqlite3.connect`）。
+    2. 新增 `_chdir_out_of()`，删除前若发现 cwd 落在待删目录内就先 `chdir` 回仓库根；**两侧都 `resolve()`**——Windows 上 `os.getcwd()` 可能返回 8.3 短名（如 `TE4FAC~1`），与夹具的长路径比不出包含关系，第一版漏判过。
+  - **回归测试**：新增 `scripts/tests/test_conftest_sqlite_closing.py`（5 条）——with 块结束后连接确已关闭、**库文件可删**、块内抛异常时仍关闭、`db.connect()` 助手同样生效；另有一条守住前提（不经 with 的连接不受影响，防止补丁写成"一律立即关闭"）。
+  - **根因三（全量复测后又暴露 2 处，属"测试把文件写在夹具之外"）**：
+    - `scripts/tests/test_validate_csv.py` 的 `_make_local_tmp_path()` 用 `tempfile.mkdtemp(prefix="validate_csv_cases_…")` 造目录且**从不清理**。已删掉该助手，两个用例改用 pytest 的 `tmp_path` 夹具（由 conftest 的 `rmtree_safely` 负责清理）。
+    - `scripts/data_modules/tests/test_dual_format_guard.py` 两处 `_v7_repo(tmp_path.parent, [1])` —— **`tmp_path.parent` 就是 `.tmp/pytest/` 本身**，跳出了夹具管理的目录。两个用例还写到**同一路径**，存在互相污染风险。已改用 `tmp_path_factory.mktemp("v7-side")`（pytest 自己管理、按运行数轮转回收）。
+  - **验收证据**：`test_db.py` + `test_webnovel_unified_cli.py` 合跑遗留 **0**；`test_validate_csv.py` 遗留 **0**；`test_dual_format_guard.py` 17 项全绿。**全量：残留 25 → 1**（`1658 passed` / 0 warning / 覆盖率 83.38% / `EXIT=0`）。
+  - **一处非缺陷的残留（说明，避免误判为未修完）**：`.tmp/pytest/pytest-of-<user>/pytest-<N>/` 是 **pytest 内置 `tmp_path` / `tmp_path_factory` 的保留目录**——pytest 按设计保留最近 3 次运行的 basetemp 并回收更早的，属**有界保留**而非泄漏。（`mcp/tests` 未覆盖 `scripts/conftest.py` 的自定义 `tmp_path`，故走内置实现。）
 
 ### F 系列遗留（本轮发现但未处理，需独立排期）
 

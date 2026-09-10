@@ -39,6 +39,32 @@ def _delete_path_str(path) -> str:
     return s
 
 
+def _chdir_out_of(path: Path) -> None:
+    """若当前工作目录落在待删目录内，先退出到仓库根。
+
+    **Windows 不允许删除仍是某进程 cwd 的目录**（`WinError 32`）。而测试常用
+    ``monkeypatch.chdir(tmp_path / "workspace")`` 把**测试进程自己**的 cwd 切进去
+    （见 `test_webnovel_unified_cli` 的 where/preflight/backup 三个用例）。
+    monkeypatch 确实会还原 cwd，但**夹具 teardown 的先后顺序不保证**——tmp_path 的
+    清理可能先于 monkeypatch 的还原跑，于是删除必然失败。
+
+    这里主动兜底：删之前先离开。monkeypatch 之后仍会把自己的还原照做（它记的是
+    测试开始时的 cwd），故不会互相打架。
+    """
+    # 两侧都 resolve()：Windows 上 os.getcwd() 可能返回 8.3 短名（如 TE4FAC~1），
+    # 与夹具给出的长路径字符串比不出包含关系，会漏判。
+    try:
+        cwd = Path(os.getcwd()).resolve()
+        target = Path(path).resolve()
+    except OSError:  # cwd 已被删除等异常情形，无需再处理
+        return
+    if cwd == target or target in cwd.parents:
+        try:
+            os.chdir(_repo_root())
+        except OSError:
+            pass
+
+
 def _clear_readonly(root: str) -> None:
     """递归清掉只读位。Windows 上 rmtree 删不掉带只读属性的文件。
 
@@ -79,11 +105,14 @@ def rmtree_safely(path) -> None:
     `rmtree` 报 WinError 145「目录不是空的」——旧实现靠 `ignore_errors` 把它一起吞了，
     于是那些深目录同样长期泄漏。
     """
+    _chdir_out_of(Path(path))
     long_root = _delete_path_str(path)
     if not os.path.exists(long_root):
         return
     last: OSError | None = None
     for attempt in range(5):
+        if attempt:  # 首轮已尝试离开；后续轮次再兜一次（cwd 可能被别处改回）
+            _chdir_out_of(Path(path))
         _clear_readonly(long_root)
         try:
             shutil.rmtree(long_root)
@@ -147,7 +176,29 @@ class _SafeTemporaryDirectory(_ORIGINAL_TEMPORARY_DIRECTORY):
         )
 
 
+class _ClosingConnection(sqlite3.Connection):
+    """`with conn:` 结束时**真正关闭**连接。
+
+    这是 F8 的根因之一：`with sqlite3.connect(...) as conn:` 是极常见的写法，但它
+    **只提交/回滚事务，不关闭连接**——`sqlite3.Connection` 的 `__exit__` 不调 close()。
+    连接一直开着 → 库文件被占 → 夹具 teardown 删不掉临时目录（`WinError 32`）。
+
+    实测全量有 13 个用例因这个写法泄漏（库文件名：`test.db` / `vectors.db` / `index.db`，
+    见 `test_db.py` 的 4 条 `test_connect_*`、`test_doctor_*`、`test_sqlite_null_*` 等）。
+    项目自带的 `data_modules/db.py:connect()` 内部也走 `sqlite3.connect`，故一并覆盖。
+
+    本改动**只在测试进程内生效**（patch 装在 conftest），不改变生产运行语义。
+    """
+
+    def __exit__(self, exc_type, exc, tb):
+        try:
+            return super().__exit__(exc_type, exc, tb)
+        finally:
+            self.close()
+
+
 def _safe_sqlite_connect(*args, **kwargs):
+    kwargs.setdefault("factory", _ClosingConnection)
     conn = _ORIGINAL_SQLITE_CONNECT(*args, **kwargs)
     try:
         conn.execute("PRAGMA journal_mode=MEMORY")

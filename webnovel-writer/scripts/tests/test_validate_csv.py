@@ -6,16 +6,14 @@ import subprocess
 import sys
 from pathlib import Path
 import csv
-import tempfile
-import uuid
 
 
 SCRIPT = str(Path(__file__).resolve().parents[1] / "validate_csv.py")
 CSV_DIR = str(Path(__file__).resolve().parents[2] / "references" / "csv")
 
-
-def _make_local_tmp_path() -> Path:
-    return Path(tempfile.mkdtemp(prefix=f"validate_csv_cases_{uuid.uuid4().hex}_"))
+# 原先这里有个 _make_local_tmp_path()：自己 tempfile.mkdtemp 造目录且从不清理，
+# 每个用例漏一个（F8 的一类）。改用 pytest 的 tmp_path 夹具——它由 conftest 的
+# rmtree_safely 负责清理。
 
 
 def run_validate(*args: str) -> subprocess.CompletedProcess:
@@ -60,8 +58,7 @@ class TestValidateCsvRuns:
         assert len(route_rows) >= 16
         assert len(reasoning_rows) >= 14
 
-    def test_detects_extra_csv_fields(self):
-        tmp_path = _make_local_tmp_path()
+    def test_detects_extra_csv_fields(self, tmp_path):
         (tmp_path / "命名规则.csv").write_text(
             "\n".join(
                 [
@@ -83,8 +80,7 @@ class TestValidateCsvRuns:
         data = json.loads(result.stdout)
         assert any("字段数超过表头" in error for error in data["errors"])
 
-    def test_detects_invalid_skill_and_level(self):
-        tmp_path = _make_local_tmp_path()
+    def test_detects_invalid_skill_and_level(self, tmp_path):
         (tmp_path / "命名规则.csv").write_text(
             "\n".join(
                 [
