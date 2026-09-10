@@ -75,7 +75,21 @@
   - **证据**：修复前 → `OK v7-write pack chapter=41 used=3,171` + 空壳决策卡段；修复后 → `ERROR ... 未提供 --json，且决策卡不存在：...\工作区\决策卡-0041.md` + `EXIT=1` + **未产出文件**（独立复核确认）。
   - **端到端反证（本轮"能开始写章"的实证）**：补齐决策 JSON 后重跑 `decision` → `pack`，上下文包的决策卡段**完整填充**（title/pov/time_anchor/目标字数/目标/节点），`used=3,606`。验证用产物已清理，书仓 `git status` 干净。
   - **一处既有测试随之修正**：`test_webnovel_cli_v7_write.py::test_v7_write_forwarding_pack` 原先在**没有决策卡**的仓上跑 `pack` 并断言退出 0——它固化的正是 F3 这个缺陷本身。已补最小决策卡夹具，使其继续只验证"转发"这件事。
-- [ ] **N-4（P2，同类隐患，生产侧未修）生产代码中 `subprocess.run(text=True)` 未显式 `encoding`**：全仓 **12 处**（`v7_write.py` 3、`security_utils.py` 2、`backup_manager.py`/`init_project.py`/`author_sync.py`/`scale_drill.py`/`validate_release_notes.py`/`mcp/server.py`/`hooks/session_start.py` 各 1）。它们拉起的子进程有两类——`git`（输出 UTF-8）与**带 `-X utf8` 的 Python 子进程**（输出 UTF-8）——**两类都要求父进程处于 UTF-8 模式**；若父进程以裸 `python`（非 UTF-8 模式）启动，`text=True` 会按 GBK 解码 UTF-8 输出而崩。本轮按既定口径只治测试侧（N-1），生产侧未动。修复方向：给这些调用点显式 `encoding="utf-8"`，或在 CLI/钩子入口统一设置 UTF-8 模式。
+- [x] **N-4（P2，同类隐患）生产代码中 `subprocess.run(text=True)` 未显式 `encoding`**：**（2026-09-10 已修复）**
+  - **先纠正原判**：原条写「全仓 12 处……若父进程以裸 `python` 启动，`text=True` 会按 GBK 解码 UTF-8 输出**而崩**」。用 AST 精确复核（比行 grep 可靠）：生产侧 `subprocess` text 调用**共 13 处，其中 8 处已有 `encoding`，实际缺的只有 5 处**（`v7_write.py` 3、`init_project.py`、`security_utils.py`），且**全是 git 调用**。
+  - **失败形态也不是「崩」，是「静默取值损坏」**——这比崩溃更糟。实测（本机中文 Windows，重建 git 仓并写入含中文的 `dualformat.v6root`）：
+
+    | 父进程模式 | `text=True`（无 encoding） | `text=True, encoding="utf-8"` |
+    |---|---|---|
+    | UTF-8 模式（`-X utf8` / `PYTHONUTF8=1`） | 值正确 | 值正确 |
+    | 非 UTF-8 模式（裸 `python`，locale=cp936） | **值被改写成乱码** `'...\鎴戠殑涔︿粨\宸ヤ綔鍖篭绱犳潗'` | 值正确 |
+    
+    已核 git 存下的**原始字节确实是 UTF-8**；`text=True` 在非 UTF-8 父进程里按 locale（cp936）解码，于是 `dualformat.v6root` 里的中文书仓路径被悄悄改写。**危害**：该值被 `dual_format_guard` 当**路径**消费，改写的路径指向不存在的地方 → 守卫无声失效、且全程没有任何报错。
+  - **修法**：给 5 处补 `encoding="utf-8"`（git 输出确为 UTF-8）。AST 复检确认生产侧 13 处 text 调用**全部显式声明，0 漏网**。
+  - **实施中按用途分了严格/宽容两种处理**（修 N-4 时**自己引入的一个风险**，当场发现并处理）：`_git()` 的 stdout/stderr 只用于 `check=True` 失败时的错误消息，而 git 的**诊断消息随 locale 走**（本地化中文版 git 输出 GBK）。若给这些流上死板 UTF-8，一旦某台机器装了本地化 git，解码异常会在 `subprocess.run` 内部抛出、**不被 `except CalledProcessError` 捕获**——等于把一个干净的业务报错变成未捕获崩溃。
+    - **取值用途**（`_v6_root_from_git_config`，值当**路径**用）→ **严格 UTF-8**，不设 `errors`：值错了宁可解码失败炸出来，也不要拿到一串看似正常的乱码路径。
+    - **诊断用途**（`_git` / `git config user.email` / `git --version`）→ `errors="replace"`：文本降级可以，炸不行。
+  - **测试（关键：没法在 pytest 内直接复现）**：pytest 按文档以 `-X utf8` 跑，父进程本身就是 UTF-8，**直接调用永远看不出问题**。故新增 `scripts/tests/test_git_subprocess_encoding.py`——显式用 `PYTHONUTF8=0` 起一个非 UTF-8 子进程去调生产函数，把真实场景钉住。RED 实测：修复前断言失败并打印出与探针一致的乱码 `'...涔︿粨\宸ヤ綔鍖篭绱犳潗'`；修复后通过。另有一条守住行为边界（未配置时仍返回空串，别为修编码改了语义）。
 
 ### 独立核验结论（2026-09-10，evidence-verifier，只读）
 

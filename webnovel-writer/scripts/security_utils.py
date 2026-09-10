@@ -265,6 +265,8 @@ def is_git_available() -> bool:
             ["git", "--version"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",  # N-4：此处只看 returncode，诊断文本降级即可，不因解码炸
             timeout=5
         )
         _git_available = result.returncode == 0

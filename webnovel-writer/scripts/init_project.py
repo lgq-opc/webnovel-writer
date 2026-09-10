@@ -653,7 +653,12 @@ def init_project(
         else:
             print("\nInitializing Git repository...")
             try:
-                subprocess.run(["git", "init"], cwd=project_path, check=True, capture_output=True, text=True)
+                # N-4：显式 UTF-8；输出仅作诊断，带 errors="replace" 以免本地化 git
+                # 的 GBK 消息把解码异常抛成未捕获崩溃。
+                subprocess.run(
+                    ["git", "init"], cwd=project_path, check=True,
+                    capture_output=True, text=True, encoding="utf-8", errors="replace",
+                )
 
                 gitignore_file = project_path / ".gitignore"
                 if not gitignore_file.exists():

@@ -509,7 +509,15 @@ def run_checks(repo: Path, decision: dict[str, Any], draft_text: str) -> dict[st
 
 def _git(repo: Path, *args: str) -> None:
     try:
-        subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, text=True)
+        # N-4：显式 encoding="utf-8"（git 输出为 UTF-8）。此处 **必须带 errors="replace"**：
+        # 这两个流只用于下面那句错误消息——而 git 的**诊断消息**随 locale 走
+        # （本地化中文版 git 会输出 GBK）。若用死板 UTF-8 解码，一旦某台机器装了本地化
+        # git，解码异常会在 subprocess.run 内部抛出、**不被下面的 CalledProcessError 捕获**，
+        # 把一个干净的业务报错变成未捕获崩溃。诊断文本宁可降级也不该炸。
+        subprocess.run(
+            ["git", "-C", str(repo), *args],
+            check=True, capture_output=True, text=True, encoding="utf-8", errors="replace",
+        )
     except subprocess.CalledProcessError as exc:
         detail = (exc.stderr or "").strip() or f"exit {exc.returncode}"
         raise RuntimeError(f"git {' '.join(args)}: {detail}") from exc
@@ -519,7 +527,9 @@ def _commit_with_identity_fallback(repo: Path, message: str) -> None:
     """无任何 git 身份配置时兜底提交身份，避免 settle 因身份缺失整体回滚（增量审阅 P2-3）。"""
     probe = subprocess.run(
         ["git", "-C", str(repo), "config", "user.email"],
-        capture_output=True, text=True,
+        # N-4：输出只用于判断"身份是否已配置"（看空不空），故英文/中文邮箱都只需可解码，
+        # 无需死板——诊断性用途一律带 errors="replace"（同 _git）。
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
     )
     identity: list[str] = []
     if not probe.stdout.strip():
@@ -528,10 +538,20 @@ def _commit_with_identity_fallback(repo: Path, message: str) -> None:
 
 
 def _v6_root_from_git_config(repo: Path) -> str:
-    """增量审阅 P2-4：读迁移器落在 v7 仓 git config 的 dualformat.v6root 映射（无则空串）。"""
+    """增量审阅 P2-4：读迁移器落在 v7 仓 git config 的 dualformat.v6root 映射（无则空串）。
+
+    N-4：必须显式 `encoding="utf-8"`。这个值是**路径**，且中文书仓路径很常见；
+    省掉 encoding 时 `text=True` 会按 locale 解码（中文 Windows = cp936），
+    把 UTF-8 的路径**静默改写**成乱码——守卫随后拿它去比对，两头都对不上，
+    `dual_format_guard` 无声失效。实测已复现（见 tests/test_git_subprocess_encoding.py）。
+
+    **此处刻意用严格 UTF-8（不设 `errors="replace"`）**，与同文件 `_git` 的处理相反：
+    这是**取值**用途，值错了会被当路径用；宁可解码失败炸出来，也不要拿到一串看似
+    正常的乱码路径。诊断性用途（`_git` / user.email / git --version）才用 replace。
+    """
     probe = subprocess.run(
         ["git", "-C", str(repo), "config", "dualformat.v6root"],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8",
     )
     return probe.stdout.strip() if probe.returncode == 0 else ""
 
