@@ -10,7 +10,6 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
@@ -258,7 +257,7 @@ def test_restore_from_backup_failure(tmp_path, monkeypatch, capsys):
 # 内置自检
 # ---------------------------------------------------------------------------
 
-@pytest.mark.skipif(sys.platform != "win32", reason="内置自检断言 Windows 反斜杠路径语义（posix 上 sanitize 结果不同属预期行为）")
 def test_run_self_tests(capsys):
+    # 自检的平台分支断言已平台中立（security_utils._run_self_tests 内按 os.name 分流）
     security_utils._run_self_tests()
     assert "所有安全工具函数测试通过" in capsys.readouterr().out

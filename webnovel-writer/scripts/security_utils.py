@@ -564,7 +564,11 @@ def _run_self_tests():
 
     # Test 1: sanitize_filename
     assert sanitize_filename("../../../etc/passwd") == "passwd", "路径遍历测试失败"
-    assert sanitize_filename("C:\\Windows\\System32") == "System32", "Windows路径测试失败"
+    if os.name == "nt":
+        assert sanitize_filename("C:\\Windows\\System32") == "System32", "Windows路径测试失败"
+    else:
+        # posix 语义：反斜杠是普通字符而非路径分隔符，basename 不剥、替换为下划线
+        assert sanitize_filename("C:\\Windows\\System32") == "C_Windows_System32", "posix路径语义测试失败"
     assert sanitize_filename("正常角色名") == "正常角色名", "中文测试失败"
     assert sanitize_filename("/tmp/../../../../../etc/hosts") == "hosts", "复杂路径遍历测试失败"
     assert sanitize_filename("test///file...name") == "file_name", "特殊字符测试失败"  # . 会被替换
