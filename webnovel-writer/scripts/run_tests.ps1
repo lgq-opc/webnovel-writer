@@ -21,6 +21,13 @@ $env:TMP = $tmpRoot
 $env:TEMP = $tmpRoot
 $env:PYTHONPATH = "webnovel-writer/scripts"
 
+# 中文 Windows 上强制 UTF-8（N-1）：本进程与它拉起的全部子进程统一走 UTF-8，
+# 避免「父进程按 UTF-8 解码、子进程按 GBK 输出」造成的 UnicodeDecodeError。
+# 仓根 conftest.py 已在测试进程内兜底子进程契约；这里再设一次是为了让
+# 任何直接跑本脚本的人（含 CI 之外的机器）不依赖那个兜底。
+$env:PYTHONUTF8 = "1"
+$env:PYTHONIOENCODING = "utf-8"
+
 # 避免 Windows 下 basetemp 目录因权限/残留锁导致 rm_rf 失败（会让所有用例在 setup 阶段直接报错）。
 $runId = Get-Date -Format "yyyyMMdd_HHmmssfff"
 $baseTemp = Join-Path $tmpRoot ("run-" + $Mode + "-" + $runId)
