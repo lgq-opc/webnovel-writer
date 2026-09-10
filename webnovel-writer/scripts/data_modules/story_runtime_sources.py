@@ -8,6 +8,8 @@ from typing import Any
 
 from chapter_outline_loader import volume_num_for_chapter_from_state
 
+from .domain_contract import resolve_write_mode
+from .dual_format_guard import max_settled_chapter
 from .story_contracts import StoryContractPaths, read_json_if_exists
 
 
@@ -19,6 +21,7 @@ class RuntimeSourceSnapshot:
     latest_accepted_commit: dict[str, Any] | None
     fallback_sources: list[str] = field(default_factory=list)
     primary_write_source: str = "chapter_commit"
+    write_mode: str = "v6"
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -28,6 +31,7 @@ class RuntimeSourceSnapshot:
             "latest_accepted_commit": self.latest_accepted_commit,
             "fallback_sources": list(self.fallback_sources),
             "primary_write_source": self.primary_write_source,
+            "write_mode": self.write_mode,
         }
 
 
@@ -68,8 +72,30 @@ def _load_latest_accepted_commit(paths: StoryContractPaths, chapter: int, projec
     return None
 
 
+def _v6_fallback_sources(
+    contracts: dict[str, dict[str, Any]],
+    latest_accepted_commit: dict[str, Any] | None,
+) -> list[str]:
+    fallback_sources: list[str] = []
+    for key, payload in contracts.items():
+        if not payload:
+            fallback_sources.append(f"missing_{key}_contract")
+    if latest_accepted_commit is None:
+        fallback_sources.append("missing_accepted_commit")
+    return fallback_sources
+
+
+def _v7_fallback_sources(project_root: Path) -> list[str]:
+    """v7 语境：主链锚是「定稿/正文」的落定章（dual_format_guard 的 v7 落定定义），
+    不是 .story-system 合同——纯 v7 仓按设计没有合同，缺它不算缺陷。"""
+    if max_settled_chapter(project_root) <= 0:
+        return ["missing_settled_chapter"]
+    return []
+
+
 def load_runtime_sources(project_root: Path, chapter: int) -> RuntimeSourceSnapshot:
     project_root = Path(project_root)
+    write_mode = resolve_write_mode(project_root)
     paths = StoryContractPaths.from_project_root(project_root)
     volume = _volume_for_chapter(project_root, chapter)
 
@@ -82,12 +108,10 @@ def load_runtime_sources(project_root: Path, chapter: int) -> RuntimeSourceSnaps
     latest_commit = _load_latest_commit(paths, chapter, project_root=project_root)
     latest_accepted_commit = _load_latest_accepted_commit(paths, chapter, project_root=project_root)
 
-    fallback_sources: list[str] = []
-    for key, payload in contracts.items():
-        if not payload:
-            fallback_sources.append(f"missing_{key}_contract")
-    if latest_accepted_commit is None:
-        fallback_sources.append("missing_accepted_commit")
+    if write_mode == "v7":
+        fallback_sources = _v7_fallback_sources(project_root)
+    else:
+        fallback_sources = _v6_fallback_sources(contracts, latest_accepted_commit)
 
     return RuntimeSourceSnapshot(
         chapter=chapter,
@@ -95,4 +119,5 @@ def load_runtime_sources(project_root: Path, chapter: int) -> RuntimeSourceSnaps
         latest_commit=latest_commit,
         latest_accepted_commit=latest_accepted_commit,
         fallback_sources=fallback_sources,
+        write_mode=write_mode,
     )

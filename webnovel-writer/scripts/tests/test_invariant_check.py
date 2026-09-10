@@ -614,3 +614,34 @@ class TestContractRebuildInvariant:
         assert "Traceback" not in (proc.stderr or "")
         report = json.loads(proc.stdout)
         assert report["invariants"][0]["status"] == "fail"
+
+
+    def test_v7_repo_with_residual_story_system_commits_skips(self, tmp_path: Path):
+        """F1：纯 v7 仓即便残留 .story-system/commits（迁移遗留），也不算合同缺失。"""
+        import data_modules.invariant_check as invariant_check
+
+        (tmp_path / "book.yaml").write_text('spec_version: "7.0"\n书名: 测试\n', encoding="utf-8")
+        commits_dir = tmp_path / ".story-system" / "commits"
+        commits_dir.mkdir(parents=True, exist_ok=True)
+        (commits_dir / "chapter_040.commit.json").write_text(
+            json.dumps({"meta": {"chapter": 40, "status": "accepted"}}, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        item = invariant_check.check_contract_rebuild(tmp_path)
+        assert item["status"] == "skip"
+        assert item["counts"] == {}
+        assert ".story-system" in item["repair"]
+
+    def test_v6_repo_missing_master_setting_still_fails(self, tmp_path: Path):
+        """闸门不削弱：v6 形态带 .story-system 合同链锚点却缺 MASTER_SETTING 仍 fail。"""
+        import data_modules.invariant_check as invariant_check
+
+        (tmp_path / ".webnovel").mkdir(parents=True, exist_ok=True)
+        (tmp_path / ".webnovel" / "state.json").write_text(
+            json.dumps({"progress": {"current_chapter": 1}}, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        (tmp_path / ".story-system" / "volumes").mkdir(parents=True, exist_ok=True)
+        item = invariant_check.check_contract_rebuild(tmp_path)
+        assert item["status"] == "fail"
+        assert "missing_master_setting" in _codes(item)

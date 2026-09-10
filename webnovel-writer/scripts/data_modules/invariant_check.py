@@ -13,6 +13,7 @@ from typing import Any, Callable
 from chapter_outline_loader import volume_num_for_chapter_from_state
 
 from .author_journal import pending_semantic, read_journal, read_stale, read_watermark, validate_journal
+from .domain_contract import resolve_write_mode
 from .dual_format_guard import has_v7_settled_chapter, max_settled_chapter
 from .material_store import _read_csv_rows
 from .material_usage import trajectory_path
@@ -407,6 +408,15 @@ def check_contract_rebuild(root: Path) -> dict[str, Any]:
 
 def _check_contract_rebuild_inner(root: Path) -> dict[str, Any]:
     paths = StoryContractPaths.from_project_root(root)
+    # 形态先行：纯 v7 书仓不走 .story-system 合同链，缺合同不是它的缺陷。
+    # 注意不能只看 .story-system 是否存在——迁移残留可能只剩 commits/events。
+    if resolve_write_mode(root) == "v7":
+        return result(
+            "inv-5-contracts",
+            _CONTRACT_TITLE,
+            "skip",
+            repair="纯 v7 书仓不走 .story-system 合同链，跳过合同重建对账",
+        )
     if not paths.root.is_dir():
         return result(
             "inv-5-contracts",

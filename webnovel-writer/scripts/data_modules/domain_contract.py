@@ -71,6 +71,45 @@ def is_story_repo(project_root: str | Path) -> bool:
     return (Path(project_root) / "book.yaml").is_file()
 
 
+# v6 runtime 合同链锚点（相对 .story-system）：MASTER_SETTING 是主锚，卷/章/审查目录是分锚。
+_V6_CONTRACT_ANCHOR = "MASTER_SETTING.json"
+_V6_CONTRACT_DIRS: tuple[str, ...] = ("volumes", "chapters", "reviews")
+
+
+def has_v6_contract_chain(project_root: str | Path) -> bool:
+    """仓库是否携带 v6 runtime 合同链（MASTER_SETTING.json 或 volumes/chapters/reviews）。
+
+    只认 `.story-system` 目录本身会把「迁移残留」误判成 v6：放弃 v6 线的纯 v7 仓
+    可能仍留着 commits/events（历史落定记录），却已无合同链。
+    """
+    story_root = Path(project_root) / ".story-system"
+    if not story_root.is_dir():
+        return False
+    if (story_root / _V6_CONTRACT_ANCHOR).is_file():
+        return True
+    return any((story_root / rel).is_dir() for rel in _V6_CONTRACT_DIRS)
+
+
+def resolve_write_mode(project_root: str | Path) -> str:
+    """书仓写链形态：``"v7"`` = 纯 v7 书仓；``"v6"`` = 走 .story-system 合同链的仓。
+
+    判据全部取自仓库实际形态（不看书名、不看硬编码路径）：
+
+    1. 无 book.yaml → v6（v7 书仓以 book.yaml 为标志，见 :func:`is_story_repo`）；
+    2. 有 ``.webnovel/state.json`` → v6（state.json 是 v6 生命周期锚，与
+       ``resolve_project_phase`` 判定 ``PHASE_V7_STORY_REPO`` 同源）；
+    3. 有 v6 合同链（:func:`has_v6_contract_chain`）→ v6。
+
+    三者皆不成立才判 v7。**宁可判 v6**：误判为 v6 只会多报告警，误判为 v7 等于拆闸门。
+    """
+    root = Path(project_root)
+    if not is_story_repo(root):
+        return "v6"
+    if (root / ".webnovel" / "state.json").is_file():
+        return "v6"
+    return "v6" if has_v6_contract_chain(root) else "v7"
+
+
 def _item(item_id: str, status: str, expected: str, actual: str) -> dict[str, str]:
     return {"id": item_id, "status": status, "expected": expected, "actual": actual}
 

@@ -38,6 +38,46 @@ class TestIsStoryRepo:
         assert is_story_repo(tmp_path) is False
 
 
+class TestResolveWriteMode:
+    """F1：形态判据（宁可判 v6——误判为 v7 等于拆闸门）。"""
+
+    def test_v7_book_is_v7_even_with_residual_story_system(self, v7_book: Path):
+        from data_modules.domain_contract import resolve_write_mode
+
+        commits = v7_book / ".story-system" / "commits"
+        commits.mkdir(parents=True)
+        (commits / "chapter_040.commit.json").write_text("{}", encoding="utf-8")
+
+        assert resolve_write_mode(v7_book) == "v7"
+        assert resolve_write_mode(v7_book / "nonexistent") == "v6"
+
+    def test_state_json_pins_v6(self, v7_book: Path):
+        from data_modules.domain_contract import resolve_write_mode
+
+        webnovel_dir = v7_book / ".webnovel"
+        webnovel_dir.mkdir()
+        (webnovel_dir / "state.json").write_text("{}", encoding="utf-8")
+
+        assert resolve_write_mode(v7_book) == "v6"
+
+    def test_contract_chain_pins_v6(self, v7_book: Path):
+        from data_modules.domain_contract import has_v6_contract_chain, resolve_write_mode
+
+        (v7_book / ".story-system" / "volumes").mkdir(parents=True)
+
+        assert has_v6_contract_chain(v7_book) is True
+        assert resolve_write_mode(v7_book) == "v6"
+
+    def test_master_setting_anchor_pins_v6(self, tmp_path: Path):
+        from data_modules.domain_contract import has_v6_contract_chain
+
+        (tmp_path / ".story-system").mkdir()
+        (tmp_path / ".story-system" / "MASTER_SETTING.json").write_text("{}", encoding="utf-8")
+
+        assert has_v6_contract_chain(tmp_path) is True
+        assert has_v6_contract_chain(tmp_path / "nonexistent") is False
+
+
 class TestInitDomainSkeleton:
     def test_creates_missing_skeleton(self, v7_book: Path):
         from data_modules.domain_contract import REQUIRED_DIRS, REQUIRED_FILES, init_domain_skeleton

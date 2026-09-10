@@ -1095,16 +1095,29 @@ def build_doctor_report(
                 )
             )
         else:
+            ready = bool(runtime_health.get("mainline_ready"))
+            # 形态决定修复建议：纯 v7 仓按设计没有 .story-system 合同，
+            # 不能再把作者引向「补齐 Story System 合同」这条 v6 专属的路。
+            if ready:
+                status, severity, impact, repair = CHECK_OK, "info", "", ""
+            elif runtime_health.get("write_mode") == "v7":
+                status, severity = CHECK_WARNING, "warning"
+                impact = "后续章节可能缺少 v7 定稿主链上下文。"
+                repair = "先在「定稿/正文」落定前一章（NNNN-标题.md）后写；纯 v7 书仓无需 .story-system 合同。"
+            else:
+                status, severity = CHECK_WARNING, "warning"
+                impact = "当前章节可能会使用 fallback source。"
+                repair = "补齐 Story System 合同和 accepted commit 后再写。"
             checks.append(
                 _check(
                     "story_runtime.health",
-                    status=CHECK_OK if runtime_health.get("mainline_ready") else CHECK_WARNING,
-                    severity="info" if runtime_health.get("mainline_ready") else "warning",
+                    status=status,
+                    severity=severity,
                     message="story runtime health",
                     expected="mainline_ready true when writing stage",
                     actual=json.dumps(runtime_health, ensure_ascii=False),
-                    impact="" if runtime_health.get("mainline_ready") else "当前章节可能会使用 fallback source。",
-                    repair="" if runtime_health.get("mainline_ready") else "补齐 Story System 合同和 accepted commit 后再写。",
+                    impact=impact,
+                    repair=repair,
                 )
             )
         checks.extend(_sqlite_checks(root))

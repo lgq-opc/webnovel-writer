@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .domain_contract import resolve_write_mode
 from .story_runtime_sources import load_runtime_sources
 
 
@@ -65,6 +66,7 @@ def _resolve_chapter(project_root: Path, chapter: int | None) -> int:
 
 def build_story_runtime_health(project_root: Path, chapter: int | None = None) -> dict[str, Any]:
     project_root = Path(project_root)
+    write_mode = resolve_write_mode(project_root)
     current_chapter = _resolve_chapter(project_root, chapter)
     if current_chapter <= 0:
         return {
@@ -73,6 +75,7 @@ def build_story_runtime_health(project_root: Path, chapter: int | None = None) -
             "fallback_sources": ["chapter_unspecified"],
             "latest_commit_status": "missing",
             "primary_write_source": "chapter_commit",
+            "write_mode": write_mode,
         }
 
     snapshot = load_runtime_sources(project_root, current_chapter)
@@ -83,4 +86,5 @@ def build_story_runtime_health(project_root: Path, chapter: int | None = None) -
         "fallback_sources": list(snapshot.fallback_sources),
         "latest_commit_status": (latest_commit.get("meta") or {}).get("status", "missing"),
         "primary_write_source": snapshot.primary_write_source,
+        "write_mode": snapshot.write_mode,
     }

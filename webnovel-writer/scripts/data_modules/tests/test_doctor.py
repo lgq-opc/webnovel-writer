@@ -496,3 +496,72 @@ def test_doctor_gallery_and_materials_skip_when_absent(tmp_path, monkeypatch):
     gal = [c for c in report["checks"] if c["id"] == "gov.gallery.backlog"]
     assert mats and mats[0]["status"] == doctor_module.CHECK_SKIPPED
     assert gal and gal[0]["status"] == doctor_module.CHECK_SKIPPED
+
+
+def test_doctor_v7_repo_surfaces_no_story_system_repair(tmp_path, monkeypatch):
+    """F1：纯 v7 仓（迁移残留 commits、无合同链）不应被判合同缺失，也不得引向补 v6 合同。"""
+    _make_v7_repo(tmp_path)  # book.yaml + 定稿/正文/0042-夜袭.md
+    _write_json(
+        tmp_path / ".story-system" / "commits" / "chapter_042.commit.json",
+        {"meta": {"chapter": 42, "status": "accepted"}},
+    )
+    monkeypatch.setattr(doctor_module, "_python_checks", lambda: [])
+
+    report = doctor_module.build_doctor_report(tmp_path, chapter=43)
+
+    runtime = [c for c in report["checks"] if c["id"] == "story_runtime.health"]
+    assert runtime
+    assert runtime[0]["status"] == doctor_module.CHECK_OK
+    assert runtime[0]["severity"] == "info"
+    assert runtime[0]["repair"] == ""
+    assert '"write_mode": "v7"' in runtime[0]["actual"]
+    inv5 = [c for c in report["checks"] if c["id"] == "gov.inv-5-contracts"]
+    assert inv5 and inv5[0]["status"] == doctor_module.CHECK_SKIPPED
+    assert "补齐 Story System 合同和 accepted commit 后再写。" not in report["recommended_actions"]
+
+
+def test_doctor_v7_repo_without_settled_chapter_gives_v7_repair(tmp_path, monkeypatch):
+    """v7 语境下的准确提示：指向 v7 定稿落定，而非 .story-system 合同。"""
+    _make_v7_repo(tmp_path, settled=None)
+    monkeypatch.setattr(doctor_module, "_python_checks", lambda: [])
+
+    report = doctor_module.build_doctor_report(tmp_path, chapter=1)
+
+    runtime = [c for c in report["checks"] if c["id"] == "story_runtime.health"][0]
+    assert runtime["status"] == doctor_module.CHECK_WARNING
+    assert '"write_mode": "v7"' in runtime["actual"]
+    assert "missing_settled_chapter" in runtime["actual"]
+    assert "补齐 Story System 合同" not in runtime["repair"]
+    assert "无需 .story-system 合同" in runtime["repair"]
+    assert "定稿" in runtime["repair"]
+
+
+def test_doctor_v6_repo_still_asks_for_story_system_contracts(tmp_path, monkeypatch):
+    """闸门不削弱：v6 形态（.webnovel/state.json 生命周期锚）仍报合同缺失 + v6 修复建议。"""
+    _make_init_ready(tmp_path)
+    _write_json(
+        tmp_path / ".story-system" / "commits" / "chapter_003.commit.json",
+        {"meta": {"chapter": 3, "status": "accepted"}},
+    )
+    monkeypatch.setattr(doctor_module, "_python_checks", lambda: [])
+
+    report = doctor_module.build_doctor_report(tmp_path, chapter=3)
+
+    runtime = [c for c in report["checks"] if c["id"] == "story_runtime.health"][0]
+    assert runtime["status"] == doctor_module.CHECK_WARNING
+    assert '"write_mode": "v6"' in runtime["actual"]
+    assert "missing_master_contract" in runtime["actual"]
+    assert "Story System 合同" in runtime["repair"]
+
+
+def test_doctor_v6_repo_with_story_system_fails_contract_rebuild(tmp_path, monkeypatch):
+    """闸门不削弱：真有 .story-system 的 v6 仓，inv-5 合同重建对账照旧 fail。"""
+    _make_init_ready(tmp_path)
+    (tmp_path / ".story-system" / "volumes").mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(doctor_module, "_python_checks", lambda: [])
+
+    report = doctor_module.build_doctor_report(tmp_path)
+
+    inv5 = [c for c in report["checks"] if c["id"] == "gov.inv-5-contracts"][0]
+    assert inv5["status"] == doctor_module.CHECK_WARNING
+    assert "status=fail" in inv5["actual"]
