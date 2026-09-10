@@ -70,7 +70,20 @@ def _clear_readonly(root: str) -> None:
 
     `root` 必须是已加长路径前缀的字符串（见 :func:`_delete_path_str`）：不加前缀时
     深层目录会超过 MAX_PATH，`os.walk` 在那种路径上静默走不下去，深层文件清不到。
+
+    **此步仅 Windows 需要（2026-09-11 修 CI 回归）**：`stat.S_IWRITE` 是 0o200，
+    Windows 上 `os.chmod` 只切「只读属性」一位、不解释 r/x；**POSIX 上它却把模式位
+    整个换成 `--w-------`**。原先连 `dirs` 一并 chmod，于是 Linux 上目录丢掉 r/x →
+    紧接着 `os.walk` 的 `scandir` 抛 PermissionError 被静默跳过、`shutil.rmtree` 也在
+    同一处失败（实测 `PermissionError: [Errno 13] Permission denied: 'repo'`）→ 整棵树
+    残留，表现为 `test_conftest_tmp_cleanup.py` 4 条红。Windows 无此症状（属性语义
+    不同），故该回归只在 Linux job 暴露。
+
+    POSIX 上本就不需要这一步：删除文件只取决于**父目录**的写权限，与文件自身模式
+    无关。故直接返回，不做任何 chmod——避免「为修一个平台而给另一个平台引入新行为」。
     """
+    if os.name != "nt":
+        return
     for current, dirs, files in os.walk(root):
         for name in (*files, *dirs):
             try:
