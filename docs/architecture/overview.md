@@ -1,5 +1,7 @@
 # webnovel-writer 系统架构总览（v8.x）
 
+> **v6 写链已冻结（frozen-legacy，2026-09-10 退役方案 Phase 1）**：仅维护、不再演进；本文中 v6 写章六步链与 `.story-system` 运行时合同相关描述，只用于理解**存量 v6 书项目**。**新书写章一律走 v7 写链**（`v7-write decision/pack/check/settle`，操作面见 `docs/guides/v7-write-path.md`）；v6 项目先迁移（`migrate_v6_to_v7.py`）。物理删除见 `docs/plans/2026-09-10-v6线退役方案.md` Phase 2。
+>
 > 本文描述 v8.1.0 现状（2026-09-10 重写，替代 v6 时代旧版；旧版见 git 历史与 `docs/archive/architecture/`）。
 > 详细设计：[webnovel-copilot-300/04-architecture.md](../zcode/webnovel-copilot-300/04-architecture.md)（七层模型 / 数据治理 / 状态机全版）、
 > [v7-write-path.md](../guides/v7-write-path.md)（v7 写链操作面）、[story-repo-spec](story-repo-spec-2026-06-10.md)（书仓格式）。
@@ -9,7 +11,7 @@
 ```
 L7  作者主权层    author-sync / journal / freeze / impact / regen 画廊 / author_model·style_profile
 L6  会话编排层    ZCode 插件壳：skills×8 / agents×4 / hooks×4 / MCP(14 只读) / /webnovel:* 命令(13)
-L5  工作流层      v6 写章六步链 / v7 决策卡-机检-settle 链 / plan 规划链 / review 审查链
+L5  工作流层      v7 决策卡-机检-settle 链（**新书写章唯一路径**）/ v6 写章六步链（**frozen-legacy**，仅维护）/ plan 规划链 / review 审查链
 L4  领域服务层    统一 CLI webnovel.py（治理 / 索引投影 / 记忆 RAG / 战力素材 / 度量报告）
 L3  确定性内核    git 事务 / 时间线推演 / 伏笔逾期 / 锚点校验 / 字数占位符 / prose_check（无 LLM）
 L2  数据层        git 正典（书仓六域）→ 编译产物（.story-system 合同 / .webnovel 投影 / .cache 索引）

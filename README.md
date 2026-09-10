@@ -179,17 +179,17 @@ Dashboard 是个只读面板，能看项目状态、实体关系图、章节内�
 
 ## 写章工作流
 
-`/webnovel-write` 不是把活儿丢给模型生成一次就完事，而是一条带关卡的完整流水线：
+> **v6 写链已冻结（frozen-legacy，2026-09-10 退役方案 Phase 1）**：仅维护、不再演进；**新书写章一律走 v7 写链**（即下文）。v6 书项目先迁移：`python -X utf8 webnovel-writer/scripts/migrate_v6_to_v7.py --project-root <v6根> --output <新 v7 书仓>`。
 
-1. 预检项目根、占位符和 Story System 健康状态
-2. 刷新本章 runtime contract
-3. 调用 `context-agent` 生成写作任务书
-4. 根据任务书起草正文
+`/webnovel-write` 不是把活儿丢给模型生成一次就完事，而是一条带关卡的完整流水线（v7 书仓）：
+
+1. 预检项目根与占位符；确认本书是 v7 story-repo（有 `book.yaml`）
+2. 生成决策卡与上下文包（`v7-write decision` / `pack`）——起草**只以上下文包为依据**
+3. 根据上下文包起草正文到 `工作区/草稿-{NNNN}.md`（默认多稿择优）
+4. 机检（`v7-write check`）：字数 / 占位符 / 标题 / 承诺
 5. 调用 `reviewer` 做多维审查，blocking issue 不通过则阻断
-6. 润色、排版、Anti-AI 终检
-7. 调用 `data-agent` 提取事实
-8. 生成 `CHAPTER_COMMIT`，驱动 state、index、summary、memory、vector 投影
-9. 执行章节级备份
+6. 润色、排版、Anti-AI 终检，并跑 `prose-check` 文笔检测
+7. 落定（`v7-write settle`）：原子 git commit 正文与章摘要，刷新 v7 缓存，并落账素材轨迹、文风指纹、追读力
 
 这么设计，是为了把“怎么写”和“写了什么”分开：文笔和节奏可以放开发挥，但发生过的事实必须登记、过审、存档，不能含糊。
 

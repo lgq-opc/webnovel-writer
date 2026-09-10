@@ -51,6 +51,7 @@ webnovel-writer/              ← 外层仓库根（marketplace.json 双位置�
 - 当前版本：v8.1.0（作者主权 + 300 章连贯：六域书仓治理 + MCP 14 只读工具 + 13 条命令；`v8-author` 分支，tag `v8.1.0` 已推送远端）
 - 领先 master 的提交数**不在此处写死**（N-3：这是个滚动快照，写下的数字第二天就过期）——需要时现算：
   `git log --oneline origin/master..HEAD | wc -l`
+- **v6 写链已冻结（frozen-legacy，2026-09-10 退役方案 Phase 1）**：仅维护、不再演进。**新书写章一律走 v7 写链**（`v7-write decision/pack/check/settle`，见 `skills/webnovel-write/SKILL.md`）。v6 书项目先迁移：`python -X utf8 webnovel-writer/scripts/migrate_v6_to_v7.py --project-root <v6根> --output <新 v7 书仓>`。v6 代码与测试**保留但不再新增**，物理删除见 `docs/plans/2026-09-10-v6线退役方案.md` Phase 2。
 - 上游：lingfengQAQ/webnovel-writer（v6.2.1 起分叉；上游 v7/v8 路线与本仓无关）
 - 远程：git@github.com:lgq-opc/webnovel-writer.git
 - CI：`.github/workflows/plugin-tests.yml`（push master/v8-author 与 PR 按 scripts/mcp/dashboard 路径触发全量 pytest + 四校验脚本；依赖按 `requirements.lock` 锁定）

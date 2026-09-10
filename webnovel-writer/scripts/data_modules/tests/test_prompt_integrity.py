@@ -320,8 +320,12 @@ def test_webnovel_write_skill_uses_explicit_agent_invocation_templates():
     fm = _extract_frontmatter(text)
 
     assert "Agent" in fm.get("allowed-tools", "")
-    for subagent in ("context-agent", "reviewer", "data-agent"):
+    # v6 退役 Phase 1（2026-09-10）：写链只保留 reviewer（强制，审查步）与可选的
+    # context-agent（起草决策 JSON）。data-agent 属 v6 写链——v7 由 settle 自行落账，
+    # 故不再要求、且不应出现，否则会误导模型去调一个本链不存在的步骤。
+    for subagent in ("reviewer", "context-agent"):
         assert f"webnovel-writer:{subagent}" in text, f"缺少 {subagent} 的注册名显式调用"
+    assert "webnovel-writer:data-agent" not in text, "v6 的 data-agent 不该出现在 v7 写链"
     assert "subagent_type:" not in text, "不应再使用伪函数 subagent_type 调用块"
     assert "不得用主流程口头代替 subagent 输出" in text
 
@@ -347,26 +351,35 @@ def test_main_skills_define_author_friendly_final_report_contract(skill_name: st
     assert "不写 token 统计" in text
 
 
-def test_write_skill_final_report_covers_commit_projection_and_backup():
-    """写章最终报告必须覆盖正文、审查、data artifacts、commit、projection、backup。"""
+def test_write_skill_final_report_covers_v7_artifacts():
+    """写章最终报告必须覆盖 v7 写链的实际产物。
+
+    v6 退役 Phase 1（2026-09-10）：原断言针对 v6 制品——`审查报告路径`、
+    `fulfillment/disambiguation/extraction_result.json`、`.story-system/commits/*.commit.json`、
+    `state / index / summary / memory / vector`、`备份状态`、`projection retry`。
+    这些属于 v6 写链（已冻结、写路径不再走），故按 v7 制品改写而非删除整条守卫：
+    仍然要求报告把**本链真实产出**逐项列全。
+    """
     text = _read_text(SKILLS_DIR / "webnovel-write" / "SKILL.md")
     for required in (
         "正文文件路径",
-        "审查报告路径",
+        "决策卡与决策 JSON",
+        "上下文包",
+        "草稿",
         ".webnovel/tmp/review_results.json",
-        ".webnovel/tmp/fulfillment_result.json",
-        ".webnovel/tmp/disambiguation_result.json",
-        ".webnovel/tmp/extraction_result.json",
-        ".story-system/commits/chapter_{NNN}.commit.json",
-        "state / index / summary / memory / vector 更新状态",
-        "备份状态",
+        "后置落账结果",
         "是否可以继续写下一章",
     ):
         assert required in text
-    assert "chapter-commit rejected" in text
     assert "最终状态不得写“已完成”" in text
     assert "--fast" in text and "--minimal" in text
-    assert "projection retry" in text
+    # v6 专有制品不应再出现在写章契约里（退役后仍写着会误导模型去调不存在的步骤）
+    for retired in (
+        ".story-system/commits/chapter_{NNN}.commit.json",
+        "fulfillment_result.json",
+        "备份状态",
+    ):
+        assert retired not in text, f"v6 制品 {retired} 仍留在写章契约里（Phase 1 已退役）"
 
 
 def test_review_skill_final_report_covers_metrics_and_blocking_decision():
@@ -390,7 +403,9 @@ def test_main_skills_record_subagent_run_summaries_for_agent_calls():
     """主 Skill 调用 Agent 后必须记录 SubagentRun 汇总，供最终报告使用。"""
     expected = {
         "webnovel-init": ("deconstruction-agent",),
-        "webnovel-write": ("context-agent", "reviewer", "data-agent"),
+        # v6 退役 Phase 1：写链只剩 reviewer（强制 Agent 调用）。context-agent 在 v7
+        # 是可选步骤、data-agent 属 v6 写链，两者都不进 SubagentRun 强制集。
+        "webnovel-write": ("reviewer",),
         "webnovel-review": ("reviewer",),
     }
 
@@ -450,52 +465,72 @@ def test_main_skills_define_author_friendly_progress_and_recovery_contract(skill
 
 
 def test_write_skill_progress_nodes_are_author_friendly_and_limited():
-    """写章过程节点必须压缩到不超过 6 个作者可理解阶段。"""
+    """写章流程必须压缩到不超过 6 个作者可理解阶段。
+
+    v6 退役 Phase 1（2026-09-10）：原断言查的是 v6 的「写章过程节点（最多 6 个）」
+    与其六个 run-log 节点名——那套随 v6 写链一起退役。改为守护 v7 写链的六步
+    （决策/包 → 起草 → 机检 → 审查 → 润色文笔 → settle），要求仍然一样：
+    **步数 ≤6、面向作者、不出现内部机器词**。
+    """
     text = _read_text(SKILLS_DIR / "webnovel-write" / "SKILL.md")
-    marker = "写章过程节点（最多 6 个）"
+    marker = "## 执行流程"
     assert marker in text
-    section = text[text.find(marker): text.find("## 充分性闸门")]
-    nodes = re.findall(r"^\d+\.\s+(.+)$", section, flags=re.MULTILINE)
-    assert 1 <= len(nodes) <= 6
-    for forbidden in ("write-gate", "chapter-commit", "projection_status", "artifact", "schema"):
-        assert forbidden not in "\n".join(nodes)
-    for friendly in ("检查项目环境", "整理写作依据", "起草正文", "写作检查", "保存本章故事事实", "提交备份"):
-        assert any(friendly in node for node in nodes), f"缺少作者友好节点 {friendly}"
+    section = text[text.find(marker): text.find("## 作者友好过程提示与恢复契约")]
+    steps = re.findall(r"^### (\d+)\. (.+)$", section, flags=re.MULTILINE)
+    numbers = [int(n) for n, _ in steps]
+    assert numbers == list(range(1, len(steps) + 1)), f"步骤编号不连续: {numbers}"
+    assert 1 <= len(steps) <= 6, f"步骤数应 ≤6，实际 {len(steps)}"
+    for forbidden in ("write-gate", "chapter-commit", "projection_status", "schema"):
+        assert forbidden not in "\n".join(title for _, title in steps)
+    for friendly in ("决策卡与上下文包", "起草", "机检", "审查", "润色与文笔检测", "settle"):
+        assert any(friendly in title for _, title in steps), f"缺少作者友好步骤 {friendly}"
 
 
 def test_write_skill_resume_contract_uses_runtime_ledger_and_confirmation_boundaries():
-    """写章重复执行必须先查可信断点，且在覆盖风险处停下确认。"""
+    """写章重复执行必须在覆盖风险处停下确认。
+
+    v6 退役 Phase 1（2026-09-10）：原断言的 `run-ledger write-resume`、`可信断点`、
+    `本章已 accepted` 等属 v6 台账（v7 写链不使用 run-ledger）。**但这条红线要守的
+    东西没变——重复执行不得覆盖作者手改、遇到覆盖风险必须给有限选项**，故改为断言
+    v7 的等价契约：崩溃断点看 `run_last.log`（CLI 自动落账），覆盖风险走确认边界。
+    """
     text = _read_text(SKILLS_DIR / "webnovel-write" / "SKILL.md")
     for required in (
-        "run-ledger write-resume",
-        "可信断点",
-        "正文被手动改过",
-        "章纲更新晚于正文",
-        "本章已 accepted",
-        "沿用当前正文 / 重新起草 / 只查看状态",
+        "run_last.log",
+        "文件覆盖风险",
         "不得覆盖作者手改",
+        "有限选项",
     ):
-        assert required in text
+        assert required in text, f"缺少 v7 断点/确认契约 {required}"
 
 
-def test_story_system_runtime_contract_commands_exist():
+# v6 退役 Phase 1（2026-09-10）：原 `test_story_system_runtime_contract_commands_exist`
+# 守护的是 v6 写链的运行时合同刷新（story-system --emit-runtime-contracts）。该步骤
+# 随 v6 写链一起退役——**红线本身是有意移除的，不是丢失**：v7 书仓按设计不使用
+# `.story-system`，写章前也不再刷新合同。故事系统相关 CLI 的守护仍由
+# webnovel-plan / webnovel-query 等仍在 v6 面的技能承担。
+
+
+def test_webnovel_write_skill_uses_settle_as_final_step():
+    """v6 退役 Phase 1：落定主线由 v6 `chapter-commit`（Step 5）改为 v7 `v7-write settle`。
+
+    红线要守的没变——**落定必须走唯一的 CLI 主线，不得让主流程直接写状态**。
+    """
     text = (SKILLS_DIR / "webnovel-write" / "SKILL.md").read_text(encoding="utf-8")
-    assert "story-system" in text
-    assert "--emit-runtime-contracts" in text
-
-
-def test_webnovel_write_skill_uses_chapter_commit_as_step5_mainline():
-    text = (SKILLS_DIR / "webnovel-write" / "SKILL.md").read_text(encoding="utf-8")
-    assert "chapter-commit" in text
-    assert "CHAPTER_COMMIT" in text
+    assert "v7-write settle" in text
+    assert "chapter-commit" not in text, "v6 的 chapter-commit 不该再出现在 v7 写链"
     assert "state process-chapter" not in text
 
 
-def test_webnovel_write_skill_uses_project_root_backup_not_bare_git_add():
+def test_webnovel_write_skill_commits_via_cli_not_bare_git_add():
+    """v6 退役 Phase 1：v6 的 `webnovel.py backup` 子命令随写链退役；v7 由
+    `v7-write settle` 做原子提交。**红线不变：不得裸 `git add .` / 主流程自己提交。**
+    """
     text = (SKILLS_DIR / "webnovel-write" / "SKILL.md").read_text(encoding="utf-8")
     assert "webnovel.py" in text
-    assert "--project-root \"${PROJECT_ROOT}\" backup" in text
+    assert "v7-write settle" in text
     assert "git add ." not in text
+    assert "git commit" not in text, "提交必须由 settle 完成，不得让主流程自己 commit"
 
 
 def test_webnovel_query_skill_prefers_story_system_and_memory_contract():
@@ -566,9 +601,14 @@ def test_dashboard_and_plan_skills_surface_story_runtime_mainline():
     assert ".story-system/" in plan_text
 
 
-def test_webnovel_write_skill_routes_step2_through_writing_brief():
+def test_webnovel_write_skill_routes_drafting_through_context_pack():
+    """v6 退役 Phase 1：起草依据由 v6 的「写作任务书」改为 v7 的「上下文包」。
+
+    红线要守的没变——**起草只能以链路上游产出的那份依据为准，不得自行拼凑**。
+    """
     text = (SKILLS_DIR / "webnovel-write" / "SKILL.md").read_text(encoding="utf-8")
-    assert "写作任务书" in text
+    assert "上下文包" in text
+    assert "起草只以" in text and "为依据" in text
     assert "context-agent" in text
     assert "Step 0.5" not in text
     assert 'cat "${SKILL_ROOT}/../../references/shared/core-constraints.md"' not in text
@@ -580,7 +620,9 @@ def test_context_agent_and_write_skill_form_isolated_write_chain():
     skill_text = (SKILLS_DIR / "webnovel-write" / "SKILL.md").read_text(encoding="utf-8")
 
     assert "写作任务书" in context_text
-    assert "写作任务书" in skill_text
+    # v6 退役 Phase 1：写侧的依据产物由「写作任务书」改为「上下文包」；
+    # context-agent 仍被引用（可选起草决策 JSON），故仍要求出现。
+    assert "上下文包" in skill_text
     assert "context-agent" in skill_text
     assert "Context Contract" not in context_text
     assert "Step 2 直写提示词" not in context_text
@@ -731,7 +773,10 @@ def test_placeholder_scan_runs_in_both_plan_and_write_skills():
 
 # A 类红线 3：story-system 章级刷新必须传入真实 CHAPTER_GOAL 变量，
 # 不得把 {章纲目标} / 第N章章纲目标 这类占位文本当作 positional query。
-@pytest.mark.parametrize("skill_name", ["webnovel-plan", "webnovel-write"])
+# v6 退役 Phase 1（2026-09-10）：参数表移除 webnovel-write——story-system 章级
+# 合同刷新属 v6 写链（v7 书仓按设计不使用 .story-system）。webnovel-plan 仍在
+# v6 面且仍在刷新合同，红线继续守护。
+@pytest.mark.parametrize("skill_name", ["webnovel-plan"])
 def test_story_system_chapter_refresh_uses_real_goal_not_placeholder_query(skill_name: str):
     """红线 3：story-system 的 query 实参是 ${CHAPTER_GOAL} 变量，且禁占位文本写在命令里。"""
     text = _read_text(SKILLS_DIR / skill_name / "SKILL.md")
@@ -751,7 +796,10 @@ def test_story_system_chapter_refresh_uses_real_goal_not_placeholder_query(skill
 
 
 # A 类红线 4：story-system 章级刷新必须 --persist 且 --emit-runtime-contracts。
-@pytest.mark.parametrize("skill_name", ["webnovel-plan", "webnovel-write"])
+# v6 退役 Phase 1（2026-09-10）：参数表移除 webnovel-write——story-system 章级
+# 合同刷新属 v6 写链（v7 书仓按设计不使用 .story-system）。webnovel-plan 仍在
+# v6 面且仍在刷新合同，红线继续守护。
+@pytest.mark.parametrize("skill_name", ["webnovel-plan"])
 def test_story_system_chapter_refresh_persists_runtime_contracts(skill_name: str):
     """红线 4：章级 story-system 刷新必须同时 --persist 与 --emit-runtime-contracts。"""
     text = _read_text(SKILLS_DIR / skill_name / "SKILL.md")
@@ -767,24 +815,29 @@ def test_story_system_chapter_refresh_persists_runtime_contracts(skill_name: str
 
 
 # A 类红线 5：write-gate 三道闸门必须齐全且顺序为 prewrite→precommit→postcommit。
-def test_write_skill_gate_stages_ordered_prewrite_precommit_postcommit():
-    """红线 5：write-gate 三道 gate 顺序不可乱。"""
+def test_write_skill_gates_ordered_check_then_settle():
+    """v6 退役 Phase 1：v6 的 write-gate 三闸门（prewrite→precommit→postcommit）
+    随写链退役。v7 的等价物是**两道顺序固定的闸门**：先 `v7-write check`（机检草稿），
+    后 `v7-write settle`（落定门禁）。**红线不变：闸门必须在落定之前、且顺序不可乱。**
+    """
     text = _read_text(SKILLS_DIR / "webnovel-write" / "SKILL.md")
-    prewrite = text.find("write-gate --chapter {chapter_num} --stage prewrite")
-    precommit = text.find("write-gate --chapter {chapter_num} --stage precommit")
-    postcommit = text.find("write-gate --chapter {chapter_num} --stage postcommit")
-    assert prewrite >= 0, "缺少 prewrite gate"
-    assert precommit >= 0, "缺少 precommit gate"
-    assert postcommit >= 0, "缺少 postcommit gate"
-    assert prewrite < precommit < postcommit, (
-        "write-gate 三道 gate 顺序必须为 prewrite→precommit→postcommit"
-    )
+    check = text.find("v7-write check")
+    settle = text.find("v7-write settle")
+    assert check >= 0, "缺少 v7-write check 机检闸门"
+    assert settle >= 0, "缺少 v7-write settle 落定闸门"
+    assert check < settle, "闸门顺序必须为 机检(check) → 落定(settle)"
 
 
 # A 类红线 7：reviewer 原始 JSON 必须经 review-pipeline --save-metrics 落库（write 与 review 两层）。
-@pytest.mark.parametrize("skill_name", ["webnovel-write", "webnovel-review"])
+@pytest.mark.parametrize("skill_name", ["webnovel-review"])
 def test_review_pipeline_persists_metrics_in_review_chain(skill_name: str):
-    """红线 7：reviewer JSON 经 review-pipeline --save-metrics 落库。"""
+    """红线 7：reviewer JSON 经 review-pipeline --save-metrics 落库。
+
+    v6 退役 Phase 1（2026-09-10）：从参数里移除 `webnovel-write`——review-pipeline
+    属 v6 写链（写审查报告到 `审查报告/` 并落 index.db metrics），v7 的 settle 直接读
+    `.webnovel/tmp/review_results.json`，不经过它。**红线未撤销**：`webnovel-review`
+    这条路径仍在 v6 面且仍在跑，继续守护。
+    """
     text = _read_text(SKILLS_DIR / skill_name / "SKILL.md")
     cmds = _extract_cli_subcommands(text)
     assert "review-pipeline" in cmds, f"{skill_name}: 缺少 review-pipeline CLI 调用"
@@ -792,16 +845,18 @@ def test_review_pipeline_persists_metrics_in_review_chain(skill_name: str):
 
 
 # A 类红线 10：postcommit 必须验证 projection 五项；失败只 projections retry。
-def test_write_skill_postcommit_verifies_five_projections_and_retry_only():
-    """红线 10：projection 五项（state/index/summary/memory/vector）验证，失败只 retry。"""
+def test_write_skill_settle_reports_post_hooks():
+    """v6 退役 Phase 1：v6 的五投影（state/index/summary/memory/vector）+ projections retry
+    随写链退役。v7 settle 的等价后置落账是**素材轨迹 / 文风指纹 / 追读力**三项。
+
+    **红线要守的没变：后置落账的结果必须如实进最终报告，不允许静默。**
+    """
     text = _read_text(SKILLS_DIR / "webnovel-write" / "SKILL.md")
-    assert "state/index/summary/memory/vector" in text, (
-        "缺少 projection 五项（state/index/summary/memory/vector）验证说明"
-    )
-    # 失败兜底唯一手段是 projections retry（命令以续行书写，直接断言字面调用）
-    assert "projections retry --chapter {chapter_num}" in text, (
-        "projection 失败兜底必须是 projections retry --chapter {chapter_num}"
-    )
+    assert "后置落账" in text, "缺少 v7 settle 后置落账说明"
+    for hook in ("素材轨迹", "文风指纹", "追读力"):
+        assert hook in text, f"缺少 v7 后置落账项 {hook}"
+    assert "不得在最终报告中静默" in text
+    assert "projections retry" not in text, "v6 的 projections retry 不该再出现在 v7 写链"
 
 
 # A 类红线 12：plan 必须覆盖节拍表/时间线/结构化章纲节点/结构化总纲写回/状态更新。
@@ -861,19 +916,19 @@ def test_agent_write_ownership_matches_tools_frontmatter():
         )
 
 
-# B 类红线（提交前变更面校验）：write SKILL 在 chapter-commit 前必须执行只读 git diff 变更面校验。
-# 现状 write SKILL 尚无此步 → 标 xfail；Task 5（Phase 1）实现后移除本标记，转为硬守护。
-# B 类红线（提交前变更面校验）：write SKILL 在 chapter-commit 前必须执行只读 git diff 变更面校验。
-# Phase 1 (Task 5) 已落地 → 转为硬守护（移除 xfail 标记）。
-def test_write_skill_has_readonly_git_diff_change_surface_check():
-    """红线（提交前变更面校验）：write SKILL 在 chapter-commit 前执行只读 git diff 校验。"""
+# v6 退役 Phase 1（2026-09-10）：原 `test_write_skill_has_readonly_git_diff_change_surface_check`
+# 要求**主流程**在 chapter-commit 前跑只读 `git diff --name-status` / `git diff --check`。
+# 该步骤属 v6 写链且已随写链退役——v7 的变更面由 `v7-write settle` 自己保证：
+# 它用 `_git_add_settle_paths` 只 stage 本链产物后原子提交，主流程不再经手 git。
+# 因此这条「让模型记得手动校验」的要求被**有意移除**，替换为下面这条针对 v7 的硬守护。
+
+
+def test_write_skill_leaves_staging_and_commit_to_settle():
+    """红线（变更面）：v7 写链的 stage/commit 由 settle 独占，主流程不得经手 git。"""
     text = _read_text(SKILLS_DIR / "webnovel-write" / "SKILL.md")
-    assert "diff --name-status" in text, (
-        "write SKILL 缺少提交前只读 git diff --name-status 变更面校验"
-    )
-    assert "diff --check" in text, (
-        "write SKILL 缺少 git diff --check 空白/冲突标记校验"
-    )
+    assert "settle" in text
+    assert "git add" not in text, "主流程不得自己 stage，变更面由 settle 保证"
+    assert "git commit" not in text, "主流程不得自己 commit，落定由 settle 完成"
 
 
 # B 类红线（写入所有权·prompt 层）：write/review 必须在文本层声明所有权，
@@ -886,9 +941,13 @@ def test_write_review_skills_state_artifact_ownership():
         assert "主流程" in text and ".webnovel/tmp/review_results.json" in text, (
             f"{name}: 缺 reviewer→主流程落盘 review_results.json 的所有权说明"
         )
-    assert "唯一写入者" in write_text, "webnovel-write 缺 data-agent 唯一写入者说明"
+    # v6 退役 Phase 1：原先此处要求写章契约声明 `data-agent 唯一写入者` 与
+    # `不直接写 state/index/summaries/memory/vectors/projection`——两者都是 v6 写链的
+    # 所有权模型（data-agent 产三份 tmp artifact、主流程驱动五投影）。v7 写链里
+    # 这些角色由 `v7-write settle` 承担，故不再要求；但**主流程不得自己落盘**这一
+    # 所有权红线仍由上面那条 `主流程 ... .webnovel/tmp/review_results.json` 守住，
+    # 且 frontmatter 与 behavior eval 两侧仍在守护 agent 的 Write 所有权。
     assert "主流程只检查文件存在与 schema" in write_text
-    assert "不直接写 state/index/summaries/memory/vectors/projection" in write_text
 
 
 # §9.3/§12.3：reviewer 删除 ReAct/思维链 元叙述后的正向守护（审查只给输出合同，不教它怎么想）。

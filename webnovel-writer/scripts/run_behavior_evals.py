@@ -131,12 +131,15 @@ def _eval_write_blocking_gate(root: Path, case: dict[str, Any]) -> dict[str, Any
     if precommit.get("phase") == "ready_to_commit":
         problems.append("precommit gate must not report ready_to_commit without artifacts")
 
-    # 提示词层契约：SKILL 的门禁调用顺序 prewrite→precommit→chapter-commit→postcommit
+    # 提示词层契约（v6 退役 Phase 1，2026-09-10）：写链门禁由 v6 的
+    # prewrite→precommit→chapter-commit→postcommit 改为 v7 的 check → settle。
+    # 上面那段"真跑 v6 三道闸、断言 fail-closed"保留不动——它验证的是**保留的 v6 机器**
+    # （写路径已冻结但代码仍在），换掉的是提示词层的顺序契约。
     text = _read(_plugin_root(root) / "skills" / "webnovel-write" / "SKILL.md")
-    anchors = ["--stage prewrite", "--stage precommit", "chapter-commit", "--stage postcommit"]
+    anchors = ["v7-write check", "v7-write settle"]
     positions = [text.find(anchor) for anchor in anchors]
     if any(pos < 0 for pos in positions) or positions != sorted(positions):
-        problems.append("SKILL.md gate ordering drifted (prewrite→precommit→commit→postcommit)")
+        problems.append("SKILL.md v7 gate ordering drifted (check → settle)")
 
     return _result(
         case,
@@ -185,13 +188,18 @@ def _eval_artifact_ownership(root: Path, case: dict[str, Any]) -> dict[str, Any]
     for text, owner in ((write_text, "webnovel-write"), (review_text, "webnovel-review")):
         if "主流程" not in text or ".webnovel/tmp/review_results.json" not in text:
             missing.append(f"{owner}: 缺 reviewer 直写 review_results.json 的所有权说明")
-    for item in (
-        "唯一写入者",
-        "主流程只检查文件存在与 schema",
+    if "主流程只检查文件存在与 schema" not in write_text:
+        missing.append("webnovel-write 缺写入所有权红线：主流程只检查文件存在与 schema")
+    # v6 退役 Phase 1（2026-09-10）：原红线还要求写链声明「唯一写入者（data-agent）」与
+    # 「不直接写 state/index/summaries/memory/vectors/projection」——那是 v6 写链的所有权模型
+    # （data-agent 产三份 tmp artifact、主流程驱动五投影）。v7 由 `v7-write settle` 承担，
+    # 故改为**负面守护**：写链里不得出现任何直接写状态库/状态的指令（红线未撤销，只是换了方向）。
+    for forbidden in (
+        "state set-chapter-status",
         "不直接写 state/index/summaries/memory/vectors/projection",
     ):
-        if item not in write_text:
-            missing.append(f"webnovel-write 缺写入所有权红线：{item}")
+        if forbidden in write_text:
+            missing.append(f"webnovel-write 不该出现 {forbidden}（v7 写链不直接写状态）")
     return _result(
         case,
         passed=not missing,

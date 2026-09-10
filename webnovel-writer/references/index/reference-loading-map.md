@@ -35,9 +35,9 @@
 | webnovel-plan | Step 7 | 需要追读力分析 | `references/reading-power-taxonomy.md` | 区段 | 按需取 `## 一、钩子类型` / `## 二、爽点模式` / `## 三、即时满足/微兑现` |
 | webnovel-plan | Step 7 | 需要章纲细化 | `skills/webnovel-plan/references/outlining/chapter-planning.md` | 区段 | `## 10. 结构化节点规范（CBN/CPNs/CEN）`；需模板时加 `## 7. 章节规划模板` |
 | webnovel-plan | Step 6/7 | 特定题材节奏 | `skills/webnovel-plan/references/outlining/genre-volume-pacing.md` | 全文 | — |
-| webnovel-write | Step 4 | always | `skills/webnovel-write/references/polish-guide.md` | 区段 | 主路径 `## 2. 执行顺序（必须按序）`；Anti-AI 终检 `## 2A. Anti-AI 检测细则` / `## Phase 1 增补：Anti-AI 规范（7层，原版）` |
-| webnovel-write | Step 4 | always | `skills/webnovel-write/references/writing/typesetting.md` | 全文 | — |
-| webnovel-write | Step 4 | always | `skills/webnovel-write/references/style-adapter.md` | 全文 | — |
+| webnovel-write | 步骤 5 | always | `skills/webnovel-write/references/polish-guide.md` | 区段 | 主路径 `## 2. 执行顺序（必须按序）`；Anti-AI 终检 `## 2A. Anti-AI 检测细则` / `## Phase 1 增补：Anti-AI 规范（7层，原版）` |
+| webnovel-write | 步骤 5 | always | `skills/webnovel-write/references/writing/typesetting.md` | 全文 | — |
+| webnovel-write | 步骤 5 | always | `skills/webnovel-write/references/style-adapter.md` | 全文 | — |
 | webnovel-review | Step 2 | always | `references/shared/core-constraints.md` | 全文 | — |
 | webnovel-review | Step 2 | always | `references/review-schema.md` | 全文 | — |
 | webnovel-review | Step 2 | 审查涉及爽点或钩子分析 | `references/shared/cool-points-guide.md` | 区段 | 所需爽点维度段；题材适配取 `## 九、题材适配` |
@@ -59,11 +59,11 @@
 | webnovel-plan | 卷级规划 | 需要爽点/冲突设计 | `--skill plan --table 爽点与节奏 --query "{卷级核心冲突}" --genre "${GENRE}"` |
 | webnovel-plan | 卷级规划 | 需要桥段模板 | `--skill plan --table 桥段套路 --query "{卷级核心冲突}" --genre "${GENRE}"` |
 | webnovel-plan | 章纲拆分 | 新增角色出现 | `--skill plan --table 命名规则 --query "角色命名" --genre {题材}` |
-| webnovel-write | Step 2 | 新角色首次出场 | `--skill write --table 命名规则 --query "角色命名" --genre {题材}` |
-| webnovel-write | Step 2 | 战斗/对峙场景 | `--skill write --table 场景写法 --query "战斗描写" --genre {题材}` |
-| webnovel-write | Step 2 | 多角色对话 | `--skill write --table 写作技法 --query "对话声线 口吻区分" --genre {题材}` |
-| webnovel-write | Step 2 | 情感/心理描写 | `--skill write --table 写作技法 --query "情感描写 心理" --genre {题材}` |
-| webnovel-write | Step 2 | 高频桥段 | `--skill write --table 场景写法 --query "{桥段类型}" --genre {题材}` |
+| webnovel-write | 步骤 2 | 新角色首次出场 | `--skill write --table 命名规则 --query "角色命名" --genre {题材}` |
+| webnovel-write | 步骤 2 | 战斗/对峙场景 | `--skill write --table 场景写法 --query "战斗描写" --genre {题材}` |
+| webnovel-write | 步骤 2 | 多角色对话 | `--skill write --table 写作技法 --query "对话声线 口吻区分" --genre {题材}` |
+| webnovel-write | 步骤 2 | 情感/心理描写 | `--skill write --table 写作技法 --query "情感描写 心理" --genre {题材}` |
+| webnovel-write | 步骤 2 | 高频桥段 | `--skill write --table 场景写法 --query "{桥段类型}" --genre {题材}` |
 
 ## CSV 检索：`story-system` 间接消费
 
@@ -103,17 +103,17 @@
 
 | Skill/Agent | 阶段 | 触发 | Reference | 读取方式 |
 |-------------|------|------|-----------|---------|
-| webnovel-write | Step 2/4 | 多视角群像章 / 视角越界自检 | `references/shared/pov-management.md` | 全文 |
+| webnovel-write | 步骤 2/5 | 多视角群像章 / 视角越界自检 | `references/shared/pov-management.md` | 全文 |
 
 ### M5/T26 接线（2026-09-03，R7/R8）
 
 | Skill/Agent | 阶段 | 触发 | Reference | 读取方式 |
 |-------------|------|------|-----------|---------|
-| webnovel-write | Step 2 | 高潮/打脸/兑现、已知桥段、新配角/关系冲突、金手指展开（触发面 5→9） | `references/csv/{爽点与节奏,桥段套路,人设与关系,金手指与设定}.csv` | `reference_search.py --skill write` |
+| webnovel-write | 步骤 2 | 高潮/打脸/兑现、已知桥段、新配角/关系冲突、金手指展开（触发面 5→9） | `references/csv/{爽点与节奏,桥段套路,人设与关系,金手指与设定}.csv` | `reference_search.py --skill write` |
 | agents/context-agent | 第 3 段 人物组装 | 多角色同场对话/新角色命名 | `references/shared/naming-and-voice-gaps.md` | 全文 |
 | agents/context-agent | 第 3 段 按需补查 | 同上四触发（R8） | `references/csv/{爽点与节奏,桥段套路,人设与关系,金手指与设定}.csv` | `reference_search.py --skill write` |
 | webnovel-init | Step 4 金手指 | always | `templates/golden-finger-templates.md` | 区段 |
-| webnovel-write | Step 4 | 言情/狗血/情感浓度高的章 | `skills/webnovel-write/references/writing/desire-description.md` | 区段 |
+| webnovel-write | 步骤 5 | 言情/狗血/情感浓度高的章 | `skills/webnovel-write/references/writing/desire-description.md` | 区段 |
 
 > 退役登记：`templates/market-positioning.md`、`templates/plot-frameworks.md`、`templates/outline-structure.md`
 > 已在 2026-08-30 S5 死 reference 清理中删除（F-09 审计时点的三孤儿不复存在）。

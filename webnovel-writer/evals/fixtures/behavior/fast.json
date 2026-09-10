@@ -33,21 +33,25 @@
       "id": "skill_write_contract",
       "type": "skill_contract",
       "skill": "webnovel-write",
-      "description": "/webnovel-write calls runtime gates at natural boundaries.",
+      "description": "/webnovel-write follows the v7 write chain in order (decision → pack → check → settle).",
       "required": [
-        "write-gate --chapter {chapter_num} --stage prewrite",
-        "write-gate --chapter {chapter_num} --stage precommit",
-        "write-gate --chapter {chapter_num} --stage postcommit",
-        "projections retry --chapter {chapter_num}"
+        "v7-write decision",
+        "v7-write pack --chapter {chapter_num}",
+        "v7-write check --chapter {chapter_num}",
+        "v7-write settle --chapter {chapter_num}"
       ],
       "ordered": [
         [
-          "write-gate --chapter {chapter_num} --stage precommit",
-          "chapter-commit"
+          "v7-write decision",
+          "v7-write pack --chapter {chapter_num}"
         ],
         [
-          "chapter-commit",
-          "write-gate --chapter {chapter_num} --stage postcommit"
+          "v7-write pack --chapter {chapter_num}",
+          "v7-write check --chapter {chapter_num}"
+        ],
+        [
+          "v7-write check --chapter {chapter_num}",
+          "v7-write settle --chapter {chapter_num}"
         ]
       ]
     },
@@ -65,9 +69,18 @@
         "理由必须来自作者原话"
       ],
       "ordered": [
-        ["v7-write pack --chapter {chapter_num}", "v7-write check --chapter {chapter_num}"],
-        ["v7-write check --chapter {chapter_num}", "v7-write settle --chapter {chapter_num}"],
-        ["prose-check --file", "v7-write settle --chapter {chapter_num}"]
+        [
+          "v7-write pack --chapter {chapter_num}",
+          "v7-write check --chapter {chapter_num}"
+        ],
+        [
+          "v7-write check --chapter {chapter_num}",
+          "v7-write settle --chapter {chapter_num}"
+        ],
+        [
+          "prose-check --file",
+          "v7-write settle --chapter {chapter_num}"
+        ]
       ]
     },
     {
@@ -128,7 +141,7 @@
     {
       "id": "write_blocks_before_commit",
       "type": "write_blocking_gate",
-      "description": "/webnovel-write keeps blocking review issues before commit and calls runtime gates."
+      "description": "/webnovel-write keeps blocking review issues before settle, and the retained v6 write gates still fail closed (frozen-legacy)."
     },
     {
       "id": "data_agent_artifact_only",

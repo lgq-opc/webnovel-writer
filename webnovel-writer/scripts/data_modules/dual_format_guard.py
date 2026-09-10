@@ -16,7 +16,33 @@ import re
 from pathlib import Path
 from typing import Any, Optional
 
-from .write_gates import issue
+def _issue(
+    code: str,
+    *,
+    message: str,
+    severity: str = "blocker",
+    path: str = "",
+    impact: str = "",
+    repair: str = "",
+    details: Any = None,
+) -> dict[str, Any]:
+    """构造一条门禁 issue。
+
+    v6 退役 Phase 1：**本函数是 `write_gates.issue` 的内联副本**。原先本模块
+    `from .write_gates import issue`，使这个 v7 settle 依赖的守卫挂在了 v6 门禁包上
+    ——v6 写路径物理删除时它会成为唯一残留的纠缠点。内联后 guard 自持，
+    字典形状与 `write_gates.issue` 逐字一致（对方删除前两边输出必须相同）。
+    """
+    return {
+        "code": code,
+        "severity": severity,
+        "message": message,
+        "path": path,
+        "impact": impact,
+        "repair": repair,
+        "details": details,
+    }
+
 
 V7_FINALIZED_DIR = Path("定稿") / "正文"
 _SETTLED_NAME_RE = re.compile(r"^(\d{4})-.*\.md$")
@@ -104,7 +130,7 @@ def check_unique_write_path(
     other = "v7" if target_format == "v6" else "v6"
     if not formats.get(other):
         return None
-    return issue(
+    return _issue(
         "dual_format_write_blocked",
         message=f"第 {chapter} 章已以 {other} 格式落定，禁止以 {target_format} 双写",
         impact="同一章节双写会造成两套事实源分叉，破坏唯一写入路径不变量。",

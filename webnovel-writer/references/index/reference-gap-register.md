@@ -28,7 +28,7 @@
 | --------------------------------------------------- | --------------------------------- | ----------------------------- | --------- | -------------------------------- |
 | `references/review/blocking-override-guidelines.md` | webnovel-review                   | Step 6 / blocking issue 需用户决策 | 缺陷补偿      | 涉及可/不可 override 场景判断，需独立正反例      |
 | `references/outlining/plot-signal-vs-spoiler.md`    | webnovel-plan                     | 章纲拆分 / always                 | 提醒 + 知识补充 | 信号 vs 剧透的判断标准需独立说明，skill 一句话覆盖不了 |
-| `references/shared/naming-and-voice-gaps.md`        | webnovel-write (主), init/plan (次) | Step 2 / 多角色对话、新角色命名          | 缺陷补偿      | 命名同质化、口吻趋同、题材语汇漂移涉及多类稳定错误        |
+| `references/shared/naming-and-voice-gaps.md`        | webnovel-write (主), init/plan (次) | 步骤 2 / 多角色对话、新角色命名          | 缺陷补偿      | 命名同质化、口吻趋同、题材语汇漂移涉及多类稳定错误        |
 
 
 ### 新增 CSV 知识库
@@ -50,7 +50,7 @@
 | `writing/dialogue-writing.md` (231 行)         | 写作技法.csv（分类=对话）      | 同上            |
 | `writing/emotion-psychology.md` (265 行)       | 写作技法.csv（分类=情感）      | 同上            |
 | `writing/scene-description.md` (263 行)        | 写作技法.csv（分类=场景）      | 同上            |
-| `writing/desire-description.md` (311 行)       | write Step 4（言情/狗血类按需读） | 已接线（M5/T26，R7） |
+| `writing/desire-description.md` (311 行)       | write 步骤 5（言情/狗血类按需读） | 已接线（M5/T26，R7） |
 | `writing/genre-hook-payoff-library.md` (85 行) | 场景写法.csv（场景类型=钩子/兑现） | 保守保留原文；CSV 仅覆盖部分钩子/兑现条目 |
 
 

@@ -32,9 +32,9 @@
 
 | Agent | 职责 | 被谁调用 |
 |-------|------|---------|
-| `context-agent` | 写前 research，输出写作任务书 | `/webnovel-write` Step 1 |
-| `reviewer` | 逐维度事实审查 | `/webnovel-write` Step 3、`/webnovel-review` |
-| `data-agent` | 从正文提取事实，生成 commit artifacts | `/webnovel-write` Step 5 |
+| `context-agent` | 写前 research，起草决策 JSON（**不得替代上下文包**） | `/webnovel-write` 步骤 1 |
+| `reviewer` | 逐维度事实审查 | `/webnovel-write` 步骤 4、`/webnovel-review` |
+| `data-agent` | 从正文提取事实，生成 commit artifacts（**v6 写链**，v7 由 settle 自行落账） | v6 写链 |
 | `deconstruction-agent` | 参考书拆解，提炼可迁移写法 | `/webnovel-init` Step 1.5 |
 
 ## 书项目根配置（userConfig）
