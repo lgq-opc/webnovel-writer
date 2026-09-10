@@ -24,7 +24,10 @@
 - [x] **`dual_format_guard` 缺配置时输出 warning**：v6 侧（`STORY_REPO_ROOT` 环境变量为空）或 v7 侧（`git config dualformat.v6root` 缺失且 decision 无 `v6_project_root`）导致守卫静默跳过时，至少打印一条 warning 或写入 journal，避免用户误以为"唯一写入路径守卫"总是生效。证据：`v7_write.py` 内 `_v6_root_from_git_config`、`config.py:231` `DataModulesConfig.story_repo_root`。**（2026-09-10 已完成：新增 `unchecked_other_side_warning()`；prewrite/precommit 写入 gate report warnings（code=dual_format_guard_config_missing，不阻断），settle 无 v6 根时 stderr 打印；测试 6 条新增全绿）**
 - [x] **给 `security_utils.py` 补测试至更高覆盖率**（当前 53%），尤其 `git_graceful_operation` 异常分支（322-343 行）与 `restore_from_backup`（540-554 行）；评估是否需要给安全关键模块单独设更高的覆盖率门槛（而非依赖整体 80% 均摊）。**（2026-09-10 已完成：新增 `scripts/tests/test_security_utils.py` 18 条测试（sanitize 边界 / git 优雅降级含超时与 OSError / atomic 失败路径与备份容错 / read / restore / 内置自检），53%→95%（Windows 实测，剩 11 行为 filelock 回退与 POSIX 专属分支）；评估结论=需要独立闸：plugin-tests.yml 新增 `coverage report --include="*security_utils.py" --fail-under=90` 步骤）**
 - [x] **视情况扩充 `skills/webnovel-write`、`skills/webnovel-review` 的 evals 集**（当前分别只有 3 条、1 条），或至少明确记录"生成质量目前主要靠 fantasy01 真仓人工冒烟验证，非自动化"这一验证方式的边界，写进对应 SKILL.md 或 README 的"已知限制"章节，避免后来者误以为已有充分自动化覆盖。**（2026-09-10 已完成：选择"记录边界"选项——README「开发与测试」新增「已知限制（自动化验证边界）」节；扩充 evals 留待积累真实样本后另行立项）**
-- [ ] **跟踪交接文档登记的数据缺口**：fantasy01 真仓 `定稿/设定/名册/苏小白.md` 缺失导致"主角卡"字段不全（见 `docs/cursor/项目复审/2026-09-04-会话交接.md`），标注"不阻塞"但应补一条正式 TODO 项防止遗忘。（2026-09-09 复审：该测试书仓不在本仓库/本次审阅环境中，未能独立复核，状态维持不变）
+- [superseded] **跟踪交接文档登记的数据缺口**：fantasy01 真仓 `定稿/设定/名册/苏小白.md` 缺失导致"主角卡"字段不全（见 `docs/cursor/项目复审/2026-09-04-会话交接.md`），标注"不阻塞"但应补一条正式 TODO 项防止遗忘。（2026-09-09 复审：该测试书仓不在本仓库/本次审阅环境中，未能独立复核，状态维持不变）**（2026-09-10 关闭，理由与实测证据：）**
+  - 实测两仓：**缺名册的是 `fantasy01`（v1）**——`定稿/设定/名册` 不存在，其 `设定/` 下只有 `力量锚点.yaml`；而**活跃的 `fantasy01-v2` 已有 `定稿/设定/名册/苏小白.md`**。
+  - v2 才是当前写链所在（ch40 由 `8d9ce0a settle: 第0040章 灾前夜` 落定，`book.yaml` 声明 `spec_version: "7.0"`），本条的原始影响面（主角卡字段不全）在活跃仓上不存在。
+  - v1 是否继续维护，应由进行中的 v6 线退役方案（`docs/plans/2026-09-10-v6线退役方案.md`）统一裁决，而不是挂在这条数据缺口待办上。
 - [x] **给依赖声明补锁文件**：根 `requirements.txt`、`webnovel-writer/scripts/requirements.txt`、`webnovel-writer/dashboard/requirements.txt` 全部为无上界的 `>=` 声明，仓库内无任何 `*.lock`/`pip-compile` 产物。建议生成一份 `pip freeze` 锁文件作为 CI 与发版验证的"已知良好"基线，`requirements.txt` 本身可保留宽松范围供人工升级。与上面「补 CI」一条一起处理，二者叠加才能防止"依赖漂移导致测试结果不可复现"。证据：2026-09-09 复审新发现（P2-5），见报告「本轮新发现」一节；实测本次虚拟环境已装到比首次审阅更新的 `starlette`/`fastapi` 补丁版本（pytest 警告数从 2 条变为 27 条）。**（2026-09-10 已完成：新增根 `requirements.lock`（py3.13.5 干净 venv freeze，41 包）；仅装锁的干净 venv pip check 通过，全量 pytest 1588 passed / 81.35%，四校验脚本全绿）**
 
 ## P3
@@ -37,9 +40,44 @@
 
 > 上述 P1–P3 的 11 项 `[x]` 已逐条独立核验属实，未发现本次修复引入的回归。以下为核验中发现、**此前两轮审阅未暴露的既有问题**（非本次回归；根因是问题只在中文 Windows locale 暴露，而前两轮在 Linux 跑）。
 
-- [ ] **N-1（P1，证据可复现性）文档记录的测试命令在中文 Windows 上不是全绿**：按 `requirements.lock` 干净 venv 实测——`python -X utf8 -m pytest`（AGENTS.md 原样命令）= **1618 collected / 23 failed**；`run_tests.ps1 -Mode full`（裸 `python -m pytest`）= **2 failed**；只有 `PYTHONUTF8=1` 才 0 failed。根因＝测试里 `subprocess.run(..., text=True)` 的编码假设与实际子进程输出不一致（`-X utf8` 模式子进程按 GBK 输出→父进程 UTF-8 解码崩；非 UTF-8 模式 git 输出 UTF-8→父进程 GBK 解码崩）。项目自身设计文档（`story-repo-spec` 等）本就要求 Windows 设 `PYTHONUTF8=1`，但 AGENTS.md/run_tests.ps1 未落实。修复路径：①文档侧统一加 `PYTHONUTF8=1`；②测试侧给 `subprocess.run` 显式 `encoding="utf-8"` 并让子进程入口走 UTF-8。
-- [ ] **N-2（P3，CI 维护）CI 结构性看不到 N-1**：`plugin-tests.yml` 固定 `ubuntu-latest`（locale UTF-8），N-1 不出现；另 `gh run view` 有 Actions `checkout@v4`/`setup-python@v5` 的 Node.js 20 弃用告警，建议后续升版。
-- [ ] **N-3（观察）AGENTS.md 领先提交数为滚动快照**：文件写 125，实测 132（文件已自带「引用前重新实测」提示，非缺陷；可考虑只写命令不写数字）。
+- [x] **N-1（P1，证据可复现性）文档记录的测试命令在中文 Windows 上不是全绿**：按 `requirements.lock` 干净 venv 实测——`python -X utf8 -m pytest`（AGENTS.md 原样命令）= **1618 collected / 23 failed**；`run_tests.ps1 -Mode full`（裸 `python -m pytest`）= **2 failed**；只有 `PYTHONUTF8=1` 才 0 failed。根因＝测试里 `subprocess.run(..., text=True)` 的编码假设与实际子进程输出不一致（`-X utf8` 模式子进程按 GBK 输出→父进程 UTF-8 解码崩；非 UTF-8 模式 git 输出 UTF-8→父进程 GBK 解码崩）。项目自身设计文档（`story-repo-spec` 等）本就要求 Windows 设 `PYTHONUTF8=1`，但 AGENTS.md/run_tests.ps1 未落实。修复路径：①文档侧统一加 `PYTHONUTF8=1`；②测试侧给 `subprocess.run` 显式 `encoding="utf-8"` 并让子进程入口走 UTF-8。**（2026-09-10 已完成，走"测试侧治本 + 文档统一"口径：）**
+  - **①测试侧治本**：新增仓库根 `conftest.py`，在测试进程内统一子进程编码契约——text 模式调用方显式 `encoding="utf-8"`，并给子进程环境注入 `PYTHONUTF8=1`/`PYTHONIOENCODING=utf-8`（含调用方自带 env 的情形）。**刻意不设 `errors=`**：不让真编码缺陷被 replace 掩盖。此后再新增测试也不必逐处记得传 encoding。
+  - **②文档与入口统一**：`AGENTS.md` 测试命令改为 `$env:PYTHONUTF8=1; python -X utf8 -m pytest`；`run_tests.ps1` 增 `$env:PYTHONUTF8`/`$env:PYTHONIOENCODING`，让不依赖 conftest 兜底的调用者也拿到确定编码。
+  - **证据（同一命令、修前修后对照）**：`python -X utf8 -m pytest -p no:cov -q` 修前 = **23 failed**（21 `test_reference_search.py` + 2 `test_validate_csv.py`，报错均为 `UnicodeDecodeError: 'utf-8' codec can't decode byte 0xbd`）；加 conftest 后同一命令 = **0 failed**（`C_EXIT=0`），对照组 `PYTHONUTF8=1 python -X utf8 -m pytest` 修前即为 0 failed。
+  - **不改生产代码**：生产侧同类隐患另立 N-4（见下）。
+- [~] **N-2（P3，CI 维护）CI 结构性看不到 N-1**：`plugin-tests.yml` 固定 `ubuntu-latest`（locale UTF-8），N-1 不出现；另 `gh run view` 有 Actions `checkout@v4`/`setup-python@v5` 的 Node.js 20 弃用告警，建议后续升版。**（2026-09-10 已改，待一次真实 CI 运行确认：）**
+  - `actions/checkout@v4`→`@v7`、`actions/setup-python@v5`→`@v7`（版本号经 GitHub API `releases/latest` 查证为 v7.0.1 / v7.0.0，非凭记忆；并已确认本 workflow 未使用 setup-python v7 移除的 `pip-install` 输入）。
+  - 新增 `tests-windows` job：跑的就是 AGENTS.md 上写的原样命令、**刻意不设 `PYTHONUTF8`**，专门复现"用户照文档敲"的场景，使 N-1 这一类编码缺陷不再对 CI 隐身。
+  - `on.push/pull_request.paths` 补 `conftest.py`（它现在是编码契约的一环，改它同样该触发 CI）。
+  - **未证实项**：workflow YAML 已本地解析校验通过，但 **GitHub windows runner 的真实结果无法本地验证**——本机是中文 Windows（ANSI=GBK），runner 是 en-US（ANSI=cp1252），conftest 的设计是让测试不再依赖 locale，这一点需要一次真实 CI 运行才能确认。首次跑红时优先怀疑此项。
+- [x] **N-3（观察）AGENTS.md 领先提交数为滚动快照**：文件写 125，实测 132（文件已自带「引用前重新实测」提示，非缺陷；可考虑只写命令不写数字）。**（2026-09-10 已完成：AGENTS.md「当前状态」改为不写死数字，只留 `git log --oneline origin/master..HEAD | wc -l` 命令；本次实测该值为 133。）**
+
+## 2026-09-10 全项目巡查新增（F 系列 + N-4）
+
+> 来源：本轮「待办清单清理 + 全项目审阅」的独立复现与巡查。证据均为本机实测命令输出。
+> F 系列与前两轮审阅无关，是本轮新暴露的；N-4 是修 N-1 时顺带查出的同类隐患。
+
+- [x] **F1（P1）doctor 在纯 v7 书上误报 v6 合同缺失，并把作者引向错误的路**：`fantasy01-v2` 已在 `book.yaml` 裁决弃用 v6 线、写到第 40 章，但 doctor 仍按 v6 的 `.story-system` 合同判 `mainline_ready=false`，并在 `recommended_actions` 里输出「补齐 Story System 合同和 accepted commit 后再写」——让作者去重建一个本仓已明确不要的东西。
+  - **根因**：`story_runtime_sources.load_runtime_sources` 的 `fallback_sources` 完全由 v6 四份合同与 accepted commit 是否缺失决定；`story_runtime_health` 取 `mainline_ready = not fallback_sources`；`doctor` 直接消费它。
+  - **一处勘察纠错**：任务描述里写「v7 仓没有 `.story-system`」，实际 `fantasy01-v2` **有** `.story-system/`（只剩 `commits/`+`events/` 迁移残留）。故判据取「**合同链锚点**是否存在」（`MASTER_SETTING.json` / `volumes` / `chapters` / `reviews`）而非目录存在性——只看目录会把这本书判回 v6，缺陷照旧。
+  - **实现**：`domain_contract.py` 新增 `has_v6_contract_chain()` 与 `resolve_write_mode() -> "v6"|"v7"`（判据三条，任一命中即 v6：无 `book.yaml`、有 `.webnovel/state.json`、有 v6 合同链；**方向刻意偏向 v6**——误判 v6 只是多报告警，误判 v7 等于拆闸门）；`RuntimeSourceSnapshot`/health 报告透出 `write_mode`；`doctor` 按形态给 status/impact/repair；`invariant_check` 的 `Inv-5 合同重建` 对 v7 直接 skip。
+  - **证据（真实书仓，修复前后）**：`--project-root .../fantasy01-v2 doctor` → `warnings: 3` → **`warnings: 1`**；`story_runtime.health` 的误导 repair 消失，`--format json` 中该条 `status: "ok"` 且 `"write_mode": "v7"`、`"mainline_ready": true`；剩下的 `run_log.step_coverage` 与本缺陷无关（见下 F4）。
+  - **不削弱 v6 的证据**：构造 v6 形态仓跑真实 CLI，`mainline_ready=false` 与「补齐 Story System 合同」原样保留；`Inv-5` 仍 `status=fail`。新增测试 14 条（health 4 / doctor 4 / domain_contract 4 / invariant 2），其中 4 条专为"v6 闸门未被削弱"设卡。
+- [x] **F2（P2）`v7-write` 子命令抛裸 traceback，且 `--help` 不工作**：`webnovel.py v7-write decision --help` 未捕获 `FileNotFoundError` 刷屏；根因是 `v7_args` 用 `nargs=REMAINDER`，`--help` 被当透传参数吃掉、到不了 argparse，于是继续解析项目根并崩。
+  - **实现**：新增 `_resolve_root_or_report()`（复用 `cmd_where` 既有模式：捕获→stderr 诊断→返回 None），替换**全部 22 处**未捕获的 `_resolve_root_lenient` 调用点；`cmd_v7_write` 先剥离 `--`、再检查透传参数含 `-h/--help` 则跳过根解析直接转发。
+  - **证据**：修复前 `v7-write decision --help` → `Traceback ... FileNotFoundError`；修复后 → 打印 **v7_write 自己的** 帮助（含 `--repo`/`--json`，可确认非外层入口帮助）、`EXIT=0`。无项目根时 → 干净中文诊断 + `EXIT=1`、stderr 无 `Traceback`（`style-domain`/`learn` 同类命令一并生效）。
+- [x] **F3（P2）`pack` 缺决策卡时静默产出降级上下文包**：`decision_from_card` 在决策卡不存在时静默返回空壳 `{"chapter": N, "title": "", "entities": []}`，`pack` 照常退出 0 并写出「## 决策卡」为空壳的上下文包——不报错、不警告，作者会拿着缺决策卡的包去写正文。
+  - **实现**：`decision_from_card` 缺卡返回 `None`（抽出 `decision_card_path()`）；`pack` 分支遇 `None` 时 stderr 打印缺失文件全路径 + 正确顺序（先 decision 再 pack），`EXIT=1` 且**在写文件之前返回**。
+  - **证据**：修复前 → `OK v7-write pack chapter=41 used=3,171` + 空壳决策卡段；修复后 → `ERROR ... 未提供 --json，且决策卡不存在：...\工作区\决策卡-0041.md` + `EXIT=1` + **未产出文件**（独立复核确认）。
+  - **端到端反证（本轮"能开始写章"的实证）**：补齐决策 JSON 后重跑 `decision` → `pack`，上下文包的决策卡段**完整填充**（title/pov/time_anchor/目标字数/目标/节点），`used=3,606`。验证用产物已清理，书仓 `git status` 干净。
+  - **一处既有测试随之修正**：`test_webnovel_cli_v7_write.py::test_v7_write_forwarding_pack` 原先在**没有决策卡**的仓上跑 `pack` 并断言退出 0——它固化的正是 F3 这个缺陷本身。已补最小决策卡夹具，使其继续只验证"转发"这件事。
+- [ ] **N-4（P2，同类隐患，生产侧未修）生产代码中 `subprocess.run(text=True)` 未显式 `encoding`**：全仓 **12 处**（`v7_write.py` 3、`security_utils.py` 2、`backup_manager.py`/`init_project.py`/`author_sync.py`/`scale_drill.py`/`validate_release_notes.py`/`mcp/server.py`/`hooks/session_start.py` 各 1）。它们拉起的子进程有两类——`git`（输出 UTF-8）与**带 `-X utf8` 的 Python 子进程**（输出 UTF-8）——**两类都要求父进程处于 UTF-8 模式**；若父进程以裸 `python`（非 UTF-8 模式）启动，`text=True` 会按 GBK 解码 UTF-8 输出而崩。本轮按既定口径只治测试侧（N-1），生产侧未动。修复方向：给这些调用点显式 `encoding="utf-8"`，或在 CLI/钩子入口统一设置 UTF-8 模式。
+
+### F 系列遗留（本轮发现但未处理，需独立排期）
+
+- [ ] **F4（P2）写章流程未按规范追加步骤日志**：`fantasy01-v2` 的 `.webnovel/logs/run_last.log` 只有 `write-start` 一行，doctor 因此报 `run_log.step_coverage` warning，其自述影响为「**写章崩溃后 run_last.log 无法定位最后卡点，排障困难**」。这是当前写链**唯一残留的 warning**，且直接关系"能否稳定写章"。修复方向：确认 SKILL 在每个关键步骤后调用 `run-log --event <step> --append`。
+- [ ] **F5（P2）`user_report.py` 仍带同类 v6 专属假设**：`build_plan_report()`（约 884 行）按四份 v6 合同缺失判 `mainline_ready=false` 并记「missing {label} contract」；`build_init_report()` 按 v6 骨架（`设定集/正文/审查报告`）判缺。不在 doctor 链路上，本轮未动。可直接复用 F1 引入的 `resolve_write_mode`。
+- [ ] **F6（P3）v7 仓的 `_resolve_chapter` 未覆盖纯 `定稿/正文` 形态**：`story_runtime_health._resolve_chapter` 仍只看 `.story-system` 与 `.webnovel/state.json`，不看 `定稿/正文`。`fantasy01-v2` 因有迁移残留 commits 解析出 40（正确）；一个只有 `定稿/正文` 而无两者痕迹的新 v7 仓会解析出 0，落到 `chapter_unspecified` 早返回分支（该分支现已带 `write_mode`，措辞正确，但会多一条 warning）。
 
 ## 已验证无需处理（供归档参考）
 

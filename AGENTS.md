@@ -13,7 +13,8 @@
 
 ```powershell
 # 运行测试（根 pytest.ini：data_modules + scripts + mcp 三处，覆盖率门槛 80）
-python -X utf8 -m pytest
+# 必须带 PYTHONUTF8=1（N-1）：中文 Windows 上少了它会因父子进程编码不一致而假失败。
+$env:PYTHONUTF8=1; python -X utf8 -m pytest
 
 # smoke 快速子集
 powershell -File webnovel-writer/scripts/run_tests.ps1 -Mode smoke
@@ -47,7 +48,9 @@ webnovel-writer/              ← 外层仓库根（marketplace.json 双位置�
 
 ## 当前状态
 
-- 当前版本：v8.1.0（作者主权 + 300 章连贯：六域书仓治理 + MCP 14 只读工具 + 13 条命令；`v8-author` 分支，125 提交领先 master（2026-09-10 实测，随提交增长，引用前请重新 `git log --oneline origin/master..HEAD | wc -l`）；tag `v8.1.0` 已推送远端）
+- 当前版本：v8.1.0（作者主权 + 300 章连贯：六域书仓治理 + MCP 14 只读工具 + 13 条命令；`v8-author` 分支，tag `v8.1.0` 已推送远端）
+- 领先 master 的提交数**不在此处写死**（N-3：这是个滚动快照，写下的数字第二天就过期）——需要时现算：
+  `git log --oneline origin/master..HEAD | wc -l`
 - 上游：lingfengQAQ/webnovel-writer（v6.2.1 起分叉；上游 v7/v8 路线与本仓无关）
 - 远程：git@github.com:lgq-opc/webnovel-writer.git
 - CI：`.github/workflows/plugin-tests.yml`（push master/v8-author 与 PR 按 scripts/mcp/dashboard 路径触发全量 pytest + 四校验脚本；依赖按 `requirements.lock` 锁定）
