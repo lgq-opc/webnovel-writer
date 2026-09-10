@@ -63,11 +63,19 @@ export PROJECT_ROOT="$(echo "$PREFLIGHT_ALL" | grep '^PROJECT_ROOT=' | head -1 |
 ### 准备：书仓形态判定
 
 `${PROJECT_ROOT}/book.yaml` 存在 → 本书是 v7 story-repo，按下文流程走。
-**不存在 → 这是 v6 书项目，v6 写链已冻结，本技能不覆盖它；请先迁移再回来**：
 
-```bash
-python -X utf8 "${SCRIPTS_DIR}/migrate_v6_to_v7.py" --project-root "<v6 项目根>" --output "<新的 v7 书仓目录>"
-```
+**不存在**时分两种：
+- **全新的书** → 用 `book-init` 直接建 v7 书仓（不需要先建 v6 再迁移）：
+
+  ```bash
+  python -X utf8 "${SCRIPTS_DIR}/webnovel.py" book-init "<新书目录>" "<书名>" --genre "<题材>" --target-words <总字数> --target-chapters <总章数>
+  ```
+
+- **既有的 v6 书项目** → v6 写链已冻结，先迁移再回来：
+
+  ```bash
+  python -X utf8 "${SCRIPTS_DIR}/migrate_v6_to_v7.py" --project-root "<v6 项目根>" --output "<新的 v7 书仓目录>"
+  ```
 
 ### 1. 决策卡与上下文包
 

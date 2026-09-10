@@ -179,7 +179,7 @@ Dashboard 是个只读面板，能看项目状态、实体关系图、章节内�
 
 ## 写章工作流
 
-> **v6 写链已冻结（frozen-legacy，2026-09-10 退役方案 Phase 1）**：仅维护、不再演进；**新书写章一律走 v7 写链**（即下文）。v6 书项目先迁移：`python -X utf8 webnovel-writer/scripts/migrate_v6_to_v7.py --project-root <v6根> --output <新 v7 书仓>`。
+> **v6 写链已冻结（frozen-legacy，2026-09-10 退役方案 Phase 1）**：仅维护、不再演进；**新书写章一律走 v7 写链**（即下文）。**新书用 `webnovel.py book-init <目录> <书名>` 直接建 v7 书仓**（不需要先建 v6 再迁移）；既有 v6 书项目先迁移：`migrate_v6_to_v7.py --project-root <v6根> --output <新 v7 书仓>`。
 
 `/webnovel-write` 不是把活儿丢给模型生成一次就完事，而是一条带关卡的完整流水线（v7 书仓）：
 

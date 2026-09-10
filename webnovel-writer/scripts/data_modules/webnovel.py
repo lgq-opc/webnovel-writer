@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import importlib
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -86,6 +87,7 @@ PASSTHROUGH_TOOLS = {
     "backup",
     "archive",
     "init",
+    "book-init",
     "story-system",
     "memory-contract",
     "project-memory",
@@ -138,7 +140,17 @@ def _run_script(script_name: str, argv: list[str]) -> int:
     script_path = _scripts_dir() / script_name
     if not script_path.is_file():
         raise FileNotFoundError(f"未找到脚本: {script_path}")
-    proc = subprocess.run([sys.executable, str(script_path), *argv])
+
+    # N-4 同类：转发脚本时子进程的 stdio 编码必须**跟随父进程**，否则两边对不上。
+    # 父进程处于 UTF-8 模式（`-X utf8` / PYTHONUTF8=1，AGENTS.md 的规定跑法）而子进程
+    # 按 locale（中文 Windows = GBK）输出时，被转发的脚本输出会整片乱码——实测
+    # `webnovel.py book-init` 的中文输出即如此。故显式把父进程的编码与 UTF-8 模式传下去。
+    child_env = dict(os.environ)
+    child_env["PYTHONIOENCODING"] = sys.stdout.encoding or "utf-8"
+    if getattr(sys.flags, "utf8_mode", 0):
+        child_env["PYTHONUTF8"] = "1"
+
+    proc = subprocess.run([sys.executable, str(script_path), *argv], env=child_env)
     return int(proc.returncode or 0)
 
 
@@ -1339,8 +1351,11 @@ def _main_impl() -> None:
     p_archive = sub.add_parser("archive", help="转发到 archive_manager.py")
     p_archive.add_argument("args", nargs=argparse.REMAINDER)
 
-    p_init = sub.add_parser("init", help="转发到 init_project.py（初始化项目）")
+    p_init = sub.add_parser("init", help="转发到 init_project.py（v6 初始化；新书请用 book-init）")
     p_init.add_argument("args", nargs=argparse.REMAINDER)
+
+    p_book_init = sub.add_parser("book-init", help="v7-native 新书初始化（book.yaml + 六域骨架；不产生 v6 遗留）")
+    p_book_init.add_argument("args", nargs=argparse.REMAINDER)
 
     p_extract_context = sub.add_parser("extract-context", help="转发到 extract_chapter_context.py")
     p_extract_context.add_argument("--chapter", type=int, required=True, help="目标章节号")
@@ -1423,9 +1438,11 @@ def _main_impl() -> None:
         rest = rest[1:]
     rest = _strip_project_root_args(rest)
 
-    # init 是创建项目，不应该依赖/注入已存在 project_root
+    # init / book-init 是创建项目，不应该依赖/注入已存在 project_root
     if tool == "init":
         raise SystemExit(_run_script("init_project.py", rest))
+    if tool == "book-init":
+        raise SystemExit(_run_script("init_book.py", rest))
 
     # knowledge boundary（M4/T21，A1）：信息差表为纯 md，不依赖 index.db——宽松解析支持纯 v7 书仓
     if tool == "knowledge" and getattr(args, "knowledge_action", "") == "boundary":
