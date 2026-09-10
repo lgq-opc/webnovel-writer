@@ -139,11 +139,6 @@
       ]
     },
     {
-      "id": "write_blocks_before_commit",
-      "type": "write_blocking_gate",
-      "description": "/webnovel-write keeps blocking review issues before settle, and the retained v6 write gates still fail closed (frozen-legacy)."
-    },
-    {
       "id": "data_agent_artifact_only",
       "type": "data_agent_boundary",
       "description": "data-agent produces commit artifacts and does not directly write projection read-models."

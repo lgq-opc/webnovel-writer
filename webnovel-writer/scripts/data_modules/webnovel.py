@@ -729,26 +729,6 @@ def cmd_setting_read(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_write_gate(args: argparse.Namespace) -> int:
-    from .write_gates import (
-        externalize_gate_report,
-        format_gate_compact,
-        format_gate_report,
-        run_write_gate,
-    )
-
-    root = _resolve_root(args.project_root)
-    report = run_write_gate(root, chapter=args.chapter, stage=args.stage)
-    externalize_gate_report(root, report)
-    if args.format == "json":
-        print(format_gate_report(report, "json"))
-    elif args.format == "text":
-        print(format_gate_report(report, "text"))
-    else:
-        print(format_gate_compact(report))
-    return 0 if report.get("ok") else 1
-
-
 def cmd_user_report(args: argparse.Namespace) -> int:
     from .user_report import build_user_report, format_user_report
 
@@ -1202,17 +1182,6 @@ def _main_impl() -> None:
     p_setting_read.add_argument("--name", required=True, help="设定名（如 世界观/力量体系/主角卡）")
     p_setting_read.add_argument("--max-chars", type=int, default=0, help="最多输出字符（0=全文）")
     p_setting_read.set_defaults(func=cmd_setting_read)
-
-    p_write_gate = sub.add_parser("write-gate", help="写章自然边界校验")
-    p_write_gate.add_argument("--chapter", type=int, required=True, help="目标章节号")
-    p_write_gate.add_argument("--stage", choices=["prewrite", "precommit", "postcommit"], required=True, help="校验阶段")
-    p_write_gate.add_argument(
-        "--format",
-        choices=["compact", "json", "text"],
-        default="compact",
-        help="输出格式（compact=一行结论默认；json=全量 JSON；快照恒落盘 .webnovel/tmp/last_gate_<stage>.json）",
-    )
-    p_write_gate.set_defaults(func=cmd_write_gate)
 
     p_user_report = sub.add_parser("user-report", help="渲染作者友好的最终报告")
     p_user_report.add_argument("--stage", choices=["init", "plan", "write", "review"], required=True, help="报告阶段")

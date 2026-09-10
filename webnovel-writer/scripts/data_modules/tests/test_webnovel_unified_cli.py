@@ -652,45 +652,6 @@ def test_status_command_still_forwards_to_status_reporter(monkeypatch, tmp_path)
     assert called["script_name"] == "status_reporter.py"
 
 
-def test_write_gate_cli_runs_prewrite(monkeypatch, tmp_path, capsys):
-    module = _load_webnovel_module()
-    project_root = tmp_path / "book"
-    _make_cli_init_ready_project(project_root)
-    for path, payload in (
-        (project_root / ".story-system" / "MASTER_SETTING.json", {"meta": {"contract_type": "MASTER_SETTING"}}),
-        (project_root / ".story-system" / "volumes" / "volume_001.json", {"meta": {"volume": 1}}),
-        (project_root / ".story-system" / "chapters" / "chapter_001.json", {"chapter_directive": {"must_cover_nodes": []}}),
-        (project_root / ".story-system" / "reviews" / "chapter_001.review.json", {"blocking_rules": []}),
-    ):
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
-
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        [
-            "webnovel",
-            "--project-root",
-            str(project_root),
-            "write-gate",
-            "--chapter",
-            "1",
-            "--stage",
-            "prewrite",
-            "--format",
-            "json",
-        ],
-    )
-
-    with pytest.raises(SystemExit) as exc:
-        module.main()
-
-    captured = capsys.readouterr()
-    report = json.loads(captured.out)
-    assert int(exc.value.code or 0) == 0
-    assert report["schema_version"] == "webnovel-write-gate/v1"
-    assert report["stage"] == "prewrite"
-    assert report["ok"] is True
 
 
 

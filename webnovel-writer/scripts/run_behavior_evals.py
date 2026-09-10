@@ -106,49 +106,10 @@ def _eval_skill_contract(root: Path, case: dict[str, Any]) -> dict[str, Any]:
     )
 
 
-def _eval_write_blocking_gate(root: Path, case: dict[str, Any]) -> dict[str, Any]:
-    """S5：行为契约改造——门禁「失败关闭」改为运行时验证（临时项目真跑三道闸），
-    SKILL 仅保留 precommit→commit 的顺序这一提示词层契约检查。"""
-    scripts_dir = _plugin_root(root) / "scripts"
-    if str(scripts_dir) not in sys.path:
-        sys.path.insert(0, str(scripts_dir))
-    from data_modules.write_gates import run_write_gate
-
-    problems: list[str] = []
-    with tempfile.TemporaryDirectory() as tmp:
-        project_root = Path(tmp)
-        webnovel_dir = project_root / ".webnovel"
-        webnovel_dir.mkdir(parents=True, exist_ok=True)
-        (webnovel_dir / "state.json").write_text("{}", encoding="utf-8")
-
-        prewrite = run_write_gate(project_root, chapter=1, stage="prewrite")
-        precommit = run_write_gate(project_root, chapter=1, stage="precommit")
-        postcommit = run_write_gate(project_root, chapter=1, stage="postcommit")
-
-    for name, report in (("prewrite", prewrite), ("precommit", precommit), ("postcommit", postcommit)):
-        if report.get("ok"):
-            problems.append(f"{name} gate must fail closed on incomplete project")
-    if precommit.get("phase") == "ready_to_commit":
-        problems.append("precommit gate must not report ready_to_commit without artifacts")
-
-    # 提示词层契约（v6 退役 Phase 1，2026-09-10）：写链门禁由 v6 的
-    # prewrite→precommit→chapter-commit→postcommit 改为 v7 的 check → settle。
-    # 上面那段"真跑 v6 三道闸、断言 fail-closed"保留不动——它验证的是**保留的 v6 机器**
-    # （写路径已冻结但代码仍在），换掉的是提示词层的顺序契约。
-    text = _read(_plugin_root(root) / "skills" / "webnovel-write" / "SKILL.md")
-    anchors = ["v7-write check", "v7-write settle"]
-    positions = [text.find(anchor) for anchor in anchors]
-    if any(pos < 0 for pos in positions) or positions != sorted(positions):
-        problems.append("SKILL.md v7 gate ordering drifted (check → settle)")
-
-    return _result(
-        case,
-        passed=not problems,
-        reason="write gates fail closed at runtime and SKILL keeps gate ordering"
-        if not problems
-        else "write blocking gate contract broken",
-        evidence=problems or [prewrite.get("phase"), precommit.get("phase"), postcommit.get("phase")],
-    )
+# v6 退役 Phase 2 增量 2：原 `_eval_write_blocking_gate` 随 v6 write-gate 一起移除。
+# 它做两件事——①真跑 run_write_gate 断言 fail-closed（测 v6 代码本身）；②断言 SKILL 的
+# v6 门禁顺序。①随模块消失，②的契约已在 Phase 1 换成 v7 的 check→settle 顺序，
+# 由 `skill_write_contract` 评测守护。
 
 
 def _eval_data_agent_boundary(root: Path, case: dict[str, Any]) -> dict[str, Any]:
@@ -491,7 +452,6 @@ def _eval_author_workflow_probe(root: Path, case: dict[str, Any]) -> dict[str, A
 EVALUATORS = {
     "skill_frontmatter": _eval_skill_frontmatter,
     "skill_contract": _eval_skill_contract,
-    "write_blocking_gate": _eval_write_blocking_gate,
     "data_agent_boundary": _eval_data_agent_boundary,
     "artifact_ownership": _eval_artifact_ownership,
     "dashboard_read_only": _eval_dashboard_read_only,

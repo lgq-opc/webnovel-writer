@@ -26,7 +26,6 @@ from data_modules.dual_format_guard import (  # noqa: E402
     has_v7_settled_chapter,
     unchecked_other_side_warning,
 )
-from data_modules.write_gates import run_write_gate  # noqa: E402
 from .test_project_phase import _make_contracts, _make_init_ready  # noqa: E402
 
 
@@ -135,54 +134,3 @@ class TestUncheckedOtherSideWarning:
         assert unchecked_other_side_warning("v7", project_root=Path("/v6"), story_repo_root=Path("/v7")) is None
 
 
-class TestPrewriteGateIntegration:
-    def test_prewrite_blocks_when_v7_already_settled(self, tmp_path, tmp_path_factory, monkeypatch):
-        _make_init_ready(tmp_path)
-        _make_contracts(tmp_path, chapter=1)
-        repo = _v7_repo(tmp_path_factory.mktemp("v7-side"), [1])
-        # 预置环境变量（monkeypatch 自动还原，防跨测试污染）；真实使用走项目 .env
-        monkeypatch.setenv("STORY_REPO_ROOT", str(repo))
-
-        report = run_write_gate(tmp_path, chapter=1, stage="prewrite")
-
-        assert report["ok"] is False
-        assert any(item["code"] == "dual_format_write_blocked" for item in report["errors"])
-
-    def test_prewrite_passes_without_v7(self, tmp_path, monkeypatch):
-        _make_init_ready(tmp_path)
-        _make_contracts(tmp_path, chapter=1)
-        monkeypatch.delenv("STORY_REPO_ROOT", raising=False)
-
-        report = run_write_gate(tmp_path, chapter=1, stage="prewrite")
-
-        assert report["ok"] is True
-
-    def test_prewrite_warns_when_v7_root_unconfigured(self, tmp_path, monkeypatch):
-        # P2-2：STORY_REPO_ROOT 缺失时守卫静默放行，报告必须带配置缺失 warning
-        _make_init_ready(tmp_path)
-        _make_contracts(tmp_path, chapter=1)
-        monkeypatch.delenv("STORY_REPO_ROOT", raising=False)
-
-        report = run_write_gate(tmp_path, chapter=1, stage="prewrite")
-
-        assert report["ok"] is True  # warning 不阻断
-        assert any(item["code"] == "dual_format_guard_config_missing" for item in report["warnings"])
-
-    def test_prewrite_no_config_warning_when_v7_root_set(self, tmp_path, tmp_path_factory, monkeypatch):
-        _make_init_ready(tmp_path)
-        _make_contracts(tmp_path, chapter=1)
-        repo = _v7_repo(tmp_path_factory.mktemp("v7-side"), [1])
-        monkeypatch.setenv("STORY_REPO_ROOT", str(repo))
-
-        report = run_write_gate(tmp_path, chapter=1, stage="prewrite")
-
-        assert not any(item["code"] == "dual_format_guard_config_missing" for item in report["warnings"])
-
-    def test_precommit_warns_when_v7_root_unconfigured(self, tmp_path, monkeypatch):
-        _make_init_ready(tmp_path)
-        _make_contracts(tmp_path, chapter=1)
-        monkeypatch.delenv("STORY_REPO_ROOT", raising=False)
-
-        report = run_write_gate(tmp_path, chapter=1, stage="precommit")
-
-        assert any(item["code"] == "dual_format_guard_config_missing" for item in report["warnings"])
