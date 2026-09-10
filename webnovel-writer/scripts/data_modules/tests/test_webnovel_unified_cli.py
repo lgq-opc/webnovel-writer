@@ -331,30 +331,6 @@ def test_webnovel_commit_requires_all_artifacts(monkeypatch, tmp_path):
     assert int(exc.value.code or 0) == 2
 
 
-def test_webnovel_story_events_forwards(monkeypatch, tmp_path):
-    module = _load_webnovel_module()
-    project_root = tmp_path / "book"
-    (project_root / ".webnovel").mkdir(parents=True, exist_ok=True)
-    (project_root / ".webnovel" / "state.json").write_text("{}", encoding="utf-8")
-    called = {}
-
-    def _fake_run_script(script_name, argv):
-        called["script_name"] = script_name
-        called["argv"] = list(argv)
-        return 0
-
-    monkeypatch.setattr(module, "_run_script", _fake_run_script)
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        ["webnovel", "--project-root", str(project_root), "story-events", "--chapter", "3"],
-    )
-
-    with pytest.raises(SystemExit) as exc:
-        module.main()
-
-    assert int(exc.value.code or 0) == 0
-    assert called["script_name"] == "story_events.py"
 
 
 def test_preflight_succeeds_for_valid_project_root(monkeypatch, tmp_path, capsys):

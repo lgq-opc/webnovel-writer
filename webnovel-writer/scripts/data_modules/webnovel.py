@@ -1304,10 +1304,6 @@ def _main_impl() -> None:
     p_story_system = sub.add_parser("story-system", help="转发到 story_system.py")
     p_story_system.add_argument("args", nargs=argparse.REMAINDER)
 
-    p_story_events = sub.add_parser("story-events", help="转发到 story_events.py")
-    p_story_events.add_argument("--chapter", type=int, default=0, help="目标章节号")
-    p_story_events.add_argument("--limit", type=int, default=200, help="查询条数")
-    p_story_events.add_argument("--health", action="store_true", help="输出事件链健康信息")
 
     p_review_pipeline = sub.add_parser("review-pipeline", help="转发到 review_pipeline.py")
     p_review_pipeline.add_argument("--chapter", type=int, required=True, help="目标章节号")
@@ -1424,13 +1420,6 @@ def _main_impl() -> None:
         raise SystemExit(_run_script("extract_chapter_context.py", return_args))
     if tool == "story-system":
         raise SystemExit(_run_script("story_system.py", [*forward_args, *rest]))
-    if tool == "story-events":
-        return_args = [*forward_args, "--limit", str(args.limit)]
-        if args.chapter:
-            return_args.extend(["--chapter", str(args.chapter)])
-        if args.health:
-            return_args.append("--health")
-        raise SystemExit(_run_script("story_events.py", return_args))
     if tool == "review-pipeline":
         return_args = [
             *forward_args,
