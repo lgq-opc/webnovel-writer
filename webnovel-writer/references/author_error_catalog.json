@@ -112,6 +112,34 @@
       "next_action": "本次无需处理；如果经常出现，检查 RAG API key 和网络配置。",
       "command": "/webnovel-doctor",
       "auto_handle": true
+    },
+    {
+      "code": "v7 profile incomplete",
+      "match": {
+        "codes": ["v7 profile incomplete"],
+        "contains": ["v7 profile incomplete"]
+      },
+      "severity": "must_handle",
+      "title": "这本书的六域骨架还没补齐",
+      "reason": "v7 书仓的必备骨架（book.yaml 与六域目录/文件）有缺失。",
+      "impact": "写链可能读不到章纲、素材、文风或作者模型等依据。",
+      "next_action": "按报告里的缺失项把对应目录/文件补上；不确定缺什么时运行 `/webnovel-doctor` 看体检结论。",
+      "command": "/webnovel-doctor",
+      "auto_handle": false
+    },
+    {
+      "code": "v7 outline missing",
+      "match": {
+        "codes": ["v7 outline missing"],
+        "contains": ["v7 outline missing"]
+      },
+      "severity": "must_handle",
+      "title": "本章的章纲还没就绪",
+      "reason": "在总纲或卷纲里找不到本章的大纲内容。",
+      "impact": "起草时缺少本章目标、节点与禁区，容易写偏。",
+      "next_action": "先在 `大纲/卷纲/` 的对应卷详细大纲里补上本章小节，再重新运行这条命令。",
+      "command": "/webnovel-doctor",
+      "auto_handle": false
     }
   ],
   "fallback": {

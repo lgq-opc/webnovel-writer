@@ -132,7 +132,15 @@
   - **doctor 同步认得 v7 事件**：新增 `_STEP_LOG_EVENTS` 常量（v6 的 6 个 `step-*` + v7 的 4 个 `v7-*`），否则 v7 书仓会被误报"未追加步骤日志"；`repair` 文案也按形态分写（v7 步骤是自动落账的，仍只见 `write-start` 说明一步都没跑成）。
   - **SKILL.md 同步**：v7 分支加醒目说明——该分支**不需要**主流程手调 `run-log --append`，只有不经 CLI 的步骤（起草、审查）才需自行落账。
   - **证据**：探针（不经 pytest）跑 `decision` → `pack` 两步，`run_last.log` 自动生成 `v7-decision` / `v7-pack` 两条，**全程无任何手调 run-log 的动作**。新增 `test_v7_write_run_log.py` 10 条：覆盖四种动作各自落账、同章追加、换章重开、记账失败不阻断写链、拒绝态落账、doctor 认得 v7 事件、**以及反向守住"真的只有 write-start 时仍要告警"**（别把闸门一起拆了）。
-- [ ] **F5（P2）`user_report.py` 仍带同类 v6 专属假设**：`build_plan_report()`（约 884 行）按四份 v6 合同缺失判 `mainline_ready=false` 并记「missing {label} contract」；`build_init_report()` 按 v6 骨架（`设定集/正文/审查报告`）判缺。不在 doctor 链路上，本轮未动。可直接复用 F1 引入的 `resolve_write_mode`。
+- [x] **F5（P2）`user_report.py` 仍带同类 v6 专属假设**：`build_plan_report()` 按四份 v6 合同缺失判 `mainline_ready=false` 并记「missing {label} contract」；`build_init_report()` 按 v6 骨架（`设定集/正文/审查报告`）判缺。**（2026-09-10 已修复）**
+  - **实测比原判严重**：在写了 40 章的真 v7 书 `fantasy01-v2` 上，`build_plan_report(root, chapter=40)` 返回 `overall_status=needs_user` + **4 条 `must_handle`**，面向作者的文案是「这本书的写作档案还没就绪」，`next_action` 是「**先运行 `/webnovel-init` 创建项目档案**」——**让作者去重新初始化一本已写 40 章的书**，是一条看着可执行、实则把作者引回起点的错误指引。`build_init_report` 同样 `needs_user`。
+  - **修法**（复用 F1 的 `resolve_write_mode`，形态判据与 doctor 同源）：
+    - `build_init_report`：v7 按 **book.yaml + 六域骨架**（`domain_contract.REQUIRED_DIRS/FILES`）判；v6 原逻辑不动。
+    - `build_plan_report`：v7 按 **`大纲/总纲.md` + 本章章纲**判；v6 仍按四份合同判。
+    - 章纲查找复用 `chapter_outline_loader.load_chapter_outline`——**它是"去哪找本章章纲"的唯一事实源**，本地重写一套查找逻辑只会两边漂移（该 loader 用 `⚠️` 前缀表示未找到，是其对调用方的既有契约）。
+  - **错误目录新增两条 v7 专属码**（否则沿用 `mainline_ready=false` 就会把「先运行 /webnovel-init」这条 v6 文案照搬给 v7 书）：`v7 profile incomplete`（骨架缺项）、`v7 outline missing`（章纲缺），两者的 `next_action` 都改成 v7 语境、不再提 init。
+  - **验收证据（真 v7 书 fantasy01-v2）**：`init` → `completed` / 0 条 must_handle（11 项全 completed）；`plan(ch40)` → `completed`；**`plan(ch41)` → `completed`，本章章纲已就绪**——顺带确认这本书确实具备开写 ch41 的条件。修复前同三项均为 `needs_user` + 误报。
+  - **反向守住**：新增两条测试确保 v6 书仓的行为未被削弱（`test_init_report_v6_repo_behaviour_unchanged`、`test_plan_report_v6_repo_still_demands_contracts`）。
 - [x] **F7（P2）测试临时目录持续泄漏：每次全量约漏 3000+ 个目录 / 200MB**：`scripts/conftest.py` 的 `tmp_path` 夹具用 `shutil.rmtree(path, ignore_errors=True)` 清理，但**测试会建 git 仓**，而 Windows 上 git 对象文件带**只读属性** → `rmtree` 删不掉 → `ignore_errors=True` **静默吞掉异常** → 每个建仓的测试漏一个目录。**（2026-09-10 已修复）**
   - **实测证据（2026-09-10）**：清理时 `.tmp/pytest/` 累积 **8179 个顶层条目 / 79,385 个文件 / 202 MB**，按日期分布 `09-03: 1909 / 09-04: 2740 / 09-09: 197 / 09-10: 3333`；单独跑 `test_v7_write.py`（31 用例）净增 **30** 个目录；样本目录内 `repo/.git/objects/` 实测 **13 个文件全部 `ReadOnly=True`**，而 PowerShell `Remove-Item -Recurse -Force` 可成功删除。泄漏量（约每建仓用例 1 个）与今日一次全量的 3333 吻合。
   - **影响**：不只是占磁盘——`conftest` 把 `TMP/TEMP/TMPDIR` 指向该目录，条目越多 IO 越慢，**实测全量耗时被明显拖长**（首次 123 秒，累积后同一套明显更久）。

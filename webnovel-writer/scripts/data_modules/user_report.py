@@ -28,6 +28,11 @@ if __package__ in {None, ""}:  # pragma: no cover - direct script entry
         validate_fulfillment_result,
         validate_review_result,
     )
+    from data_modules.domain_contract import (
+        REQUIRED_DIRS as V7_REQUIRED_DIRS,
+        REQUIRED_FILES as V7_REQUIRED_FILES,
+        resolve_write_mode,
+    )
     from data_modules.error_catalog import AuthorError, classify_issue
     from data_modules.project_phase import (
         COMMIT_ARTIFACT_FILES,
@@ -54,6 +59,11 @@ else:
         validate_extraction_result,
         validate_fulfillment_result,
         validate_review_result,
+    )
+    from .domain_contract import (
+        REQUIRED_DIRS as V7_REQUIRED_DIRS,
+        REQUIRED_FILES as V7_REQUIRED_FILES,
+        resolve_write_mode,
     )
     from .error_catalog import AuthorError, classify_issue
     from .project_phase import (
@@ -839,49 +849,108 @@ def build_review_report(project_root: Path, *, chapter: int, volume: int | None 
     return report
 
 
+def _v7_init_entries() -> list[tuple[str, str, str]]:
+    """v7 书仓的初始化必备项：(label, 相对路径, "dir"|"file")。"""
+    entries: list[tuple[str, str, str]] = [("book.yaml", "book.yaml", "file")]
+    entries += [(rel, rel, "dir") for rel in V7_REQUIRED_DIRS]
+    entries += [(rel, rel, "file") for rel in V7_REQUIRED_FILES]
+    return entries
+
+
+def _v6_init_entries() -> list[tuple[str, str, str]]:
+    entries: list[tuple[str, str, str]] = [(rel, rel, "dir") for rel in INIT_REQUIRED_DIRS]
+    entries += [(rel, rel, "file") for rel in INIT_REQUIRED_FILES]
+    return entries
+
+
 def build_init_report(project_root: Path, *, chapter: int | None = None, volume: int | None = None) -> dict[str, Any]:
     report = _new_report(project_root, stage="init", chapter=chapter, volume=volume)
     core_files = 0
-    for rel in INIT_REQUIRED_DIRS:
+
+    # F5：v7 书仓既没有 .story-system，也没有 v6 那套 `设定集/正文/审查报告` 骨架。
+    # 按 v6 标准判缺，会让一本写了 40 章的书被报「写作档案还没就绪 / 先运行
+    # /webnovel-init」——一条看着可执行、实则把作者引回起点的错误指引。
+    # 形态判据复用 F1 引入的 resolve_write_mode（与 doctor 同源）。
+    is_v7 = resolve_write_mode(project_root) == "v7"
+    entries = _v7_init_entries() if is_v7 else _v6_init_entries()
+    # v7 没有 native init，不能沿用 v6 那条「先运行 /webnovel-init」的文案。
+    issue_code = "v7 profile incomplete" if is_v7 else "mainline_ready=false"
+
+    for label, rel, kind in entries:
         path = project_root / rel
-        if path.is_dir():
+        present = path.is_dir() if kind == "dir" else path.is_file()
+        if present:
             core_files += 1
-            _add_file(report, label=rel, path=rel, status="completed", note="已创建")
+            _add_file(report, label=label, path=rel, status="completed",
+                      note="已创建" if kind == "dir" else "已生成")
         else:
-            _add_file(report, label=rel, path=rel, status="missing", note="缺少目录")
-            _add_classified_issue(report, {"code": "mainline_ready=false", "message": rel}, source="init", path=rel)
-    for rel in INIT_REQUIRED_FILES:
-        path = project_root / rel
-        if path.is_file():
-            core_files += 1
-            _add_file(report, label=rel, path=rel, status="completed", note="已生成")
-        else:
-            _add_file(report, label=rel, path=rel, status="missing", note="缺少文件")
-            _add_classified_issue(report, {"code": "mainline_ready=false", "message": rel}, source="init", path=rel)
+            _add_file(report, label=label, path=rel, status="missing",
+                      note="缺少目录" if kind == "dir" else "缺少文件")
+            _add_classified_issue(report, {"code": issue_code, "message": rel}, source="init", path=rel)
+
     report["overall_status"] = _status_from_issues(report, core_file_count=core_files)
     _append_project_status_next_action(report, project_root, chapter)
     return report
+
+
+def _add_v7_outline_files(report: dict[str, Any], project_root: Path, chapter: int, issue_code: str) -> int:
+    """v7 书仓的本章章纲检查，返回命中的文件数。
+
+    v7 的章节依据在 `大纲/` 下（总纲 + 卷纲里的本章小节，或 `大纲/章纲/` 的拆分文件），
+    没有 v6 的 `.story-system` 四份合同。这里复用 `chapter_outline_loader`——
+    **它是"去哪找本章章纲"的唯一事实源**，在本地重写一套查找逻辑只会两边漂移。
+
+    该 loader 用 `⚠️` 前缀表示"没找到"（它对调用方的既有契约），故以此判定。
+    """
+    try:
+        from chapter_outline_loader import load_chapter_outline
+    except ImportError:  # pragma: no cover
+        from scripts.chapter_outline_loader import load_chapter_outline
+
+    outline = load_chapter_outline(project_root, chapter)
+    if outline.startswith("⚠️"):
+        _add_file(report, label="本章章纲", path=f"大纲（第{chapter}章）", status="missing", note="缺少本章章纲")
+        _add_classified_issue(
+            report,
+            {"code": issue_code, "message": f"missing chapter {chapter} outline"},
+            source="plan",
+            path=f"大纲（第{chapter}章）",
+        )
+        return 0
+
+    _add_file(report, label="本章章纲", path=f"大纲（第{chapter}章）", status="completed", note="已生成")
+    return 1
 
 
 def build_plan_report(project_root: Path, *, chapter: int | None = None, volume: int | None = None) -> dict[str, Any]:
     target_chapter = int(chapter or 1)
     report = _new_report(project_root, stage="plan", chapter=target_chapter, volume=volume)
     core_files = 0
+
+    # F5：与 build_init_report 同类。v7 书仓的"章纲依据"是 大纲/ 下的总纲 + 卷纲，
+    # 不是 .story-system 的四份 v6 合同；按 v6 判缺会在纯 v7 书上刷屏式误报。
+    is_v7 = resolve_write_mode(project_root) == "v7"
+    outline_code = "v7 outline missing" if is_v7 else "mainline_ready=false"
+
     outline_path = project_root / "大纲" / "总纲.md"
     if outline_path.is_file():
         core_files += 1
         _add_file(report, label="总纲", path=_rel(project_root, outline_path), status="completed", note="已生成")
     else:
         _add_file(report, label="总纲", path="大纲/总纲.md", status="missing", note="缺少总纲")
-        _add_classified_issue(report, {"code": "mainline_ready=false", "message": "missing outline"}, source="plan", path="大纲/总纲.md")
+        _add_classified_issue(report, {"code": outline_code, "message": "missing outline"},
+                              source="plan", path="大纲/总纲.md")
 
-    for label, path in contract_files_for_chapter(project_root, target_chapter).items():
-        if path.is_file():
-            core_files += 1
-            _add_file(report, label=f"Story System {label}", path=_rel(project_root, path), status="completed", note="合同已生成")
-        else:
-            _add_file(report, label=f"Story System {label}", path=_rel(project_root, path), status="missing", note="合同缺失")
-            _add_classified_issue(report, {"code": "mainline_ready=false", "message": f"missing {label} contract"}, source="plan", path=_rel(project_root, path))
+    if is_v7:
+        core_files += _add_v7_outline_files(report, project_root, target_chapter, outline_code)
+    else:
+        for label, path in contract_files_for_chapter(project_root, target_chapter).items():
+            if path.is_file():
+                core_files += 1
+                _add_file(report, label=f"Story System {label}", path=_rel(project_root, path), status="completed", note="合同已生成")
+            else:
+                _add_file(report, label=f"Story System {label}", path=_rel(project_root, path), status="missing", note="合同缺失")
+                _add_classified_issue(report, {"code": "mainline_ready=false", "message": f"missing {label} contract"}, source="plan", path=_rel(project_root, path))
 
     report["overall_status"] = _status_from_issues(report, core_file_count=core_files)
     _append_project_status_next_action(report, project_root, target_chapter)
