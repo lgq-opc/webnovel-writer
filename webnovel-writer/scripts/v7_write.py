@@ -871,6 +871,50 @@ def decision_from_card(repo: Path, chapter: int) -> Optional[dict[str, Any]]:
     return decision
 
 
+_RUN_LOG_EVENT_PREFIX = "v7-"
+
+
+def _log_write_step(repo: Path, action: str, chapter: int | None, status: str = "completed") -> None:
+    """F4：把本次 v7 写链动作落进 `run_last.log`。
+
+    写链的崩溃粒度靠 `run_last.log`——崩溃后靠最后一条判断卡在哪。前提是**每个
+    步骤完成后有落账**。此前这步完全依赖模型记得手调
+    `run-log --event <step> --append`，而那条要求只写在 SKILL.md 里、没有任何机器闸；
+    实测在快模型上必然漏（fantasy01-v2 的 ch40 日志只剩 `write-start` 一行，
+    doctor 因此长期报 `run_log.step_coverage`）。
+
+    改为**由执行该步骤的工具自己落账**：跑过 `v7-write <action>` 就必然留痕，
+    不再依赖自觉。
+
+    「同章追加、换章重开」：日志末条属于本章就 `append`，否则（或日志不存在）
+    覆盖重开——这样即使模型漏调 `write-start`，也不会把多章日志混在一起。
+
+    记账失败**绝不阻断写链本身**（日志是旁路，不是门禁）。
+    """
+    try:
+        from data_modules.run_logger import log_path, write_run_log
+
+        chapter_num = int(chapter or 0)
+        path = log_path(repo)
+        append = False
+        if path.is_file():
+            try:
+                lines = [ln for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+                if lines:
+                    previous = json.loads(lines[-1])
+                    append = int((previous.get("payload") or {}).get("chapter") or 0) == chapter_num
+            except (OSError, ValueError):
+                append = False
+        write_run_log(
+            repo,
+            event=f"{_RUN_LOG_EVENT_PREFIX}{action}",
+            payload={"chapter": chapter_num, "step": f"{_RUN_LOG_EVENT_PREFIX}{action}", "status": status},
+            append=append,
+        )
+    except Exception:
+        pass
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="v7 写路径：决策卡/上下文包/机检/settle")
     sub = parser.add_subparsers(dest="action", required=True)
@@ -904,6 +948,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     if args.action == "decision":
         decision = json.loads(Path(args.json).read_text(encoding="utf-8"))
         print(write_decision_card(Path(args.repo), decision))
+        _log_write_step(Path(args.repo), "decision", decision.get("chapter"))
         return 0
     if args.action == "pack":
         decision = json.loads(Path(args.json).read_text(encoding="utf-8")) if args.json else decision_from_card(Path(args.repo), args.chapter)
@@ -921,11 +966,13 @@ def main(argv: Optional[list[str]] = None) -> int:
         out = Path(args.repo) / "工作区" / f"上下文包-{args.chapter:04d}.md"
         out.write_text(md, encoding="utf-8")
         print(f"OK v7-write pack chapter={args.chapter} used={stats['used']:,} file={out}")
+        _log_write_step(Path(args.repo), "pack", args.chapter)
         return 0
     if args.action == "check":
         decision = json.loads(Path(args.json).read_text(encoding="utf-8"))
         report = run_checks(Path(args.repo), decision, Path(args.draft).read_text(encoding="utf-8"))
         print(json.dumps(report, ensure_ascii=False, indent=1))
+        _log_write_step(Path(args.repo), "check", args.chapter, "completed" if report["ok"] else "failed")
         return 0 if report["ok"] else 2
     if args.action == "settle":
         decision = json.loads(Path(args.json).read_text(encoding="utf-8"))
@@ -939,15 +986,18 @@ def main(argv: Optional[list[str]] = None) -> int:
         except GateRejected as exc:
             print(f"REJECTED v7-write settle chapter={args.chapter}: {exc}", file=sys.stderr)
             print(json.dumps(exc.report, ensure_ascii=False, indent=1), file=sys.stderr)
+            _log_write_step(Path(args.repo), "settle", args.chapter, "rejected")
             return 2
         except (RuntimeError, ValueError) as exc:
             print(f"REJECTED v7-write settle chapter={args.chapter}: {exc}", file=sys.stderr)
+            _log_write_step(Path(args.repo), "settle", args.chapter, "failed")
             return 2 if "机检" in str(exc) else 1
         print(
             f"OK v7-write settle chapter={args.chapter} committed={result['committed']} "
             f"bypassed={result['gates']['bypassed']} file={result['chapter_file']} "
             f"post={_format_post(result.get('post') or {})}"
         )
+        _log_write_step(Path(args.repo), "settle", args.chapter)
         return 0
     return 0
 

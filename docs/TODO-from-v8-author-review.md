@@ -109,7 +109,15 @@
 
 ### F 系列遗留（本轮发现但未处理，需独立排期）
 
-- [ ] **F4（P2）写章流程未按规范追加步骤日志**：`fantasy01-v2` 的 `.webnovel/logs/run_last.log` 只有 `write-start` 一行，doctor 因此报 `run_log.step_coverage` warning，其自述影响为「**写章崩溃后 run_last.log 无法定位最后卡点，排障困难**」。这是当前写链**唯一残留的 warning**，且直接关系"能否稳定写章"。修复方向：确认 SKILL 在每个关键步骤后调用 `run-log --event <step> --append`。
+- [x] **F4（P2）写章流程未按规范追加步骤日志**：`fantasy01-v2` 的 `.webnovel/logs/run_last.log` 只有 `write-start` 一行，doctor 因此报 `run_log.step_coverage` warning，其自述影响为「**写章崩溃后 run_last.log 无法定位最后卡点，排障困难**」。这是当前写链**唯一残留的 warning**，且直接关系"能否稳定写章"。**（2026-09-10 已修复）**
+  - **没有按原定的"确认 SKILL 按规范调用"去做**，因为那正是问题本身：这条要求只活在 `SKILL.md` 的一段散文里，代码侧仅有一个只读诊断，而 doctor 给的修复建议就是「确认 SKILL 按规范调用」——**即"请让模型记得"**。对快模型这是必然失效的一类（同 N-1：规则离触发点越远越等于不存在）。
+  - **实际修法——由执行步骤的工具自己落账**：`v7_write` 新增 `_log_write_step()`，在 `decision` / `pack` / `check` / `settle` 各动作**成功或失败时自动**往 `run_last.log` 追加 `v7-*` 事件。跑过 `v7-write <action>` 就必然留痕，不再依赖任何人的自觉。
+    - 语义：**同章追加、换章覆盖重开**（比对日志末条的 `payload.chapter`）——这样即使主流程漏调 `write-start`，多章日志也不会混在一起。
+    - 记账失败**绝不阻断写链**（日志是旁路，不是门禁）。
+    - 门禁拒绝也落账（`status=rejected`）——拒绝现场同样需要可定位。
+  - **doctor 同步认得 v7 事件**：新增 `_STEP_LOG_EVENTS` 常量（v6 的 6 个 `step-*` + v7 的 4 个 `v7-*`），否则 v7 书仓会被误报"未追加步骤日志"；`repair` 文案也按形态分写（v7 步骤是自动落账的，仍只见 `write-start` 说明一步都没跑成）。
+  - **SKILL.md 同步**：v7 分支加醒目说明——该分支**不需要**主流程手调 `run-log --append`，只有不经 CLI 的步骤（起草、审查）才需自行落账。
+  - **证据**：探针（不经 pytest）跑 `decision` → `pack` 两步，`run_last.log` 自动生成 `v7-decision` / `v7-pack` 两条，**全程无任何手调 run-log 的动作**。新增 `test_v7_write_run_log.py` 10 条：覆盖四种动作各自落账、同章追加、换章重开、记账失败不阻断写链、拒绝态落账、doctor 认得 v7 事件、**以及反向守住"真的只有 write-start 时仍要告警"**（别把闸门一起拆了）。
 - [ ] **F5（P2）`user_report.py` 仍带同类 v6 专属假设**：`build_plan_report()`（约 884 行）按四份 v6 合同缺失判 `mainline_ready=false` 并记「missing {label} contract」；`build_init_report()` 按 v6 骨架（`设定集/正文/审查报告`）判缺。不在 doctor 链路上，本轮未动。可直接复用 F1 引入的 `resolve_write_mode`。
 - [x] **F7（P2）测试临时目录持续泄漏：每次全量约漏 3000+ 个目录 / 200MB**：`scripts/conftest.py` 的 `tmp_path` 夹具用 `shutil.rmtree(path, ignore_errors=True)` 清理，但**测试会建 git 仓**，而 Windows 上 git 对象文件带**只读属性** → `rmtree` 删不掉 → `ignore_errors=True` **静默吞掉异常** → 每个建仓的测试漏一个目录。**（2026-09-10 已修复）**
   - **实测证据（2026-09-10）**：清理时 `.tmp/pytest/` 累积 **8179 个顶层条目 / 79,385 个文件 / 202 MB**，按日期分布 `09-03: 1909 / 09-04: 2740 / 09-09: 197 / 09-10: 3333`；单独跑 `test_v7_write.py`（31 用例）净增 **30** 个目录；样本目录内 `repo/.git/objects/` 实测 **13 个文件全部 `ReadOnly=True`**，而 PowerShell `Remove-Item -Recurse -Force` 可成功删除。泄漏量（约每建仓用例 1 个）与今日一次全量的 3333 吻合。

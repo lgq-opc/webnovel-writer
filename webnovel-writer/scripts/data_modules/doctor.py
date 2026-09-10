@@ -752,6 +752,15 @@ def _contract_version_checks(project_root: Path) -> list[dict[str, Any]]:
     ]
 
 
+# run_last.log 里能证明"步骤已落账"的事件名。
+# v6 写链由模型按 SKILL 手调 run-log 写入 step-*；
+# v7 写链由 CLI 自己在 `v7-write <action>` 成功/失败时落账（见 v7_write._log_write_step）。
+_STEP_LOG_EVENTS = (
+    "step-env", "step-context", "step-draft", "step-review", "step-data", "step-commit",
+    "v7-decision", "v7-pack", "v7-check", "v7-settle",
+)
+
+
 def _run_log_checks(project_root: Path) -> list[dict[str, Any]]:
     """P1-6 诊断：检查 run_last.log 是否只有 write-start 一条（未追加关键步骤）。
 
@@ -801,9 +810,12 @@ def _run_log_checks(project_root: Path) -> list[dict[str, Any]]:
         ]
 
     # P1-6：只有 write-start 一条 → 未追加关键步骤日志，崩溃后无法定位断点
+    #
+    # F4：v7 写链的步骤由 CLI 自己落账（`v7_write._log_write_step`，事件名 `v7-*`），
+    # 不再依赖模型记得手调 run-log。此处一并识别，否则 v7 书仓会被误报"未追加步骤日志"。
     has_write_start = any("write-start" in ln for ln in lines)
     has_step_logs = any(
-        any(event in ln for event in ("step-env", "step-context", "step-draft", "step-review", "step-data", "step-commit"))
+        any(event in ln for event in _STEP_LOG_EVENTS)
         for ln in lines
     )
     if has_write_start and not has_step_logs and len(lines) <= 2:
@@ -817,7 +829,11 @@ def _run_log_checks(project_root: Path) -> list[dict[str, Any]]:
                 expected="write-start + 各关键步骤追加日志",
                 actual=f"{len(lines)} 行（仅 write-start）",
                 impact="P1-6：写章崩溃后 run_last.log 无法定位最后卡点，排障困难。",
-                repair="确认 SKILL 按规范在每个关键步骤后调用 run-log --event <step> --append。",
+                repair=(
+                    "v7 书仓：步骤由 CLI 自己落账（跑过 v7-write decision/pack/check/settle 就该有 v7-* 事件），"
+                    "若仍只见 write-start，说明写链一步都没跑成、或日志被 write-start 覆盖；"
+                    "v6 书仓：确认 SKILL 按规范在每个关键步骤后调用 run-log --event <step> --append。"
+                ),
             )
         ]
     return [

@@ -95,6 +95,13 @@ python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" v7-
 
 退出码 2 = 门禁拒绝，stderr 有 JSON 明细（`review` / `prose` / `materials`）。处理顺序：**改稿 → 重审 → 再 settle**。`materials.unresolved` 非空（素材引用 ID 不存在）只能改决策 JSON 的 `material_refs` 或章纲卡的 `素材引用`，**不可绕过**。仅当作者明确要求发布时，加 `--force-review-bypass "<理由>"`——理由必须来自作者原话，不得由主流程代拟；绕过会写进正文 front matter（`审查绕过:`）与 `作者/journal.jsonl`，最终报告必须如实列出。
 
+> **步骤落账（F4，2026-09-10）**：v7 分支**不需要**主流程手调 `run-log --append`。
+> `v7-write decision / pack / check / settle` **由 CLI 自己落账**——每次执行成功/失败都会往
+> `.webnovel/logs/run_last.log` 追加一条 `v7-*` 事件（同章追加、换章自动重开），
+> 崩溃后靠最后一条判断卡在哪。此前这条要求只写在文档里、靠模型自觉，实测在快模型上必然漏
+> （fantasy01-v2 的 ch40 日志只剩 `write-start` 一行），故改为由执行步骤的工具自己记账。
+> 只有**不经 CLI 的步骤**（起草、审查）才需要主流程自行 `run-log --event <step> --append`。
+
 v7 分支到此结束；下文「准备：刷新合同树」起为 v6 流程。
 
 ### 准备：刷新合同树
