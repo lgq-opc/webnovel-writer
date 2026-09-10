@@ -89,14 +89,27 @@
 - **环境观察（已修）**：仓库根堆积 `.coverage.<host>.<pid>` 并行覆盖率文件（一次全量后 47 个），而 `.gitignore` 只忽略精确名 `.coverage` → 已补 `.coverage.*`。
 - **核验未能覆盖**：因改动在核验中途被提交，无法回退到修复前代码执行"新测试必红"的反证，该判断为读父提交 diff 的推断；真实书仓 `fantasy01-v2` 的 `warnings 3→1` 按指令未由核验方触碰复核（由实施方实测）。
 
+- [ ] **F8（P3）测试资源未释放导致少量临时目录仍残留（由 F7 修复后新暴露）**：F7 修好后全量泄漏从 3333 → **25**，剩下的 25 个不再是只读文件，而是**被占用的句柄**。`rmtree_safely` 的 5 次重试仍删不掉，最终以 `warnings.warn` 留在 pytest 摘要里（全量 46 条 warning，其中约 21 条是它）。
+  - **实测证据**（F7 修复后一次全量）：25 个残留目录里的内容分布为 `book`×7、`book/.env`×6、`test.db`×4、`.webnovel`×4、`workspace`×3、`命名规则.csv`×2、`vectors.db`×2、`.env.example`×2 等。
+  - **两类成因**（warning 原文指名到文件）：① **SQLite 连接未关闭** —— `WinError 32`，路径指名 `book\.webnovel\index.db` / `test.db` / `vectors.db`；② **子进程 cwd 未释放** —— 路径指名 `...\workspace`，`test_webnovel_unified_cli` 等用例以子进程跑 CLI 并把被测目录当 cwd。
+  - **性质**：这是**既有的测试卫生问题**，一直被旧的 `ignore_errors=True` 遮住——不是 F7 引入的。F7 只是让它可见了。
+  - **修复方向**：测试侧对 SQLite 用 `contextlib.closing` / fixture 收尾确保 `conn.close()`；对以子进程跑 CLI 且传 `cwd=` 的用例，确认 subprocess 已完全退出再结束。修完 `.tmp/pytest` 应能在全量后保持 0 残留。
+
 ### F 系列遗留（本轮发现但未处理，需独立排期）
 
 - [ ] **F4（P2）写章流程未按规范追加步骤日志**：`fantasy01-v2` 的 `.webnovel/logs/run_last.log` 只有 `write-start` 一行，doctor 因此报 `run_log.step_coverage` warning，其自述影响为「**写章崩溃后 run_last.log 无法定位最后卡点，排障困难**」。这是当前写链**唯一残留的 warning**，且直接关系"能否稳定写章"。修复方向：确认 SKILL 在每个关键步骤后调用 `run-log --event <step> --append`。
 - [ ] **F5（P2）`user_report.py` 仍带同类 v6 专属假设**：`build_plan_report()`（约 884 行）按四份 v6 合同缺失判 `mainline_ready=false` 并记「missing {label} contract」；`build_init_report()` 按 v6 骨架（`设定集/正文/审查报告`）判缺。不在 doctor 链路上，本轮未动。可直接复用 F1 引入的 `resolve_write_mode`。
-- [ ] **F7（P2）测试临时目录持续泄漏：每次全量约漏 3000+ 个目录 / 200MB**：`scripts/conftest.py` 的 `tmp_path` 夹具用 `shutil.rmtree(path, ignore_errors=True)` 清理，但**测试会建 git 仓**，而 Windows 上 git 对象文件带**只读属性** → `rmtree` 删不掉 → `ignore_errors=True` **静默吞掉异常** → 每个建仓的测试漏一个目录。
+- [x] **F7（P2）测试临时目录持续泄漏：每次全量约漏 3000+ 个目录 / 200MB**：`scripts/conftest.py` 的 `tmp_path` 夹具用 `shutil.rmtree(path, ignore_errors=True)` 清理，但**测试会建 git 仓**，而 Windows 上 git 对象文件带**只读属性** → `rmtree` 删不掉 → `ignore_errors=True` **静默吞掉异常** → 每个建仓的测试漏一个目录。**（2026-09-10 已修复）**
   - **实测证据（2026-09-10）**：清理时 `.tmp/pytest/` 累积 **8179 个顶层条目 / 79,385 个文件 / 202 MB**，按日期分布 `09-03: 1909 / 09-04: 2740 / 09-09: 197 / 09-10: 3333`；单独跑 `test_v7_write.py`（31 用例）净增 **30** 个目录；样本目录内 `repo/.git/objects/` 实测 **13 个文件全部 `ReadOnly=True`**，而 PowerShell `Remove-Item -Recurse -Force` 可成功删除。泄漏量（约每建仓用例 1 个）与今日一次全量的 3333 吻合。
   - **影响**：不只是占磁盘——`conftest` 把 `TMP/TEMP/TMPDIR` 指向该目录，条目越多 IO 越慢，**实测全量耗时被明显拖长**（首次 123 秒，累积后同一套明显更久）。
   - **修复方向**：给 `rmtree` 传 `onerror`/`onexc` 回调，遇 `PermissionError` 先 `os.chmod(path, stat.S_IWRITE)` 再重试（Windows 标准解法）；并**去掉 `ignore_errors=True`**——它把真失败也一起吞了，正是这个泄漏能长期隐藏的原因。修完应加一条测试断言「建仓用例跑完后其 tmp 目录已消失」。
+  - **已实施**：`scripts/conftest.py` 新增 `rmtree_safely()`——先 `_clear_readonly()` 递归清只读位，再 `shutil.rmtree`；失败重试 5 次（间隔递增）。`tmp_path` 夹具由 `shutil.rmtree(path, ignore_errors=True)` 改为调用它。
+  - **实施中两处按实测校准的设计改动（留档，避免后人照原方案改回去）**：
+    1. **长路径必须无条件加前缀**，不能用 `long_paths.win_long_abs`——后者按**根路径长度**判断，而删除面对的是整棵树：根才 ~140 字符、树内第 6 层已超 MAX_PATH，前缀就漏了。实测 `test_long_paths` 造的 `正文\dddd…\dddd…` 正是此形态，未加前缀时 `os.walk` 在深处静默走不下去、深层只读文件清不掉、`rmtree` 报 `WinError 145 目录不是空的`（旧实现靠 `ignore_errors` 一并吞了，这些深目录同样长期泄漏）。故新增 `_delete_path_str()` 无条件拼 `\\?\` 前缀（复用 `long_paths.WIN_EXTENDED_PREFIX` 常量，先 `abspath` 规范化）。
+    2. **重试仍失败改为 `warnings.warn` 告警，而非抛出**。最初按"失败必须可见"写成抛出，全量实测出现 **24 个 ERROR**——硬抛把瞬时锁变成了测试错误：`test_webnovel_unified_cli` 等用例以子进程跑 CLI 并把被测目录当 cwd，Windows 上子进程刚退出时该目录仍被短暂占用（`WinError 32`），属环境性噪声，不该炸 CI。但**也不能静默**：旧实现的问题不在容忍瞬时锁，而在把**只读文件**这种永久性失败也一并吞了。
+  - **回归测试**：新增 `scripts/tests/test_conftest_tmp_cleanup.py`（6 条）——造含只读文件的树模拟 `.git/objects`，断言删得干净、缺失路径不抛、深层只读不残留父目录、幂等；另有一条**守住夹具本身**的用例（断言造出来的文件确实带只读位），否则前几条会退化成空测。
+  - **验收证据**：①修复前单跑 `test_v7_write.py`（31 用例）净增 **30** 个目录 → 修复后净增 **0**；②新测试文件本身（含造只读树）跑完遗留 **0**；③**全量：残留 3333 → 25**（降 99.2%），`1653 passed` / 0 error / 覆盖率 83.38%。残余 25 个的成因见 F8（句柄未释放，非只读文件）。
+  - **一处测试陷阱（留档）**：测试里**不能写 `import conftest`**——pytest 以裸名注册 conftest，**仓根**那个 `conftest.py`（N-1 统一子进程编码契约用的）先占位，裸名会解析到它而非 `scripts/conftest.py`。故新测试按文件路径 `importlib` 加载。
 - [ ] **F6（P3）v7 仓的 `_resolve_chapter` 未覆盖纯 `定稿/正文` 形态**：`story_runtime_health._resolve_chapter` 仍只看 `.story-system` 与 `.webnovel/state.json`，不看 `定稿/正文`。`fantasy01-v2` 因有迁移残留 commits 解析出 40（正确）；一个只有 `定稿/正文` 而无两者痕迹的新 v7 仓会解析出 0，落到 `chapter_unspecified` 早返回分支（该分支现已带 `write_mode`，措辞正确，但会多一条 warning）。
 
 ## 已验证无需处理（供归档参考）
