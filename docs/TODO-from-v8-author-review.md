@@ -93,6 +93,10 @@
 
 - [ ] **F4（P2）写章流程未按规范追加步骤日志**：`fantasy01-v2` 的 `.webnovel/logs/run_last.log` 只有 `write-start` 一行，doctor 因此报 `run_log.step_coverage` warning，其自述影响为「**写章崩溃后 run_last.log 无法定位最后卡点，排障困难**」。这是当前写链**唯一残留的 warning**，且直接关系"能否稳定写章"。修复方向：确认 SKILL 在每个关键步骤后调用 `run-log --event <step> --append`。
 - [ ] **F5（P2）`user_report.py` 仍带同类 v6 专属假设**：`build_plan_report()`（约 884 行）按四份 v6 合同缺失判 `mainline_ready=false` 并记「missing {label} contract」；`build_init_report()` 按 v6 骨架（`设定集/正文/审查报告`）判缺。不在 doctor 链路上，本轮未动。可直接复用 F1 引入的 `resolve_write_mode`。
+- [ ] **F7（P2）测试临时目录持续泄漏：每次全量约漏 3000+ 个目录 / 200MB**：`scripts/conftest.py` 的 `tmp_path` 夹具用 `shutil.rmtree(path, ignore_errors=True)` 清理，但**测试会建 git 仓**，而 Windows 上 git 对象文件带**只读属性** → `rmtree` 删不掉 → `ignore_errors=True` **静默吞掉异常** → 每个建仓的测试漏一个目录。
+  - **实测证据（2026-09-10）**：清理时 `.tmp/pytest/` 累积 **8179 个顶层条目 / 79,385 个文件 / 202 MB**，按日期分布 `09-03: 1909 / 09-04: 2740 / 09-09: 197 / 09-10: 3333`；单独跑 `test_v7_write.py`（31 用例）净增 **30** 个目录；样本目录内 `repo/.git/objects/` 实测 **13 个文件全部 `ReadOnly=True`**，而 PowerShell `Remove-Item -Recurse -Force` 可成功删除。泄漏量（约每建仓用例 1 个）与今日一次全量的 3333 吻合。
+  - **影响**：不只是占磁盘——`conftest` 把 `TMP/TEMP/TMPDIR` 指向该目录，条目越多 IO 越慢，**实测全量耗时被明显拖长**（首次 123 秒，累积后同一套明显更久）。
+  - **修复方向**：给 `rmtree` 传 `onerror`/`onexc` 回调，遇 `PermissionError` 先 `os.chmod(path, stat.S_IWRITE)` 再重试（Windows 标准解法）；并**去掉 `ignore_errors=True`**——它把真失败也一起吞了，正是这个泄漏能长期隐藏的原因。修完应加一条测试断言「建仓用例跑完后其 tmp 目录已消失」。
 - [ ] **F6（P3）v7 仓的 `_resolve_chapter` 未覆盖纯 `定稿/正文` 形态**：`story_runtime_health._resolve_chapter` 仍只看 `.story-system` 与 `.webnovel/state.json`，不看 `定稿/正文`。`fantasy01-v2` 因有迁移残留 commits 解析出 40（正确）；一个只有 `定稿/正文` 而无两者痕迹的新 v7 仓会解析出 0，落到 `chapter_unspecified` 早返回分支（该分支现已带 `write_mode`，措辞正确，但会多一条 warning）。
 
 ## 已验证无需处理（供归档参考）
