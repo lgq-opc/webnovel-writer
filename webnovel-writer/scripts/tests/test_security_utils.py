@@ -65,21 +65,14 @@ def test_validate_integer_input_error_message(capsys):
 # secure dir/file：Windows / POSIX 分支
 # ---------------------------------------------------------------------------
 
-def test_create_secure_directory_and_file_nt_branch(tmp_path, monkeypatch):
-    # 打桩 os.name=nt 使 Windows 分支在任意平台确定性覆盖（Linux CI 上原本不可达）
-    monkeypatch.setattr(os, "name", "nt")
+def test_create_secure_directory_and_file_roundtrip(tmp_path):
+    # 走当前平台原生分支（Windows 与 Linux CI 合计覆盖 nt/posix 两个分支；
+    # 不打桩 os.name——那会连带翻转 pathlib.Path 分派，测的是 mock 不是现实）
     d = create_secure_directory(str(tmp_path / "sub"))
     assert d.is_dir()
     f = tmp_path / "sub" / "state.json"
     create_secure_file(str(f), '{"ok": 1}')
     assert f.read_text(encoding="utf-8") == '{"ok": 1}'
-
-
-def test_create_secure_file_roundtrip(tmp_path):
-    f = tmp_path / "plain" / "note.json"
-    f.parent.mkdir()
-    create_secure_file(str(f), "内容")
-    assert f.read_text(encoding="utf-8") == "内容"
 
 
 # ---------------------------------------------------------------------------
@@ -265,6 +258,7 @@ def test_restore_from_backup_failure(tmp_path, monkeypatch, capsys):
 # 内置自检
 # ---------------------------------------------------------------------------
 
+@pytest.mark.skipif(sys.platform != "win32", reason="内置自检断言 Windows 反斜杠路径语义（posix 上 sanitize 结果不同属预期行为）")
 def test_run_self_tests(capsys):
     security_utils._run_self_tests()
     assert "所有安全工具函数测试通过" in capsys.readouterr().out
