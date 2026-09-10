@@ -45,7 +45,8 @@
   - **②文档与入口统一**：`AGENTS.md` 测试命令改为 `$env:PYTHONUTF8=1; python -X utf8 -m pytest`；`run_tests.ps1` 增 `$env:PYTHONUTF8`/`$env:PYTHONIOENCODING`，让不依赖 conftest 兜底的调用者也拿到确定编码。
   - **证据（同一命令、修前修后对照）**：`python -X utf8 -m pytest -p no:cov -q` 修前 = **23 failed**（21 `test_reference_search.py` + 2 `test_validate_csv.py`，报错均为 `UnicodeDecodeError: 'utf-8' codec can't decode byte 0xbd`）；加 conftest 后同一命令 = **0 failed**（`C_EXIT=0`），对照组 `PYTHONUTF8=1 python -X utf8 -m pytest` 修前即为 0 failed。
   - **不改生产代码**：生产侧同类隐患另立 N-4（见下）。
-- [~] **N-2（P3，CI 维护）CI 结构性看不到 N-1**：`plugin-tests.yml` 固定 `ubuntu-latest`（locale UTF-8），N-1 不出现；另 `gh run view` 有 Actions `checkout@v4`/`setup-python@v5` 的 Node.js 20 弃用告警，建议后续升版。**（2026-09-10 已改，待一次真实 CI 运行确认：）**
+- [x] **N-2（P3，CI 维护）CI 结构性看不到 N-1**：`plugin-tests.yml` 固定 `ubuntu-latest`（locale UTF-8），N-1 不出现；另 `gh run view` 有 Actions `checkout@v4`/`setup-python@v5` 的 Node.js 20 弃用告警，建议后续升版。**（2026-09-10 已改；2026-09-11 已由真实 CI 确认 → `[x]`）**
+  - **确认证据**：推送后 run `34525705977`（2026-09-11），`tests-windows` job = **success（首次真跑）**——N-1 的 conftest 编码契约在 en-US runner 上成立；`checkout@v7`/`setup-python@v7` 无 Node.js 20 弃用告警。**同一 run 的 ubuntu `tests` job = failure**，但失败与本条无关（是新测试首跑暴露的 F7 POSIX 回归，见下方 N-5），且恰好说明「双平台 job 确实能把平台专属缺陷抓出来」这一设计目的已达成。
   - `actions/checkout@v4`→`@v7`、`actions/setup-python@v5`→`@v7`（版本号经 GitHub API `releases/latest` 查证为 v7.0.1 / v7.0.0，非凭记忆；并已确认本 workflow 未使用 setup-python v7 移除的 `pip-install` 输入）。
   - 新增 `tests-windows` job：跑的就是 AGENTS.md 上写的原样命令、**刻意不设 `PYTHONUTF8`**，专门复现"用户照文档敲"的场景，使 N-1 这一类编码缺陷不再对 CI 隐身。
   - `on.push/pull_request.paths` 补 `conftest.py`（它现在是编码契约的一环，改它同样该触发 CI）。
@@ -162,6 +163,18 @@
     
     真书 `fantasy01-v2` 不受影响（`blocking: 0 warnings: 1`，与修复前一致）。
   - **新增 5 条测试**：纯 v7 仓按落定章解析、无落定章时仍如实报 `chapter_unspecified`（别把"未知"说成 0 号章）、显式传参优先、v6 仓解析不变、**v6 仓不被意外存在的 `定稿/正文` 抬高章号**。
+
+## 2026-09-11 CI 首跑新增（N-5）
+
+> 来源：为关闭 N-2 而首次推送本地积压的提交（`7f97b2f..3face0c`）后，CI 的真实结果。
+> 本条正是「本地全绿 ≠ CI 全绿」的实例：从修复到暴露隔了一天，期间本地全量 1500+ 用例一直是绿的。
+
+- [x] **N-5（P1，跨平台）F7 的 `_clear_readonly` 是 Windows 语义，在 POSIX 上把目录 chmod 成 0o200 导致整棵树删不掉**：CI run `34525705977` 的 ubuntu `tests` job 报 `4 failed, 1480 passed, 5 skipped`，全部集中在 `scripts/tests/test_conftest_tmp_cleanup.py`；同一提交的 `tests-windows` job 全绿。**（2026-09-11 已修复）**
+  - **根因**：`stat.S_IWRITE` 是 `0o200`。Windows 上 `os.chmod` 只切「只读属性」一位、不解释 r/x；**POSIX 上它是整值替换**，目录因此变成 `--w-------`、同时丢掉 `r` 与 `x`。原实现 `for name in (*files, *dirs)` 连目录一并 chmod → 紧接着 `os.walk` 对其 `scandir` 抛 `PermissionError`（默认 `onerror=None`，**静默跳过**）→ `shutil.rmtree` 在同一处失败 → 重试 5 次后以 warning 收场、整棵树残留。
+  - **为什么之前没发现**：该测试文件随 F7 修复（`1102344`，2026-09-10）新增，而它**首次在 Linux 上运行就是本次 CI run**——本地全量跑在 Windows，看不见。
+  - **修法**：`_clear_readonly` 加平台门禁——Windows 保留原行为（已验证，不动），POSIX 直接 `return`。理由是 POSIX 删除文件只取决于**父目录**写权限，与文件自身模式无关，这一步本就不需要。原则：不为修一个平台而改另一个平台已验证的行为。
+  - **证据（红绿对照，本机 WSL Ubuntu-22.04，跑真实 `scripts/conftest.py`）**：仅给 pytest 打最小 stub 以便导入，**不重写实现、不重写断言**。还原为修复前 → `2 passed, 4 failed`，四条与 CI **逐条一致**，并复现同一 `PermissionError: [Errno 13] Permission denied: 'repo'`；应用修复后 → `6 passed, 0 failed`；Windows 侧同文件亦 `6 passed`（行为未变）。
+  - **坑点已沉淀**：`docs/reports/experience-log.md`（首条）。
 
 ## 已验证无需处理（供归档参考）
 
