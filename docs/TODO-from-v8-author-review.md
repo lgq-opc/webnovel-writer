@@ -174,6 +174,8 @@
   - **为什么之前没发现**：该测试文件随 F7 修复（`1102344`，2026-09-10）新增，而它**首次在 Linux 上运行就是本次 CI run**——本地全量跑在 Windows，看不见。
   - **修法**：`_clear_readonly` 加平台门禁——Windows 保留原行为（已验证，不动），POSIX 直接 `return`。理由是 POSIX 删除文件只取决于**父目录**写权限，与文件自身模式无关，这一步本就不需要。原则：不为修一个平台而改另一个平台已验证的行为。
   - **证据（红绿对照，本机 WSL Ubuntu-22.04，跑真实 `scripts/conftest.py`）**：仅给 pytest 打最小 stub 以便导入，**不重写实现、不重写断言**。还原为修复前 → `2 passed, 4 failed`，四条与 CI **逐条一致**，并复现同一 `PermissionError: [Errno 13] Permission denied: 'repo'`；应用修复后 → `6 passed, 0 failed`；Windows 侧同文件亦 `6 passed`（行为未变）。
+  - **CI 终审（2026-09-11，run `34531448903` @ `ed9da38`）**：`tests` = **success**（`1484 passed, 5 skipped`，覆盖率 81.11%）、`tests-windows` = **success**（`1489 passed`，覆盖率 81.20%）。修复在真 Ubuntu runner 上成立。
+  - **附带发现：这条回归同时是 30× 的性能拖累，不只是 4 条断言红。** 同一步骤（`tests`）修复前 **1385.32s**、修复后 **46.80s**；warnings 从 **893 条**降到 **4 条**。机理：失败路径上每个 `tmp_path` teardown 都要走完 5 次退避重试（合计 1.5s）且目录持续残留，而 `.tmp/pytest` 又被 conftest 当作 TMP/TEMP——条目越多 IO 越慢，约 1500 个用例把这点开销放大成 23 分钟。**教训：CI 耗时/告警数的异常漂移本身就是指标，不该只当作「慢」。**
   - **坑点已沉淀**：`docs/reports/experience-log.md`（首条）。
 
 ## 已验证无需处理（供归档参考）
