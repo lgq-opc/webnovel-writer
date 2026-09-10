@@ -167,11 +167,25 @@ def _resolve_root_lenient(raw: Optional[str]) -> Path:
         raise
 
 
+def _resolve_root_or_report(raw: Optional[str]) -> Optional[Path]:
+    """宽松解析的转发命令统一入口：解析失败按 cmd_where 的既有模式打诊断，返回 None 由调用方返回 1。
+
+    只兜 FileNotFoundError（其余异常照旧上抛，避免遮蔽下游真错）。
+    """
+    try:
+        return _resolve_root_lenient(raw)
+    except FileNotFoundError as exc:
+        print(_project_root_diagnostic(raw, exc), file=sys.stderr)
+        return None
+
+
 def cmd_freeze(args: argparse.Namespace) -> int:
     """卷收尾冻结与 retcon 裁决（T10）。"""
     from data_modules import freeze_manager
 
-    root = _resolve_root_lenient(args.project_root)
+    root = _resolve_root_or_report(args.project_root)
+    if root is None:
+        return 1
     argv = [args.action, "--volume", str(args.volume), "--project-root", str(root), "--format", args.format]
     if args.force:
         argv.append("--force")
@@ -188,7 +202,9 @@ def cmd_timeline(args: argparse.Namespace) -> int:
     """卷纲时间线视图（T9）：build 导出 / sync 反向回写（默认 dry-run）。"""
     from data_modules import timeline_view
 
-    root = _resolve_root_lenient(args.project_root)
+    root = _resolve_root_or_report(args.project_root)
+    if root is None:
+        return 1
     argv = [args.action, "--volume", str(args.volume), "--project-root", str(root), "--format", args.format]
     if args.apply:
         argv.append("--apply")
@@ -199,7 +215,9 @@ def cmd_chapter_batch(args: argparse.Namespace) -> int:
     """章纲批量（T8）：confirm 一次确认一批。"""
     from data_modules import chapter_outline_batch
 
-    root = _resolve_root_lenient(args.project_root)
+    root = _resolve_root_or_report(args.project_root)
+    if root is None:
+        return 1
     return chapter_outline_batch.main(["confirm", "--chapters", args.chapters, "--project-root", str(root), "--format", args.format])
 
 
@@ -207,7 +225,9 @@ def cmd_regen(args: argparse.Namespace) -> int:
     """regen 画廊（T7）。"""
     from data_modules import regen_gallery
 
-    root = _resolve_root_lenient(args.project_root)
+    root = _resolve_root_or_report(args.project_root)
+    if root is None:
+        return 1
     argv = [args.action, "--domain", args.domain, "--key", args.key, "--project-root", str(root), "--format", args.format]
     if args.version is not None:
         argv.extend(["--version", str(args.version)])
@@ -224,7 +244,9 @@ def cmd_zones(args: argparse.Namespace) -> int:
     """总纲三区（T6）：migrate 自动分区 / show 状态。"""
     from data_modules import master_outline_zones
 
-    root = _resolve_root_lenient(args.project_root)
+    root = _resolve_root_or_report(args.project_root)
+    if root is None:
+        return 1
     argv = [args.action, "--project-root", str(root), "--format", args.format]
     if args.dry_run:
         argv.append("--dry-run")
@@ -235,7 +257,9 @@ def cmd_impact(args: argparse.Namespace) -> int:
     """影响反查（T5）：对指定文件路径输出受影响面与三选项建议（只读）。"""
     from data_modules import impact_analyzer
 
-    root = _resolve_root_lenient(args.project_root)
+    root = _resolve_root_or_report(args.project_root)
+    if root is None:
+        return 1
     return impact_analyzer.main(["--path", args.path, "--project-root", str(root), "--format", args.format])
 
 
@@ -243,7 +267,9 @@ def cmd_author_sync(args: argparse.Namespace) -> int:
     """author-sync：作者修改留账（T3/T4，解析放宽同 domains）。"""
     from data_modules import author_sync
 
-    root = _resolve_root_lenient(args.project_root)
+    root = _resolve_root_or_report(args.project_root)
+    if root is None:
+        return 1
     argv = ["--project-root", str(root), "--format", args.format]
     if args.confirm_migration:
         argv.append("--confirm-migration")
@@ -257,7 +283,9 @@ def cmd_domains(args: argparse.Namespace) -> int:
     """
     from data_modules import domain_contract
 
-    root = _resolve_root_lenient(args.project_root)
+    root = _resolve_root_or_report(args.project_root)
+    if root is None:
+        return 1
     argv = [args.action, "--project-root", str(root), "--format", args.format]
     return domain_contract.main(argv)
 
@@ -270,7 +298,9 @@ def cmd_materials(args: argparse.Namespace) -> int:
     """
     from data_modules import material_store
 
-    root = _resolve_root_lenient(args.project_root)
+    root = _resolve_root_or_report(args.project_root)
+    if root is None:
+        return 1
     rest = list(getattr(args, "material_args", []) or [])
     if rest[:1] == ["--"]:
         rest = rest[1:]
@@ -285,13 +315,20 @@ def cmd_v7_write(args: argparse.Namespace) -> int:
 
     `--repo` 取自 `--project-root`（宽松解析：纯 v7 story-repo 直接用给定目录）；其余参数原样透传给 v7_write.main，
     退出码（0 成功 / 2 门禁或机检拒绝 / 1 其他）不做改写。
+
+    透传参数用 argparse.REMAINDER 收集，会连 `-h/--help` 一起吃掉；因此这里先探一次帮助请求，
+    命中就直接交给 v7_write 自己的 argparse 打印（不解析项目根、不需要项目根）。
     """
     import v7_write
 
-    root = _resolve_root_lenient(args.project_root)
     rest = list(getattr(args, "v7_args", []) or [])
     if rest[:1] == ["--"]:
         rest = rest[1:]
+    if any(token in ("-h", "--help") for token in rest):
+        return v7_write.main([args.action, *rest])
+    root = _resolve_root_or_report(args.project_root)
+    if root is None:
+        return 1
     return v7_write.main([args.action, "--repo", str(root), *rest])
 
 
@@ -299,7 +336,9 @@ def cmd_style_domain(args: argparse.Namespace) -> int:
     """文风域数据面（webnovel-copilot-300 M3/T15）：宪法迁移 / 指纹 / 金句库。"""
     from data_modules import style_domain
 
-    root = _resolve_root_lenient(args.project_root)
+    root = _resolve_root_or_report(args.project_root)
+    if root is None:
+        return 1
     argv = [args.action, "--project-root", str(root), "--format", args.format]
     if args.action == "fingerprint" and args.chapter:
         argv.extend(["--chapter", str(args.chapter)])
@@ -314,7 +353,9 @@ def cmd_learn(args: argparse.Namespace) -> int:
     """学习闭环（webnovel-copilot-300 M3/T16，F-12）：learn --from-journal / apply / show。"""
     from data_modules import author_model
 
-    root = _resolve_root_lenient(args.project_root)
+    root = _resolve_root_or_report(args.project_root)
+    if root is None:
+        return 1
     argv = [args.action, "--project-root", str(root), "--format", args.format]
     if args.action == "learn":
         if args.from_journal:
@@ -330,7 +371,9 @@ def cmd_power(args: argparse.Namespace) -> int:
     """战力域（webnovel-copilot-300 M4/T18-T19，F-09）：锚点抽取/校验/战例/通胀/power-check。"""
     from data_modules import power_anchor
 
-    root = _resolve_root_lenient(args.project_root)
+    root = _resolve_root_or_report(args.project_root)
+    if root is None:
+        return 1
     rest = list(getattr(args, "power_args", []) or [])
     if rest[:1] == ["--"]:
         rest = rest[1:]
@@ -344,7 +387,9 @@ def cmd_forge(args: argparse.Namespace) -> int:
     """设定工坊（webnovel-copilot-300 M4/T20，F-08）：prepare/save/adopt/confirm/list。"""
     from data_modules import setting_forge
 
-    root = _resolve_root_lenient(args.project_root)
+    root = _resolve_root_or_report(args.project_root)
+    if root is None:
+        return 1
     argv = [args.action, "--project-root", str(root), "--format", args.format]
     if args.category:
         argv.extend(["--category", args.category])
@@ -364,7 +409,9 @@ def cmd_forge_sync(args: argparse.Namespace) -> int:
     """工坊同步执行器（v8-gap-review 阶段三 P3-2）。退出码原样转发。"""
     from data_modules import forge_sync
 
-    root = _resolve_root_lenient(args.project_root)
+    root = _resolve_root_or_report(args.project_root)
+    if root is None:
+        return 1
     argv = [getattr(args, "action", None) or "status", "--project-root", str(root), "--format", args.format]
     kind = getattr(args, "kind", "") or ""
     if kind:
@@ -376,7 +423,9 @@ def cmd_prose_check(args: argparse.Namespace) -> int:
     """程序化文笔检测（webnovel-copilot-300 M5/T23，R2）。"""
     from data_modules import prose_check
 
-    root = _resolve_root_lenient(args.project_root)
+    root = _resolve_root_or_report(args.project_root)
+    if root is None:
+        return 1
     file_path = Path(args.file)
     if not file_path.is_absolute():
         file_path = root / file_path
@@ -388,7 +437,9 @@ def cmd_drafts(args: argparse.Namespace) -> int:
     """多稿择优数据面（webnovel-copilot-300 M5/T24，R3/D0-4）。"""
     from data_modules import draft_selection
 
-    root = _resolve_root_lenient(args.project_root)
+    root = _resolve_root_or_report(args.project_root)
+    if root is None:
+        return 1
     argv = [args.action, "--chapter", str(args.chapter), "--project-root", str(root), "--format", args.format]
     if args.action == "record":
         argv.extend(["--draft", str(args.draft or 0), "--scores", args.scores, "--rationale", args.rationale])
@@ -401,7 +452,9 @@ def cmd_foreshadow_scan(args: argparse.Namespace) -> int:
     """承诺账本扫描与本章应推进项（webnovel-copilot-300 M6/T28，A3）。"""
     from data_modules import promise_ledger
 
-    root = _resolve_root_lenient(args.project_root)
+    root = _resolve_root_or_report(args.project_root)
+    if root is None:
+        return 1
     argv = [args.action, "--chapter", str(args.chapter), "--project-root", str(root), "--format", args.format]
     if args.action == "scan" and args.no_apply:
         argv.append("--no-apply")
@@ -412,7 +465,9 @@ def cmd_promise_ledger(args: argparse.Namespace) -> int:
     """承诺账本 CRUD（webnovel-copilot-300 M6/T28）：create/list/update/seed-from-writeback。"""
     from data_modules import promise_ledger
 
-    root = _resolve_root_lenient(args.project_root)
+    root = _resolve_root_or_report(args.project_root)
+    if root is None:
+        return 1
     argv = [args.action, "--project-root", str(root), "--format", args.format]
     if args.action == "create":
         argv.extend([
@@ -435,7 +490,9 @@ def cmd_name_check(args: argparse.Namespace) -> int:
     """命名冲突检查（webnovel-copilot-300 M6/T29，A5）：新名 vs 名册正名/别名。"""
     from data_modules import continuity_check
 
-    root = _resolve_root_lenient(args.project_root)
+    root = _resolve_root_or_report(args.project_root)
+    if root is None:
+        return 1
     argv = ["--project-root", str(root), "--format", args.format]
     if getattr(args, "scan", False):
         argv.append("--scan")
@@ -448,7 +505,9 @@ def cmd_volume_reconcile(args: argparse.Namespace) -> int:
     """卷纲-实际对账（webnovel-copilot-300 M6/T30，A7）。"""
     from data_modules import volume_reconcile
 
-    root = _resolve_root_lenient(args.project_root)
+    root = _resolve_root_or_report(args.project_root)
+    if root is None:
+        return 1
     argv = ["--volume", str(args.volume), "--project-root", str(root), "--format", args.format]
     return volume_reconcile.main(argv)
 
@@ -457,7 +516,9 @@ def cmd_invariants(args: argparse.Namespace) -> int:
     """数据不变量校验（v8-gap-review 阶段二 P2-3）：06 §12 六条只读报告。"""
     from data_modules.invariant_check import main as invariants_main
 
-    root = _resolve_root_lenient(args.project_root)
+    root = _resolve_root_or_report(args.project_root)
+    if root is None:
+        return 1
     only = [part.strip() for part in (args.only or "").split(",") if part.strip()]
     argv = ["--project-root", str(root), "--format", args.format]
     if only:
@@ -1371,7 +1432,9 @@ def _main_impl() -> None:
         from .info_gap import boundary as knowledge_boundary
         from .cli_output import print_success
 
-        boundary_root = _resolve_root_lenient(args.project_root)
+        boundary_root = _resolve_root_or_report(args.project_root)
+        if boundary_root is None:
+            raise SystemExit(1)
         boundary_report = knowledge_boundary(
             boundary_root, chapter=args.boundary_chapter, entity=args.boundary_entity or None
         )

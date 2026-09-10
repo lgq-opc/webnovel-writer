@@ -846,12 +846,20 @@ def settle(
     return result
 
 
-def decision_from_card(repo: Path, chapter: int) -> dict[str, Any]:
-    """无决策 JSON 时从决策卡文本回退解析（title / pov / 关键实体），供 pack CLI 用。"""
-    card = Path(repo) / "工作区" / f"决策卡-{chapter:04d}.md"
-    decision: dict[str, Any] = {"chapter": chapter, "title": "", "entities": []}
+def decision_card_path(repo: Path, chapter: int) -> Path:
+    """决策卡路径（决策卡与 pack 的 --chapter 一一对应）。"""
+    return Path(repo) / "工作区" / f"决策卡-{chapter:04d}.md"
+
+
+def decision_from_card(repo: Path, chapter: int) -> Optional[dict[str, Any]]:
+    """无决策 JSON 时从决策卡文本回退解析（title / pov / 关键实体），供 pack CLI 用。
+
+    决策卡不存在时返回 None —— 由调用方决定报错策略（pack 必须显式报错退出，不得静默产出降级包）。
+    """
+    card = decision_card_path(repo, chapter)
     if not card.exists():
-        return decision
+        return None
+    decision: dict[str, Any] = {"chapter": chapter, "title": "", "entities": []}
     for line in card.read_text(encoding="utf-8").splitlines():
         s = line.strip()
         if s.startswith("- title:"):
@@ -899,6 +907,15 @@ def main(argv: Optional[list[str]] = None) -> int:
         return 0
     if args.action == "pack":
         decision = json.loads(Path(args.json).read_text(encoding="utf-8")) if args.json else decision_from_card(Path(args.repo), args.chapter)
+        if decision is None:
+            card = decision_card_path(Path(args.repo), args.chapter)
+            print(
+                f"ERROR v7-write pack chapter={args.chapter}: 未提供 --json，且决策卡不存在：{card}\n"
+                f"上下文包依赖决策卡（标题 / POV / 关键实体 / 承诺与合同断言）。正确顺序："
+                f"先 `v7-write decision --chapter {args.chapter} --json <决策.json>` 生成决策卡，再 `v7-write pack --chapter {args.chapter}`。",
+                file=sys.stderr,
+            )
+            return 1
         decision["chapter"] = args.chapter
         md, stats = build_context_pack(Path(args.repo), decision)
         out = Path(args.repo) / "工作区" / f"上下文包-{args.chapter:04d}.md"

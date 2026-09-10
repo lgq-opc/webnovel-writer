@@ -22,6 +22,7 @@ from v7_write import (  # noqa: E402
     TOTAL_BUDGET_DEFAULT,
     V7_SECTION_QUOTAS,
     build_context_pack,
+    decision_from_card,
     run_checks,
     settle,
     write_decision_card,
@@ -119,6 +120,26 @@ class TestDecisionCard:
         text = Path(write_decision_card(repo, _decision())).read_text(encoding="utf-8")
 
         assert "- 推进承诺:" not in text
+
+    def test_fallback_returns_none_when_card_absent(self, tmp_path):
+        """决策卡不存在时回退解析必须显式表达「没有卡」（None），不得静默返回空壳决策。"""
+        repo = _v7_repo(tmp_path)
+        assert not (repo / "工作区" / "决策卡-0037.md").exists()
+
+        assert decision_from_card(repo, 37) is None
+
+    def test_fallback_parses_card_when_present(self, tmp_path):
+        repo = _v7_repo(tmp_path)
+        expected = _decision()
+        write_decision_card(repo, expected)
+
+        decision = decision_from_card(repo, 37)
+
+        assert decision is not None
+        assert decision["chapter"] == 37
+        assert decision["title"] == expected["title"]
+        assert decision["pov"] == expected["pov"]
+        assert decision["entities"] == expected["entities"]
 
 
 class TestContextPack:

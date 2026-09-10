@@ -223,3 +223,16 @@ class TestPackCli:
         assert proc.returncode == 0, proc.stderr
         md = (repo / "工作区" / "上下文包-0042.md").read_text(encoding="utf-8")
         assert "林知夏" in md.split("## 本章实体（名册查询）", 1)[1]
+
+    def test_pack_without_json_and_without_card_fails(self, tmp_path):
+        """无 --json 且决策卡缺失时不得静默产出降级上下文包（F3）。"""
+        repo = _v7_repo(tmp_path)
+        assert not (repo / "工作区" / "决策卡-0042.md").exists()
+
+        proc = self._run(repo, "--chapter", "42")
+
+        assert proc.returncode == 1, (proc.stdout, proc.stderr)
+        assert "决策卡-0042.md" in proc.stderr, proc.stderr
+        assert "decision" in proc.stderr and "pack" in proc.stderr, proc.stderr
+        assert "Traceback" not in proc.stderr
+        assert not (repo / "工作区" / "上下文包-0042.md").exists(), "缺决策卡时不得产出上下文包"
