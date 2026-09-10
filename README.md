@@ -316,6 +316,12 @@ npm install
 npm run dev
 ```
 
+### 已知限制（自动化验证边界）
+
+- `run_behavior_evals.py --suite fast` 的 23 个 case 是契约层检查（skill frontmatter / 写前提交顺序 / 产物归属 / dashboard 只读等结构性断言），**不覆盖生成内容质量**。
+- 承担实际创作与审查判断的两个技能，其 evals 集很薄：`webnovel-write` 仅 3 条、`webnovel-review` 仅 1 条。生成质量目前主要靠 fantasy01 真仓的 1-2 章人工冒烟验证，**没有系统性的自动化质量覆盖**——不要因为「测试全绿」推断生成质量有保障。
+- 依赖按 `requirements.lock` 锁定以保证测试可复现；单元测试验证的是代码路径与门禁行为，不是「写到几百章不崩设定」这一核心价值主张本身。
+
 ## 排查问题
 
 优先执行预检：

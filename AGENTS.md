@@ -47,11 +47,12 @@ webnovel-writer/              ← 外层仓库根（marketplace.json 双位置�
 
 ## 当前状态
 
-- 当前版本：v8.0.0（作者主权 + 300 章连贯：六域书仓治理 + MCP 14 只读工具 + 13 条命令；`v8-author` 分支，57 提交领先 master，尚未打 tag / 推送）
+- 当前版本：v8.1.0（作者主权 + 300 章连贯：六域书仓治理 + MCP 14 只读工具 + 13 条命令；`v8-author` 分支，125 提交领先 master（2026-09-10 实测，随提交增长，引用前请重新 `git log --oneline origin/master..HEAD | wc -l`）；tag `v8.1.0` 已推送远端）
 - 上游：lingfengQAQ/webnovel-writer（v6.2.1 起分叉；上游 v7/v8 路线与本仓无关）
-- 远程：git@github.com:alittleseven/webnovel-writer.git
+- 远程：git@github.com:lgq-opc/webnovel-writer.git
+- CI：`.github/workflows/plugin-tests.yml`（push master/v8-author 与 PR 按 scripts/mcp/dashboard 路径触发全量 pytest + 四校验脚本；依赖按 `requirements.lock` 锁定）
 - ZCode 装机：marketplace `webnovel-writer-marketplace` → 本仓库根（directory 源）
-- 当前待办入口：`docs/zcode/v8-gap-review-3rounds/README.md`（41 项缺口 + 4 阶段修复计划）与 `docs/cursor/项目复审/2026-09-04-项目复审报告.md` §9；`docs/plans/2026-08-25-status-and-pending-work.md` 已 superseded，只作历史
+- 当前待办入口：`docs/TODO-from-v8-author-review.md`（2026-09-10 复审遗留，P1-P3 状态清单）与 `docs/zcode/v8-gap-review-3rounds/README.md`（41 项缺口 + 4 阶段修复计划，历史）；`docs/plans/2026-08-25-status-and-pending-work.md` 已 superseded，只作历史
 
 ## OpenCode 工作区规则：任务状态必须与代码同步
 
@@ -69,4 +70,5 @@ webnovel-writer/              ← 外层仓库根（marketplace.json 双位置�
 - 中文 commit message 用 UTF-8 文件 + `git commit -F` 方式提交
 - `.tmp/` 和 `.tmp_story_system_engine/` 是临时目录，已在 .gitignore 中
 - 宿主产出文档按宿主分目录：ZCode 方案集放 `docs/zcode/<任务名>/`，Cursor 产出（审查报告 / 分析 / 计划）放 `docs/cursor/<任务名>/`；跨宿主的正式产出仍按工作区分级归 `docs/{research,reports,plans,decisions}/`
+- ADR 约定：重大架构决策分散记录在各 `docs/zcode/<任务名>/` spec 的「理由」小节，不单独抽 ADR 文件；`docs/decisions/` 只收跨任务的里程碑级决策——检索不到 ADR 不代表决策缺失
 - 修改插件组件（skills/hooks/commands/MCP）后需重启 ZCode 会话生效；改 scripts/*.py 则即时生效（每次调用都是新进程）
