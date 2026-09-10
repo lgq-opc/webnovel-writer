@@ -14,7 +14,7 @@
 
 一句话定位：这是一套面向长篇连载的一致性系统，不是写完就忘的一次性生成器。
 
-> **版本导览（2026-09-04 更新，本仓 `alittleseven/webnovel-writer`）**
+> **版本导览（2026-09-11 更新，本仓 `lgq-opc/webnovel-writer`）**
 >
 > 本仓自上游 [lingfengQAQ/webnovel-writer](https://github.com/lingfengQAQ/webnovel-writer) v6.2.1 分叉，之后独立演进到 v7（Story-Repo 书仓）、v7.1（ZCode 原生化）与 v8（作者主权 + 300 章连贯）。上游的 v7/v8 路线与本仓无关。
 >
@@ -106,7 +106,7 @@ v6.0.0 的默认主链叫 **Story System**，几个关键角色：
 
 通过 ZCode 插件市场安装：
 
-1. Settings → Plugin Management → Discover → 点 `+` 添加 marketplace：GitHub 仓库 `alittleseven/webnovel-writer`（分支 `v8-author`），或本地目录指向本仓库根（上游 `lingfengQAQ` 仓库没有 ZCode 版本，勿用）；
+1. Settings → Plugin Management → Discover → 点 `+` 添加 marketplace：GitHub 仓库 `lgq-opc/webnovel-writer`（分支 `v8-author`），或本地目录指向本仓库根（上游 `lingfengQAQ` 仓库没有 ZCode 版本，勿用）；
 2. 在 Discover 中找到 **webnovel-writer** 点击 **Get** 安装（默认启用）；
 3. 重启会话后生效：8 个 skill、4 个 agent、`/webnovel:*` 斜杠命令、`webnovel` MCP 服务自动加载。
 
@@ -115,7 +115,7 @@ v6.0.0 的默认主链叫 **Story System**，几个关键角色：
 ### 2. 安装 Python 依赖
 
 ```bash
-python -m pip install -r https://raw.githubusercontent.com/alittleseven/webnovel-writer/v8-author/requirements.txt
+python -m pip install -r https://raw.githubusercontent.com/lgq-opc/webnovel-writer/v8-author/requirements.txt
 ```
 
 ### 3. 初始化一本书
