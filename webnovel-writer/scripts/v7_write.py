@@ -717,13 +717,21 @@ def settle(
     gates = _run_gates(repo, decision, body_clean, bypass_reason=bypass_reason)
 
     # S18/E4：唯一写入路径——v6 侧已落定该章时禁止 v7 settle
-    from data_modules.dual_format_guard import check_unique_write_path, has_v7_settled_chapter
+    from data_modules.dual_format_guard import (
+        check_unique_write_path,
+        has_v7_settled_chapter,
+        unchecked_other_side_warning,
+    )
 
     v6_root = decision.get("v6_project_root") or _v6_root_from_git_config(repo)
     if v6_root:
         blocker = check_unique_write_path(Path(v6_root), chapter, target_format="v7", story_repo_root=repo)
         if blocker:
             raise RuntimeError("唯一写入路径：" + blocker["message"])
+    else:
+        # P2-2：v6 根未配置时守卫无法校验 v6 侧，必须提示而非静默
+        gap = unchecked_other_side_warning("v7", project_root=None)
+        print(f"[dual-format-guard] warning: {gap}", file=sys.stderr)
     # 章号前缀判重（增量审阅 P2-1）：同章改标题不得绕过防双写
     if has_v7_settled_chapter(repo, chapter):
         raise RuntimeError(f"唯一写入路径：该章已 settle（定稿/正文 存在 {chapter:04d}- 前缀文件），禁止双写")

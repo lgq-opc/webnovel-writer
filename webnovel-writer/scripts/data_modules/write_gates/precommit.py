@@ -60,7 +60,7 @@ def run_precommit_gate(project_root: Path, chapter: int) -> dict:
     # 增量审阅 P2-4：双格式守卫时窗扩到提交边界（此前只挂 prewrite，
     # 起草期间 v7 侧 settle 同章不会被拦截）
     from ..config import DataModulesConfig
-    from ..dual_format_guard import check_unique_write_path
+    from ..dual_format_guard import check_unique_write_path, unchecked_other_side_warning
 
     _cfg = DataModulesConfig.from_project_root(project_root)
     _repo_root = str(getattr(_cfg, "story_repo_root", "") or "")
@@ -69,6 +69,17 @@ def run_precommit_gate(project_root: Path, chapter: int) -> dict:
     )
     if guard_issue:
         errors.append(guard_issue)
+    elif _gap := unchecked_other_side_warning("v6", story_repo_root=_repo_root or None):
+        # P2-2：配置缺失导致守卫静默放行时必须可见，不能让人误以为守卫已生效
+        warnings.append(
+            issue(
+                "dual_format_guard_config_missing",
+                message=_gap,
+                severity="warning",
+                impact="v6/v7 并存期间，同一章已在 v7 侧定稿时不会被拦截。",
+                repair="若存在 v7 书仓：设置 STORY_REPO_ROOT，或用 migrate_v6_to_v7 --link-back 建立映射。",
+            )
+        )
 
     chapter_file = find_chapter_file(project_root, chapter)
     if chapter_file is None:

@@ -24,6 +24,7 @@ from data_modules.dual_format_guard import (  # noqa: E402
     detect_chapter_formats,
     has_v6_accepted_chapter,
     has_v7_settled_chapter,
+    unchecked_other_side_warning,
 )
 from data_modules.write_gates import run_write_gate  # noqa: E402
 from .test_project_phase import _make_contracts, _make_init_ready  # noqa: E402
@@ -114,6 +115,26 @@ class TestUniqueWritePath:
         assert check_unique_write_path(project, 35, target_format="v6", story_repo_root=None) is None
 
 
+class TestUncheckedOtherSideWarning:
+    """P2-2：守卫因另一格式根配置缺失而静默放行时，必须能产出 warning 文案。"""
+
+    def test_v6_target_without_repo_root_warns(self):
+        message = unchecked_other_side_warning("v6", project_root=Path("/v6"), story_repo_root=None)
+
+        assert message is not None
+        assert "v7" in message
+
+    def test_v7_target_without_project_root_warns(self):
+        message = unchecked_other_side_warning("v7", project_root=None, story_repo_root=Path("/v7"))
+
+        assert message is not None
+        assert "v6" in message
+
+    def test_configured_both_sides_no_warning(self):
+        assert unchecked_other_side_warning("v6", project_root=Path("/v6"), story_repo_root=Path("/v7")) is None
+        assert unchecked_other_side_warning("v7", project_root=Path("/v6"), story_repo_root=Path("/v7")) is None
+
+
 class TestPrewriteGateIntegration:
     def test_prewrite_blocks_when_v7_already_settled(self, tmp_path, monkeypatch):
         _make_init_ready(tmp_path)
@@ -135,3 +156,33 @@ class TestPrewriteGateIntegration:
         report = run_write_gate(tmp_path, chapter=1, stage="prewrite")
 
         assert report["ok"] is True
+
+    def test_prewrite_warns_when_v7_root_unconfigured(self, tmp_path, monkeypatch):
+        # P2-2：STORY_REPO_ROOT 缺失时守卫静默放行，报告必须带配置缺失 warning
+        _make_init_ready(tmp_path)
+        _make_contracts(tmp_path, chapter=1)
+        monkeypatch.delenv("STORY_REPO_ROOT", raising=False)
+
+        report = run_write_gate(tmp_path, chapter=1, stage="prewrite")
+
+        assert report["ok"] is True  # warning 不阻断
+        assert any(item["code"] == "dual_format_guard_config_missing" for item in report["warnings"])
+
+    def test_prewrite_no_config_warning_when_v7_root_set(self, tmp_path, monkeypatch):
+        _make_init_ready(tmp_path)
+        _make_contracts(tmp_path, chapter=1)
+        repo = _v7_repo(tmp_path.parent, [1])
+        monkeypatch.setenv("STORY_REPO_ROOT", str(repo))
+
+        report = run_write_gate(tmp_path, chapter=1, stage="prewrite")
+
+        assert not any(item["code"] == "dual_format_guard_config_missing" for item in report["warnings"])
+
+    def test_precommit_warns_when_v7_root_unconfigured(self, tmp_path, monkeypatch):
+        _make_init_ready(tmp_path)
+        _make_contracts(tmp_path, chapter=1)
+        monkeypatch.delenv("STORY_REPO_ROOT", raising=False)
+
+        report = run_write_gate(tmp_path, chapter=1, stage="precommit")
+
+        assert any(item["code"] == "dual_format_guard_config_missing" for item in report["warnings"])

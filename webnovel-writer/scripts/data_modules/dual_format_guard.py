@@ -71,6 +71,25 @@ def detect_chapter_formats(
     }
 
 
+def unchecked_other_side_warning(
+    target_format: str,
+    *,
+    project_root: Optional[Path | str] = None,
+    story_repo_root: Optional[Path | str] = None,
+) -> Optional[str]:
+    """守卫因另一格式根配置缺失而只能静默放行时，返回应呈现的 warning 文案；配置齐全返回 None。
+
+    v6 目标需要 story_repo_root 才能查 v7 定稿；v7 目标需要 v6 项目根才能查 accepted
+    commit。调用方应把返回值写入 gate report 的 warnings（或打印到 stderr），
+    避免「唯一写入路径守卫总在生效」的误解。
+    """
+    if target_format == "v6" and not story_repo_root:
+        return "唯一写入路径守卫未校验 v7 侧：story_repo_root 未配置（STORY_REPO_ROOT 或 git config dualformat.v6root）"
+    if target_format == "v7" and not project_root:
+        return "唯一写入路径守卫未校验 v6 侧：v6 项目根未配置（decision.v6_project_root 或 git config dualformat.v6root）"
+    return None
+
+
 def check_unique_write_path(
     project_root: Path,
     chapter: int,
