@@ -41,6 +41,8 @@
 ### 报告与决策
 
 - [`reports/`](./reports/)：S 系列专项复盘（预算配额、设定卡验证、v7 垂直切片、配额时机）与 2026-09-02 全面审阅 / 增量审阅
+- [`reports/2026-09-11-待办全景梳理.md`](./reports/2026-09-11-待办全景梳理.md)：待办入口归属判定与三类收尾（现状诊断截面）
+- [`reports/2026-09-12-需求与设计对账.md`](./reports/2026-09-12-需求与设计对账.md)：四套方案集 × 实现的逐条对账（P/T/D/F 编号，供逐条过审）
 - [`decisions/`](./decisions/)：ADR（多宿主适配立项）
 - [`tasks/architecture-audit-fix-ledger.md`](./tasks/architecture-audit-fix-ledger.md)：架构审计修复台账
 - 根下 [`full-project-analysis-2026-08-24.md`](./full-project-analysis-2026-08-24.md) / [`full-project-analysis-v2-2026-08-24.md`](./full-project-analysis-v2-2026-08-24.md) / [`code-review-2026-08-24.md`](./code-review-2026-08-24.md)：2026-08-24 三份分析（历史）
