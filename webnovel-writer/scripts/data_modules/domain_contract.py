@@ -71,6 +71,23 @@ def is_story_repo(project_root: str | Path) -> bool:
     return (Path(project_root) / "book.yaml").is_file()
 
 
+# 六域顶层目录（见本模块头部六域定义：大纲 / 正文(定稿) / 设定 / 素材 / 作者 / 文风）
+DOMAIN_TOP_DIRS: tuple[str, ...] = ("大纲", "定稿", "设定", "素材", "作者", "文风")
+
+
+def is_story_repo_strict(project_root: str | Path) -> bool:
+    """严格版 v7 story-repo 判定：book.yaml **且** 六域顶层目录之一存在。
+
+    比 :func:`is_story_repo`（裸 book.yaml）严——供 project_locator 的子目录探测使用，
+    避免工作区里含 book.yaml 的模板/示例/备份目录被误绑为书仓，或造成假歧义。
+    「刚 book-init、六域未建」的窗口期由 :func:`is_story_repo` 兜底（宽松路）。
+    """
+    root = Path(project_root)
+    if not (root / "book.yaml").is_file():
+        return False
+    return any((root / name).is_dir() for name in DOMAIN_TOP_DIRS)
+
+
 # v6 runtime 合同链锚点（相对 .story-system）：MASTER_SETTING 是主锚，卷/章/审查目录是分锚。
 _V6_CONTRACT_ANCHOR = "MASTER_SETTING.json"
 _V6_CONTRACT_DIRS: tuple[str, ...] = ("volumes", "chapters", "reviews")

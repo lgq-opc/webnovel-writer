@@ -175,3 +175,66 @@ def test_resolve_project_root_uses_webnovel_book_root_env(tmp_path):
         else:
             os.environ["WEBNOVEL_BOOK_ROOT"] = old
     assert resolved == project_root.resolve()
+
+
+# ---------------------------------------------------------------------------
+# 纯 v7 书仓（book.yaml + 六域之一，无 .webnovel/state.json）
+# 2026-09-12 需求与设计对账 §D-2 甲：此前 8/8 用例均构造 state.json，此格零覆盖。
+# ---------------------------------------------------------------------------
+
+
+def _make_v7_story_repo(root: Path) -> Path:
+    """造一个纯 v7 书仓：book.yaml + 六域之一（设定/），无 .webnovel/。"""
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "book.yaml").write_text("title: 测试书\n", encoding="utf-8")
+    (root / "设定").mkdir(exist_ok=True)
+    return root
+
+
+def test_resolve_project_root_accepts_v7_story_repo(tmp_path):
+    """纯 v7 书仓应被认作项目根（此前只认 .webnovel/state.json）。"""
+    _ensure_scripts_on_path()
+
+    from project_locator import resolve_project_root
+
+    repo = _make_v7_story_repo(tmp_path / "book")
+    assert resolve_project_root(str(repo)) == repo.resolve()
+
+
+def test_resolve_project_root_v7_unique_child_project(tmp_path):
+    """传工作区根、书在下一层：应经子目录探测解析到 v7 书仓。"""
+    _ensure_scripts_on_path()
+
+    from project_locator import resolve_project_root
+
+    workspace = tmp_path / "workspace"
+    (workspace / ".git").mkdir(parents=True, exist_ok=True)
+    repo = _make_v7_story_repo(workspace / "我的书")
+    assert resolve_project_root(str(workspace)) == repo.resolve()
+
+
+def test_bare_book_yaml_without_domains_is_not_project_root(tmp_path):
+    """只有 book.yaml、无六域目录 → 不认作项目根（防模板/示例目录被误绑）。"""
+    _ensure_scripts_on_path()
+
+    from project_locator import resolve_project_root
+
+    bare = tmp_path / "template"
+    (bare / ".git").mkdir(parents=True, exist_ok=True)
+    (bare / "book.yaml").write_text("title: 模板\n", encoding="utf-8")
+    with pytest.raises(FileNotFoundError):
+        resolve_project_root(cwd=bare)
+
+
+def test_v7_ambiguous_workspace_stays_explicit(tmp_path):
+    """工作区下有两个 v7 书仓 → 歧义保持显式报错，不静默挑一个。"""
+    _ensure_scripts_on_path()
+
+    from project_locator import resolve_project_root
+
+    workspace = tmp_path / "workspace"
+    (workspace / ".git").mkdir(parents=True, exist_ok=True)
+    _make_v7_story_repo(workspace / "书一")
+    _make_v7_story_repo(workspace / "书二")
+    with pytest.raises(FileNotFoundError):
+        resolve_project_root(cwd=workspace)

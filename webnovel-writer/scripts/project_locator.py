@@ -224,7 +224,7 @@ def update_global_registry_current_project(
     except Exception:
         root = root
     if not _is_project_root(root):
-        raise FileNotFoundError(f"Not a webnovel project root (missing .webnovel/state.json): {root}")
+        raise FileNotFoundError(f"Not a webnovel project root (missing .webnovel/state.json or v7 book.yaml+domain): {root}")
 
     ws = workspace_root
     if ws is None:
@@ -270,7 +270,13 @@ def _candidate_roots(cwd: Path, *, stop_at: Optional[Path] = None) -> Iterable[P
 
 
 def _is_project_root(path: Path) -> bool:
-    return (path / ".webnovel" / "state.json").is_file()
+    if (path / ".webnovel" / "state.json").is_file():
+        return True
+    # v7 原生书仓：book.yaml + 六域顶层目录之一（2026-09-12 需求与设计对账 §D-2 甲）。
+    # 延迟导入：规避 project_locator 与 data_modules 的模块加载顺序问题。
+    from data_modules.domain_contract import is_story_repo_strict
+
+    return is_story_repo_strict(path)
 
 
 def _pointer_candidates(cwd: Path, *, stop_at: Optional[Path] = None) -> Iterable[Path]:
@@ -336,7 +342,7 @@ def write_current_project_pointer(project_root: Path, *, workspace_root: Optiona
     """
     root = normalize_windows_path(project_root).expanduser().resolve()
     if not _is_project_root(root):
-        raise FileNotFoundError(f"Not a webnovel project root (missing .webnovel/state.json): {root}")
+        raise FileNotFoundError(f"Not a webnovel project root (missing .webnovel/state.json or v7 book.yaml+domain): {root}")
 
     ws_root = Path(workspace_root).expanduser().resolve() if workspace_root else _find_workspace_root_with_claude(root)
     if ws_root is None:
@@ -411,14 +417,14 @@ def resolve_project_root(explicit_project_root: Optional[str] = None, *, cwd: Op
         if reg_root is not None:
             return reg_root
 
-        raise FileNotFoundError(f"Not a webnovel project root (missing .webnovel/state.json): {root}")
+        raise FileNotFoundError(f"Not a webnovel project root (missing .webnovel/state.json or v7 book.yaml+domain): {root}")
 
     env_root = os.environ.get("WEBNOVEL_PROJECT_ROOT") or os.environ.get(ENV_WEBNOVEL_BOOK_ROOT)
     if env_root:
         root = normalize_windows_path(env_root).expanduser().resolve()
         if _is_project_root(root):
             return root
-        raise FileNotFoundError(f"WEBNOVEL_PROJECT_ROOT is set but invalid (missing .webnovel/state.json): {root}")
+        raise FileNotFoundError(f"WEBNOVEL_PROJECT_ROOT is set but invalid (missing .webnovel/state.json or v7 book.yaml+domain): {root}")
 
     base = (cwd or Path.cwd()).resolve()
     git_root = _find_git_root(base)
