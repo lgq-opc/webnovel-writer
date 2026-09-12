@@ -24,11 +24,19 @@
 - [`operations/operations.md`](./operations/operations.md)：项目目录结构、运维命令、备份恢复
 - [`operations/plugin-release.md`](./operations/plugin-release.md)：插件发版流程与版本同步
 
-### 项目状态与待办（当前入口）
+### 项目状态与待办
 
-- [`zcode/v8-gap-review-3rounds/README.md`](./zcode/v8-gap-review-3rounds/README.md)：v8.0.0 后 41 项功能缺口 + 4 阶段 11 任务修复计划——**当前待办入口**
-- [`cursor/项目复审/2026-09-04-项目复审报告.md`](./cursor/项目复审/2026-09-04-项目复审报告.md)：v8.0.0 发版后全项目复审（P0/P1/P2 + 建议执行顺序）
-- [`plans/2026-08-25-status-and-pending-work.md`](./plans/2026-08-25-status-and-pending-work.md)：`[superseded]` v6.3.0 时期的状态清单，只作历史
+> **权威口径以 [`../AGENTS.md`](../AGENTS.md)「当前状态」节为准**；本节只做索引与状态标注。**2026-09-12 校准**：原先把 `v8-gap-review-3rounds` 标为「当前待办入口」，而它早已收官，与 `AGENTS.md` 的口径矛盾，现予订正。
+
+| 状态 | 文档 | 说明 |
+|---|---|---|
+| 🟡 **进行中** | [`plans/2026-09-10-v6线退役方案.md`](./plans/2026-09-10-v6线退役方案.md) | `[~]` Phase 1 完成、Phase 2 增量 1-3 完成；**剩余项见其 §1.5 与 §3**（Phase 3 待 Human 决策） |
+| ⬜ 已清空 | [`TODO-from-v8-author-review.md`](./TODO-from-v8-author-review.md) | 2026-09-10 复审遗留的 P1-P3 / N 系列 / F 系列 —— **2026-09-12 实测 24 项全 `[x]`**，已非待办 |
+| ⬜ 历史（已完成） | [`zcode/v8-gap-review-3rounds/README.md`](./zcode/v8-gap-review-3rounds/README.md) | v8.0.0 后 41 项缺口 + 4 阶段 **13 任务全部 ✅**（2026-09-04 收官） |
+| ⬜ 历史 | [`plans/2026-08-25-status-and-pending-work.md`](./plans/2026-08-25-status-and-pending-work.md) | `[superseded]` v6.3.0 时期的状态清单 |
+| 📋 **现状截面** | [`reports/2026-09-12-需求与设计对账.md`](./reports/2026-09-12-需求与设计对账.md) | 四套方案集 × 实现的逐条对账（P/T/D/F 编号，含未核项） |
+| 📋 现状截面 | [`reports/2026-09-11-待办全景梳理.md`](./reports/2026-09-11-待办全景梳理.md) | 待办入口归属判定与三类收尾 |
+| 📋 复审报告 | [`cursor/项目复审/2026-09-04-项目复审报告.md`](./cursor/项目复审/2026-09-04-项目复审报告.md) | v8.0.0 发版后全项目复审（P0/P1/P2 + 建议执行顺序） |
 
 ### 方案集（按任务成套：spec / plan / ledger / 审计）
 
