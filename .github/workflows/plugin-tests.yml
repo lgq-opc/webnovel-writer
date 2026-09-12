@@ -59,6 +59,13 @@ jobs:
           python webnovel-writer/scripts/validate_plugin_package.py
           python webnovel-writer/scripts/validate_reference_wiring.py
 
+      # 纯 v7 路径端到端冒烟（2026-09-12 接入）：此前 v8.1.0 发版链（pytest /
+      # 行为评测 / 四校验）无一层跑在「纯 v7 书仓」上，甲-1 / U-8 / U-10 / U-11
+      # 因此长期隐身。--allow-break 只放过已登记断点，新断点仍判失败——
+      # 不要改成数量阈值，那会掩盖新问题。
+      - name: Run v7 newbook smoke (纯 v7 路径端到端)
+        run: python -X utf8 webnovel-writer/scripts/smoke_v7_newbook.py --allow-break "8 knowledge"
+
   # N-2：ubuntu 的 locale 是 UTF-8，结构性地看不到「父进程与子进程编码约定不一致」
   # 这一类缺陷——N-1 因此在 CI 里隐身了两轮（只在本机中文 Windows 上暴露）。
   # 这个 Windows job 专门盯这一类：它跑的就是 AGENTS.md 上写的原样命令，
@@ -81,3 +88,9 @@ jobs:
 
       - name: Run test suite (documented command, no PYTHONUTF8)
         run: python -X utf8 -m pytest
+
+      # 同上。这个 job 也跑一遍是刻意的：冒烟测的是路径解析 + 子进程编码这类
+      # 平台敏感链路，而 ubuntu 的 locale 是 UTF-8，结构性地看不到这一类缺陷
+      # （N-1 曾在 CI 里隐身两轮，见本文件 tests-windows 的说明）。
+      - name: Run v7 newbook smoke (纯 v7 路径端到端)
+        run: python -X utf8 webnovel-writer/scripts/smoke_v7_newbook.py --allow-break "8 knowledge"

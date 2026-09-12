@@ -164,6 +164,11 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="纯 v7 新书端到端冒烟")
     ap.add_argument("--keep", action="store_true", help="保留临时书仓")
     ap.add_argument("--json-out", default="", help="把结果写成 JSON")
+    ap.add_argument(
+        "--allow-break", action="append", default=[], metavar="STEP", dest="allow_break",
+        help="已知断点的步骤名前缀，不计入失败；可重复。用于 CI：只放过已登记项，"
+             "新断点仍判失败（不要用数量阈值——那会掩盖新问题）。",
+    )
     args = ap.parse_args()
 
     root = Path(tempfile.mkdtemp(prefix="smoke-v7-"))
@@ -249,11 +254,16 @@ def main() -> int:
         results.append(_run("B2 pack(preflight值)", Q + ["v7-write", "pack", "--chapter", "1", "--json", str(dec_file)]))
 
     _report(results, args, root)
+    has_unexpected = any(
+        r["verdict"] == "BREAK"
+        and not any(r["step"].startswith(p) for p in args.allow_break or [])
+        for r in results
+    )
     if not args.keep:
         shutil.rmtree(root, ignore_errors=True)
     else:
         print(f"\n书仓保留在：{book}")
-    return 0
+    return 1 if has_unexpected else 0
 
 
 def _report(results: list[dict[str, Any]], args: argparse.Namespace, root: Path) -> None:
@@ -269,12 +279,21 @@ def _report(results: list[dict[str, Any]], args: argparse.Namespace, root: Path)
 
     breaks = [r for r in results if r["verdict"] == "BREAK"]
     biz = [r for r in results if r["verdict"] == "BIZ"]
+    unexpected = [
+        r for r in breaks
+        if not any(r["step"].startswith(p) for p in getattr(args, "allow_break", []) or [])
+    ]
     print("-" * 78)
     print(f"PASS {len(results)-len(breaks)-len(biz)} ｜ 🔴 BREAK {len(breaks)} ｜ 🟡 BIZ {len(biz)}")
     if breaks:
         print("\n🔴 断点清单（入口/环境级）：")
         for r in breaks:
-            print(f"  - {r['step']}：{r['first_line'][:80]}")
+            mark = "（已登记）" if r not in unexpected else ""
+            print(f"  - {r['step']}：{r['first_line'][:80]}{mark}")
+    if unexpected:
+        print(f"\n❌ 其中 {len(unexpected)} 个**未在 --allow-break 名单内** → 退出码 1（CI 判失败）")
+    elif breaks:
+        print(f"\n✅ {len(breaks)} 个断点全部已登记（--allow-break），退出码 0")
     if biz:
         print("\n🟡 业务级（非缺陷，需人工判读）：")
         for r in biz:
