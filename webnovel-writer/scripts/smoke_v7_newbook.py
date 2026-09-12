@@ -59,7 +59,9 @@ def _run(name: str, args: list[str], *, cwd: Path | None = None) -> dict[str, An
 
     first = next((ln for ln in out.splitlines() if ln.strip()), "")
     if code == 0:
-        verdict = "PASS"
+        # 码 0 但业务层自报错误（如 context 的 {"status":"error","error":{"code":...}}）
+        # 不算通过——否则"码0即 PASS"会在 CI 里漏掉这类假绿。
+        verdict = "BIZ" if re.search(r'"status"\s*:\s*"error"', out) else "PASS"
     elif any(m in out for m in _BREAK_MARKERS):
         verdict = "BREAK"
     else:
