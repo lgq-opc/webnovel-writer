@@ -42,7 +42,9 @@ def _scan_file(path: Path, project_root: Path) -> List[Dict[str, Any]]:
 def scan_placeholders(project_root: str | Path) -> List[Dict[str, Any]]:
     root = Path(project_root).expanduser().resolve()
     targets: List[Path] = []
-    for dirname in ("大纲", "设定集"):
+    # `大纲/` 两代共用；设定目录 v7 为 `设定/`、v6 为 `设定集/`——两个都扫，
+    # 迁移期并存时不漏报（U-11，2026-09-12）。
+    for dirname in ("大纲", "设定", "设定集"):
         base = root / dirname
         if base.is_dir():
             targets.extend(sorted(base.rglob("*.md")))
