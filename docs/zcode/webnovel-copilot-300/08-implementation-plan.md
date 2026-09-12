@@ -10,7 +10,9 @@
 >
 > **✅ 2026-09-12 回填（F-4）**：上句的「**不覆盖 F-13**」**已被后续计划关闭**——F-13「doctor 治理层体检」由 `docs/zcode/v8-gap-review-3rounds/README.md` 的 **P4-1** 落地，实现 `c0c5981`；fantasy01 真仓实测 **`gov_present 8 / 8`**、`ok=True`、无 gov blocker（该文 §P4-1 完成记录）。历史句保留不改写，与既有勘误惯例一致。
 >
-> **仍未核的**：同句所列 **F-04 / F-05 / F-08 / F-11 / F-14「仅部分覆盖」的逐项落点**，本批**未核查**，不得据本行推断其状态——见 `docs/reports/2026-09-12-需求与设计对账.md` 的 **U-1**。
+> **✅ 2026-09-12 复核（U-1）**：同句所列 **F-04 / F-05 / F-08 / F-11 / F-14「仅部分覆盖」的五处缺口已全部补齐**，逐条实测：F-04 ← `chapter_outline_validate.py` 含 `promise_not_found` / `time_regression` / `unknown_realm` / `unknown_character` / `outline_title_mismatch` 五个码，且 `outline_paths.py` 提供统一路径解析（P2-1/P2-2）；F-05 ← `v7_write.py:637 _run_post_hooks` 串 materials→style→reading（P3-1）；F-08 ← `forge_sync.py:20` 消费 `required|cleared`（P3-2）；F-11 ← `v7_write.py:37-68` 多 section、`:49 V7_PROTECTED_SECTIONS`、`:600 _run_gates` 三门禁（P1-1/P1-2）；F-14 ← `dashboard/governance.py:181 _ledger_view`（P4-2）。**故本行的「仅部分覆盖」截至 2026-09-12 已不成立。**
+>
+> **核对范围**：仅限本行所列缺口。对账表（2026-09-04 产出）**未列出**的缺口不在本次核对范围内——见 `docs/reports/2026-09-12-需求与设计对账.md` 的 U-1 结案记录。
 
 > **✅ D-0 已裁决（2026-09-03，作者）**：D0-4 = **2**（`--drafts` 默认 2，质量优先）；其余 D0-1/2/3/5/6/7 按方案建议生效（v8.0.0 线、`.story-system/` 入库+对账、journal 补全每会话一次 ≤50 条、素材按题材子集播种、fantasy01 验收场、D1-D8 核对完成）。D0-7 核对结果见 §0.1。
 
