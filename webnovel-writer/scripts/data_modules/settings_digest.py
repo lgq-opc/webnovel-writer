@@ -15,7 +15,7 @@ import hashlib
 import json
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Iterable, Optional
 
 DIGEST_DIR_NAME = "settings_digest"
 DEFAULT_DIGEST_MAX_CHARS = 240
@@ -64,6 +64,19 @@ def _find_setting_path(settings_dir: Path, keyword: str) -> Optional[Path]:
         return exact
     matches = sorted(settings_dir.glob(f"*{keyword}*.md"))
     return matches[0] if matches else None
+
+
+def find_setting_path(settings_dirs: Iterable[Path], keyword: str) -> Optional[Path]:
+    """按序在多个候选设定目录里查找（新路径在前）。
+
+    B1（2026-09-12）：`设定/` 优先、`设定集/` 兜底——同时支持纯 v7 书仓与
+    存量 v6 书仓。单目录查找仍由 :func:`_find_setting_path` 承担。
+    """
+    for directory in settings_dirs:
+        found = _find_setting_path(Path(directory), keyword)
+        if found is not None:
+            return found
+    return None
 
 
 def get_setting_digest(config: Any, keyword: str, settings_dir: Optional[Path] = None) -> str:

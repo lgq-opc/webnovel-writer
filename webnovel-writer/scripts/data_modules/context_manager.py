@@ -827,20 +827,23 @@ class ContextManager:
             digest = get_setting_digest(self.config, keyword)
             if digest:
                 return digest
-        settings_dir = self.config.settings_dir
-        candidates = [
-            settings_dir / f"{keyword}.md",
-        ]
+        # B1：跨候选目录查找（设定/ 优先、设定集/ 兜底）——先各目录精确名，
+        # 再各目录包含匹配，避免旧目录的模糊命中盖过新目录的精确命中。
+        settings_dirs = list(
+            getattr(self.config, "settings_dirs", None) or (self.config.settings_dir,)
+        )
         text = ""
-        for path in candidates:
-            if path.exists():
-                text = path.read_text(encoding="utf-8")
+        for settings_dir in settings_dirs:
+            exact = settings_dir / f"{keyword}.md"
+            if exact.exists():
+                text = exact.read_text(encoding="utf-8")
                 break
         if not text:
-            # fallback: any file containing keyword
-            matches = list(settings_dir.glob(f"*{keyword}*.md"))
-            if matches:
-                text = matches[0].read_text(encoding="utf-8")
+            for settings_dir in settings_dirs:
+                matches = sorted(settings_dir.glob(f"*{keyword}*.md"))
+                if matches:
+                    text = matches[0].read_text(encoding="utf-8")
+                    break
         if not text:
             return f"[{keyword}设定未找到]"
         # P1-4：设定文件随书膨胀是写章最大固定 token 开销，默认按

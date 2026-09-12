@@ -161,3 +161,51 @@ class TestSettingReadCli:
         cmd_setting_read(argparse.Namespace(project_root=str(tmp_path), name="不存在", max_chars=0))
         out = capsys.readouterr().out
         assert "未找到" in out
+
+
+class TestMultiDirSettingsResolution:
+    """B1（2026-09-12）：设定目录候选列表——`设定/` 优先、`设定集/` 兜底。
+
+    背景：六域第三域为 `设定/`（domain_contract 头部定义、05 §4），而
+    `config.settings_dir` 长期指向废弃的 `设定集/`，导致纯 v7 书仓里
+    `setting-read` 与 L0 摘要恒找不到设定文件。项目既有的多路径回退惯例
+    见 info_gap / power_anchor / setting_forge / style_domain。
+    """
+
+    def test_settings_dirs_orders_new_path_first(self, tmp_path):
+        cfg = _cfg(tmp_path)
+
+        assert list(cfg.settings_dirs) == [tmp_path / "设定", tmp_path / "设定集"]
+
+    def test_find_setting_path_prefers_new_dir(self, tmp_path):
+        from data_modules.settings_digest import find_setting_path
+
+        _write_setting(tmp_path, "世界观", SAMPLE_MD)  # 旧：设定集/
+        (tmp_path / "设定").mkdir(parents=True, exist_ok=True)
+        (tmp_path / "设定" / "世界观.md").write_text("# 新世界观\n", encoding="utf-8")
+
+        found = find_setting_path(_cfg(tmp_path).settings_dirs, "世界观")
+
+        assert found == tmp_path / "设定" / "世界观.md"
+
+    def test_find_setting_path_falls_back_to_legacy_dir(self, tmp_path):
+        """只有旧路径 `设定集/` 时仍能找到（存量 v6 书仓向后兼容）。"""
+        from data_modules.settings_digest import find_setting_path
+
+        _write_setting(tmp_path, "世界观", SAMPLE_MD)
+
+        found = find_setting_path(_cfg(tmp_path).settings_dirs, "世界观")
+
+        assert found == tmp_path / "设定集" / "世界观.md"
+
+    def test_setting_read_reads_v7_settings_dir(self, tmp_path, capsys):
+        """纯 v7 书仓（`设定/` + book.yaml，无 .webnovel）能读到设定原文。"""
+        from data_modules.webnovel import cmd_setting_read
+
+        (tmp_path / "book.yaml").write_text("title: t\n", encoding="utf-8")
+        (tmp_path / "设定").mkdir(parents=True, exist_ok=True)
+        (tmp_path / "设定" / "世界观.md").write_text("# v7 世界观\n天裂\n", encoding="utf-8")
+
+        cmd_setting_read(argparse.Namespace(project_root=str(tmp_path), name="世界观", max_chars=0))
+
+        assert "v7 世界观" in capsys.readouterr().out

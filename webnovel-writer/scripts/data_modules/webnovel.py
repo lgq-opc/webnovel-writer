@@ -712,11 +712,11 @@ def cmd_meter(args: argparse.Namespace) -> int:
 def cmd_setting_read(args: argparse.Namespace) -> int:
     """S3/C3 L2：按需读取设定文件原文（默认全文，--max-chars 可截）。"""
     from .config import DataModulesConfig
-    from .settings_digest import _find_setting_path
+    from .settings_digest import find_setting_path
 
     root = _resolve_root(args.project_root)
     cfg = DataModulesConfig.from_project_root(root)
-    source = _find_setting_path(cfg.settings_dir, args.name)
+    source = find_setting_path(cfg.settings_dirs, args.name)
     if source is None:
         print(f"ERROR setting-read: 未找到设定文件（keyword={args.name}）")
         return 1

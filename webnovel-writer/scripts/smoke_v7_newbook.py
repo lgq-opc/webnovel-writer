@@ -183,6 +183,13 @@ def main() -> int:
         _report(results, args, root)
         return 1
 
+    # 造一个设定文件：book-init 只建空的 设定/（advisory 文件不自动生成），
+    # 不造文件则 setting-read 恒报「未找到」——那是业务正常，验不出 U-8/B1 是否生效。
+    (book / "设定").mkdir(parents=True, exist_ok=True)
+    (book / "设定" / "世界观.md").write_text(
+        "# 世界观\n\n修炼体系：练气、筑基、金丹。\n", encoding="utf-8"
+    )
+
     # ---- 1. 预检：刻意传「工作区根」，检查 PROJECT_ROOT 解析成什么（U-7）----
     pre = _run("1 preflight(工作区根)", ["--project-root", str(ws), "preflight", "--all"])
     m = re.search(r"^PROJECT_ROOT=(.*)$", pre["output"], re.M)

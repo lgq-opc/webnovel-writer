@@ -126,8 +126,25 @@ class DataModulesConfig:
         return self.project_root / "正文"
 
     @property
+    def settings_dirs(self) -> tuple[Path, ...]:
+        """设定目录候选（新路径在前、旧路径兜底）。
+
+        六域第三域为 `设定/`（见 domain_contract 头部六域定义与 05 §4）；
+        `设定集/` 是 v6 及早期 v7 的旧路径，保留兜底以支持存量书仓。
+        跨目录查找请用 `settings_digest.find_setting_path`。
+        """
+        return (self.project_root / "设定", self.project_root / "设定集")
+
+    @property
     def settings_dir(self) -> Path:
-        return self.project_root / "设定集"
+        """首个存在的设定目录；都不存在时返回新路径（默认落点）。
+
+        保留以兼容既有单目录调用；需要跨候选目录查找请用 :attr:`settings_dirs`。
+        """
+        for candidate in self.settings_dirs:
+            if candidate.is_dir():
+                return candidate
+        return self.settings_dirs[0]
 
     @property
     def outline_dir(self) -> Path:
