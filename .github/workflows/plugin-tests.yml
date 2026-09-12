@@ -61,10 +61,11 @@ jobs:
 
       # 纯 v7 路径端到端冒烟（2026-09-12 接入）：此前 v8.1.0 发版链（pytest /
       # 行为评测 / 四校验）无一层跑在「纯 v7 书仓」上，甲-1 / U-8 / U-10 / U-11
-      # 因此长期隐身。--allow-break 只放过已登记断点，新断点仍判失败——
-      # 不要改成数量阈值，那会掩盖新问题。
+      # 因此长期隐身。经 D-2 乙 第一批（明示不支持）后纯 v7 路径已零入口级断点，
+      # 故不再挂 allow-break——任何 BREAK 即失败。确需临时放过已登记项时用
+      # --allow-break，但修好后必须移除（不要改成数量阈值，那会掩盖新问题）。
       - name: Run v7 newbook smoke (纯 v7 路径端到端)
-        run: python -X utf8 webnovel-writer/scripts/smoke_v7_newbook.py --allow-break "8 knowledge"
+        run: python -X utf8 webnovel-writer/scripts/smoke_v7_newbook.py
 
   # N-2：ubuntu 的 locale 是 UTF-8，结构性地看不到「父进程与子进程编码约定不一致」
   # 这一类缺陷——N-1 因此在 CI 里隐身了两轮（只在本机中文 Windows 上暴露）。
@@ -93,4 +94,4 @@ jobs:
       # 平台敏感链路，而 ubuntu 的 locale 是 UTF-8，结构性地看不到这一类缺陷
       # （N-1 曾在 CI 里隐身两轮，见本文件 tests-windows 的说明）。
       - name: Run v7 newbook smoke (纯 v7 路径端到端)
-        run: python -X utf8 webnovel-writer/scripts/smoke_v7_newbook.py --allow-break "8 knowledge"
+        run: python -X utf8 webnovel-writer/scripts/smoke_v7_newbook.py

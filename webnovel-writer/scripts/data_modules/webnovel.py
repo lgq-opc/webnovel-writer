@@ -177,6 +177,25 @@ def _resolve_root_lenient(raw: Optional[str]) -> Path:
         raise
 
 
+# v7 书仓不提供的 v6 域工具（D-2 乙，2026-09-13）：
+# 数据源在 v6 系统域（.webnovel/），v7 侧无替代或只有形态不同的等价物。
+_V7_UNSUPPORTED: dict[str, tuple[str, str]] = {
+    "rag": (
+        "语义检索",
+        "v7 侧无向量库；可读 `定稿/记忆/章摘要/NNNN.md`（前情摘要）或直接读 `定稿/正文/`",
+    ),
+    "knowledge": (
+        "实体逐章状态与实体关系",
+        "v7 侧可用 `定稿/设定/名册/`（实体名册）与 `大纲/条目/`（伏笔/悬念/感情线状态）",
+    ),
+    "context": (
+        "写前上下文装配",
+        "v7 请用 `webnovel.py v7-write pack --chapter N --json 决策.json`"
+        "（产出 `工作区/上下文包-NNNN.md`）",
+    ),
+}
+
+
 def _resolve_root_or_report(raw: Optional[str]) -> Optional[Path]:
     """宽松解析的转发命令统一入口：解析失败按 cmd_where 的既有模式打诊断，返回 None 由调用方返回 1。
 
@@ -1389,6 +1408,20 @@ def _main_impl() -> None:
     # 其余工具：统一解析 project_root 后前置给下游
     project_root = _resolve_root(args.project_root)
     forward_args = ["--project-root", str(project_root)]
+
+    # v7 书仓：三个 v6 域工具明示不支持（D-2 乙，2026-09-13）。退出码 0——
+    # 这是预期的明确行为而非故障，冒烟据此判 PASS、CI 基线才干净。
+    if tool in _V7_UNSUPPORTED:
+        from data_modules import domain_contract
+
+        if domain_contract.is_story_repo(project_root):
+            capability, hint = _V7_UNSUPPORTED[tool]
+            print(json.dumps({
+                "status": "unsupported",
+                "reason": f"v7 书仓不提供{capability}：数据源在 v6 系统域（.webnovel/）",
+                "hint": hint,
+            }, ensure_ascii=False, indent=2))
+            raise SystemExit(0)
 
     if tool == "index":
         raise SystemExit(_run_data_module("index_manager", [*forward_args, *rest]))
