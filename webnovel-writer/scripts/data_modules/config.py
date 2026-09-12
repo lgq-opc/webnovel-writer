@@ -239,7 +239,6 @@ class DataModulesConfig:
     context_ranker_recency_weight: float = 0.7
     context_ranker_frequency_weight: float = 0.3
     context_ranker_hook_bonus: float = 0.2
-    context_ranker_length_bonus_cap: float = 0.2
     context_ranker_alert_critical_keywords: tuple[str, ...] = (
         "冲突",
         "矛盾",

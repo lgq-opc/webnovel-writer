@@ -6,7 +6,8 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List
+import re
+from typing import Any, Dict, Iterable, List, Set
 
 from ..config import DataModulesConfig, get_config
 from ..index_manager import IndexManager
@@ -30,6 +31,19 @@ class MemoryOrchestrator:
         "reader_promise": 5,
         "timeline": 6,
     }
+
+    # R13/F-13：subject 装 entity_id 的类别（来源 memory/bootstrap.py 的
+    # subject=entity_id / from_entity）；其余类别（open_loop / reader_promise）
+    # 的 subject 是自由文本。
+    ENTITY_SUBJECT_CATEGORIES = frozenset(
+        {"character_state", "story_fact", "world_rule", "timeline", "relationship"}
+    )
+    # 词元切分：拉丁/下划线词整体成一个词元，中文连续串按二元窗口切分
+    TOKEN_RE = re.compile("[A-Za-z][A-Za-z0-9_]*|[\\u4e00-\\u9fff]+")
+    # 单字符词元丢弃（避免「的/了」这类短词过度命中）
+    TOKEN_MIN_CHARS = 2
+    # 自由文本命中门槛：条目侧词元至少一半在章纲中出现（防超长串偶然命中）
+    TOKEN_OVERLAP_THRESHOLD = 0.5
 
     def __init__(self, config: DataModulesConfig | None = None):
         self.config = config or get_config()
@@ -92,22 +106,84 @@ class MemoryOrchestrator:
         if not outline:
             return sorted(items, key=lambda x: (x.source_chapter, x.updated_at), reverse=True)
 
+        outline_tokens = self._tokens(outline)
+        alias_cache: Dict[str, List[str]] = {}
         keep: List[MemoryItem] = []
         source_window = max(1, int(getattr(self.config, "memory_orchestrator_source_window", 20)))
         for item in items:
-            if item.subject and item.subject in outline:
-                keep.append(item)
-                continue
-            if item.field and item.field in outline:
-                keep.append(item)
-                continue
-            if item.value and item.value[:20] in outline:
+            if self._matches_outline(item, outline, outline_tokens, alias_cache):
                 keep.append(item)
                 continue
             if item.source_chapter > 0 and chapter - item.source_chapter <= source_window:
                 keep.append(item)
 
         return sorted(keep, key=lambda x: (self.PRIORITY.get(x.category, 99), -x.source_chapter))
+
+    def _matches_outline(
+        self,
+        item: MemoryItem,
+        outline: str,
+        outline_tokens: Set[str],
+        alias_cache: Dict[str, List[str]],
+    ) -> bool:
+        """R13/F-13：条目是否与本章相关。
+
+        - 实体类（subject=entity_id）：展开实体全部别名，任一别名在章纲文本中出现即命中
+          （代称/同义词不再漏检）；field/value 仍按词元重合比对。
+        - 自由文本类：subject/field/value 与章纲按词元重合度比对，不再做整串子串包含。
+        """
+        if item.category in self.ENTITY_SUBJECT_CATEGORIES:
+            if item.subject and item.subject in outline:
+                return True
+            for name in self._entity_names(item.subject, alias_cache):
+                if name in outline:
+                    return True
+            return self._overlaps_outline((item.field, item.value), outline_tokens)
+        return self._overlaps_outline((item.subject, item.field, item.value), outline_tokens)
+
+    def _entity_names(self, entity_id: str, alias_cache: Dict[str, List[str]]) -> List[str]:
+        """实体的候选名称（ID 本身 + 别名表全部别名）。
+
+        同一次构建里同一个 entity_id 只查一次库——结果（含空结果）写入 alias_cache。
+        """
+        key = str(entity_id or "")
+        if not key:
+            return []
+        if key not in alias_cache:
+            names = [key]
+            names.extend(self.index_manager.get_entity_aliases(key))
+            alias_cache[key] = list(dict.fromkeys(name for name in names if name))
+        return alias_cache[key]
+
+    def _overlaps_outline(self, texts: Iterable[str], outline_tokens: Set[str]) -> bool:
+        if not outline_tokens:
+            return False
+        for text in texts:
+            tokens = self._tokens(text)
+            if not tokens:
+                continue
+            matched = len(tokens & outline_tokens)
+            if matched and matched / len(tokens) >= self.TOKEN_OVERLAP_THRESHOLD:
+                return True
+        return False
+
+    def _tokens(self, text: str) -> Set[str]:
+        """把文本切成语义词元：拉丁词（≥2 字符）整体、中文二元词元，单字丢弃。"""
+        tokens: Set[str] = set()
+        for raw in self.TOKEN_RE.findall(str(text or "")):
+            if raw[0].isascii():
+                if len(raw) >= self.TOKEN_MIN_CHARS:
+                    tokens.add(raw.lower())
+                continue
+            if len(raw) < self.TOKEN_MIN_CHARS:
+                continue
+            if len(raw) == self.TOKEN_MIN_CHARS:
+                tokens.add(raw)
+            else:
+                tokens.update(
+                    raw[i : i + self.TOKEN_MIN_CHARS] for i in range(len(raw) - 1)
+                )
+        return tokens
 
     def _apply_budget(self, items: List[MemoryItem], max_items: int) -> List[MemoryItem]:
         if max_items <= 0:

@@ -20,6 +20,42 @@ def test_rank_recent_summaries_prefers_recency_and_hook(tmp_path):
     assert ranked[-1]["chapter"] == 7
 
 
+def test_rank_recent_summaries_prefers_dense_short_over_long_empty(tmp_path):
+    """R13/F-13：同 recency、同 hook 下「长而空」必须排在「短而实」之后。
+
+    旧实现 frequency = _length_score（len/1200）给长文本加分，本用例下
+    「长而空」会排第一，故先失败。
+    """
+    cfg = DataModulesConfig.from_project_root(tmp_path)
+    ranker = ContextRanker(cfg)
+
+    long_empty = "他想起一些旧事，" + "随后众人各自散去，无人多言，" * 120 + "这到底意味着什么？"
+    short_dense = "萧炎当众揭穿长老，冲突爆发，他反被质问，最终怒而出手？"
+    assert len(long_empty) > len(short_dense) * 10
+
+    items = [
+        {"chapter": 9, "summary": long_empty},
+        {"chapter": 9, "summary": short_dense},
+    ]
+    ranked = ranker.rank_recent_summaries(items, current_chapter=10)
+
+    assert len(ranked) == 2
+    assert ranked[0]["summary"] == short_dense
+    assert ranked[-1]["summary"] == long_empty
+
+
+def test_density_score_does_not_grow_with_length(tmp_path):
+    """R13：密度分对长度只稀释、不奖励——同信号下更长的文本不得更高分。"""
+    cfg = DataModulesConfig.from_project_root(tmp_path)
+    ranker = ContextRanker(cfg)
+
+    dense = "萧炎揭穿长老，冲突爆发，他怒而出手？"
+    filler = "随后众人各自散去，无人多言，"
+
+    assert ranker._density_score(dense) > ranker._density_score(filler * 200)
+    assert ranker._density_score(dense) >= ranker._density_score(dense + filler * 200)
+
+
 def test_rank_appearances_uses_recency_and_frequency(tmp_path):
     cfg = DataModulesConfig.from_project_root(tmp_path)
     ranker = ContextRanker(cfg)

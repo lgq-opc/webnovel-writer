@@ -22,6 +22,19 @@ class ContextRanker:
 
     SUMMARY_HOOK_HINTS = ("?", "？", "悬念", "钩子", "反转", "冲突")
 
+    # R13/F-13：摘要信息密度代理的关键词组——命中「组数」而非命中次数，
+    # 组内任一词元出现即该组命中。第一组复用 SUMMARY_HOOK_HINTS（悬念/钩子）。
+    SUMMARY_DENSITY_GROUPS: tuple[tuple[str, ...], ...] = (
+        SUMMARY_HOOK_HINTS,
+        ("对峙", "摊牌", "翻脸", "动手", "交锋", "威胁"),
+        ("揭穿", "真相", "原来", "竟是", "反被", "暴露"),
+        ("怒", "痛", "哭", "恨", "颤", "心软", "心悸"),
+        ("斩杀", "出手", "突破", "逃", "追", "夺", "闯", "击中"),
+        ("终于", "得到", "失去", "失败", "成功", "换来"),
+    )
+    # 密度参照长度：短于此长度无长度阻尼，超过后按 log 轻度稀释（绝不奖励冗长）
+    SUMMARY_DENSITY_REF_CHARS = 240
+
     # S2/C2：大 section 的文本上限（豁免改上限——只截字符串值，不破坏结构）
     SECTION_TEXT_BUDGETS: dict[str, int] = {
         "genre_profile": 1500,
@@ -153,10 +166,11 @@ class ContextRanker:
             summary = str(item.get("summary") or "")
 
             recency = self._recency_score(chapter, current_chapter)
-            frequency = self._length_score(summary)
+            # R13：中间权重位不再吃长度分，改吃信息密度分（_density_score）
+            density = self._density_score(summary)
             hook_bonus = float(self.config.context_ranker_hook_bonus) if self._has_hook_hint(summary) else 0.0
-            score = self._combine_score(recency, frequency, hook_bonus)
-            scored.append(self._with_debug_score(item, score, recency, frequency, hook_bonus))
+            score = self._combine_score(recency, density, hook_bonus)
+            scored.append(self._with_debug_score(item, score, recency, density, hook_bonus))
 
         scored.sort(key=lambda row: row[0], reverse=True)
         return [row[1] for row in scored]
@@ -169,9 +183,9 @@ class ContextRanker:
             hook = str(item.get("hook") or "")
             hook_bonus = float(self.config.context_ranker_hook_bonus) if hook else 0.0
             recency = self._recency_score(chapter, current_chapter)
-            frequency = self._length_score(hook)
-            score = self._combine_score(recency, frequency, hook_bonus)
-            scored.append(self._with_debug_score(item, score, recency, frequency, hook_bonus))
+            density = self._density_score(hook)
+            score = self._combine_score(recency, density, hook_bonus)
+            scored.append(self._with_debug_score(item, score, recency, density, hook_bonus))
 
         scored.sort(key=lambda row: row[0], reverse=True)
         return [row[1] for row in scored]
@@ -199,9 +213,9 @@ class ContextRanker:
             chapter = self._as_int(item.get("chapter"))
             summary = str(item.get("summary") or "")
             recency = self._recency_score(chapter, current_chapter)
-            frequency = self._length_score(summary)
-            score = self._combine_score(recency, frequency, 0.0)
-            scored.append(self._with_debug_score(item, score, recency, frequency, 0.0))
+            density = self._density_score(summary)
+            score = self._combine_score(recency, density, 0.0)
+            scored.append(self._with_debug_score(item, score, recency, density, 0.0))
 
         scored.sort(key=lambda row: row[0], reverse=True)
         return [row[1] for row in scored]
@@ -236,6 +250,7 @@ class ContextRanker:
         return [row[1] for row in scored]
 
     def _combine_score(self, recency: float, frequency: float, bonus: float) -> float:
+        """R13：签名与三个权重位保持不变；中间位（frequency）语义已变为信息密度分。"""
         return (
             recency * float(self.config.context_ranker_recency_weight)
             + frequency * float(self.config.context_ranker_frequency_weight)
@@ -254,12 +269,27 @@ class ContextRanker:
         # log scale to avoid over-favoring very frequent entities
         return min(1.0, math.log(1.0 + float(total)) / math.log(11.0))
 
-    def _length_score(self, text: str) -> float:
+    def _density_score(self, text: str) -> float:
+        """R13/F-13：信息密度代理，替代按长度给分的 _length_score。
+
+        与「越长分越高」相反：
+        - 命中关键词组「组数」越多分越高（同组内重复出现不再加分）；
+        - 长度只做轻度稀释（log 归一，上限 1.0）——同信号下更长的文本得分不更高，
+          长而空必然低于短而实。
+        """
         if not text:
             return 0.0
-        ratio = min(len(text) / 1200.0, 1.0)
-        cap = float(self.config.context_ranker_length_bonus_cap)
-        return ratio * cap
+        groups = self.SUMMARY_DENSITY_GROUPS
+        hits = sum(1 for group in groups if any(token in text for token in group))
+        if hits <= 0:
+            return 0.0
+        coverage = hits / float(len(groups))
+        length_damp = min(
+            1.0,
+            math.log(1.0 + self.SUMMARY_DENSITY_REF_CHARS)
+            / math.log(1.0 + max(self.SUMMARY_DENSITY_REF_CHARS, len(text))),
+        )
+        return coverage * length_damp
 
     def _has_hook_hint(self, text: str) -> bool:
         return any(token in text for token in self.SUMMARY_HOOK_HINTS)
