@@ -114,12 +114,25 @@ def _build_chapter_filename(project_root: Path, chapter_num: int, *, use_volume_
 
 def find_chapter_file(project_root: Path, chapter_num: int) -> Optional[Path]:
     """
-    Find an existing chapter file for chapter_num under project_root/正文.
-    Returns the first match (stable sorted order) or None if not found.
+    查找 chapter_num 对应的章节文件。返回首个匹配（稳定排序）或 None。
+
+    支持两种书仓布局（U-12，2026-09-12）：
+    - v7：`定稿/正文/NNNN-标题.md`（v7_write settle 的唯一写入路径）——**优先**
+    - v6：`正文/第NNNN章*.md`（平坦或卷布局）——向后兼容存量仓
 
     长路径防护：深层书目录下 is_file/rglob 可能因 >MAX_PATH 报 ENOENT，
     这里统一走 long_paths 原语，rglob 扫描失败时优雅跳过而不是中断。
     """
+    # v7 布局优先：注意目录名与文件名格式都与 v6 不同（v7 无「第…章」前缀）
+    v7_dir = project_root / "定稿" / "正文"
+    if long_paths.is_dir(v7_dir):
+        try:
+            for candidate in sorted(long_paths.iter_files(v7_dir, (f"{chapter_num:04d}-*.md",))):
+                if long_paths.is_file(candidate):
+                    return candidate
+        except OSError:
+            pass
+
     chapters_dir = project_root / "正文"
     if not long_paths.is_dir(chapters_dir):
         return None

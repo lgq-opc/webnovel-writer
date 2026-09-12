@@ -67,3 +67,46 @@ def test_find_chapter_file_supports_titled_flat_filename(tmp_path):
     found = module.find_chapter_file(tmp_path, 3)
 
     assert found == chapter_path
+
+
+# ---------------------------------------------------------------------------
+# U-12（2026-09-12）：v7 正文在 `定稿/正文/NNNN-标题.md`，与 v6 的
+# `正文/第NNNN章*.md` 目录与文件名格式**都不同**。此前 find_chapter_file
+# 只认 v6 形态 → 纯 v7 仓恒返回 None → user_report 误报「正文文件缺失」。
+# ---------------------------------------------------------------------------
+
+
+def test_find_chapter_file_finds_v7_body(tmp_path):
+    """v7 布局 `定稿/正文/NNNN-标题.md` 应能被找到。"""
+    module = _load_module()
+
+    chapter_path = tmp_path / "定稿" / "正文" / "0003-山雨欲来.md"
+    chapter_path.parent.mkdir(parents=True, exist_ok=True)
+    chapter_path.write_text("正文", encoding="utf-8")
+
+    found = module.find_chapter_file(tmp_path, 3)
+
+    assert found == chapter_path
+
+
+def test_find_chapter_file_prefers_v7_body_over_legacy(tmp_path):
+    """两处都存在时取 v7 的（迁移期以新路径为准）。"""
+    module = _load_module()
+
+    legacy = tmp_path / "正文" / "第0003章-山雨欲来.md"
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    legacy.write_text("旧正文", encoding="utf-8")
+    v7 = tmp_path / "定稿" / "正文" / "0003-山雨欲来.md"
+    v7.parent.mkdir(parents=True, exist_ok=True)
+    v7.write_text("新正文", encoding="utf-8")
+
+    found = module.find_chapter_file(tmp_path, 3)
+
+    assert found == v7
+
+
+def test_find_chapter_file_returns_none_when_absent(tmp_path):
+    """两处都没有时仍返回 None（不得硬编造路径）。"""
+    module = _load_module()
+
+    assert module.find_chapter_file(tmp_path, 3) is None
