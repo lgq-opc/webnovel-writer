@@ -59,9 +59,34 @@
 - 预计触碰：`style_sampler.py` 接线、`context-agent.md`、`webnovel-init/SKILL.md`、`webnovel-write/SKILL.md`、`reference-loading-map.md`。
 
 ### W6 · 学习闭环升级（R9）
+
+> ✅ **2026-09-13 结案：按「已被取代」结案，不补做**（todohub `t-20260912-ac94`）。
+
 - 改动：pattern 结构化（evidence_excerpt/metrics_snapshot）；高分章自动候选 pattern；近重复合并；注入 10→20；学习有效性对比报告。
 - 验收：`/webnovel-review` 高分章后收到候选建议；注入扩容生效；报告可生成。
 - 预计触碰：`project_memory.py`、`webnovel-learn/SKILL.md`、`memory_contract_adapter.py`、新报告脚本。
+
+**结案依据**：学习闭环**已以另一形态存在**——`learn --from-journal`（卷级归纳 →
+`作者/author_model-建议.md`，0-token 脚本统计 + 留白给 LLM 归纳）→ 作者确认 →
+`learn apply`（回写 `作者/author_model.md` + `作者/跨书偏好.yaml`）。实现于
+`author_model.py`（F-12 / M3-T16），CLI 接在 `data_modules/webnovel.py:1139`，
+技能指引已于同日按此重写（`skills/webnovel-learn/SKILL.md`）。
+**2026-09-13 实测**：`learn --from-journal` 与 `learn apply` 均码=0、建议文件与
+author_model 正常产出（含「已确认」标记）。
+
+**与 W6 原描述的差异（等价替换而非原样实现）**：原「pattern 库」（`project_memory.py`
+的 `patterns` 数组 + `evidence_excerpt`/`metrics_snapshot` 字段）已随文件删除而不存在；
+现形态是**作者模型**（节奏偏好 / 雷点 / 修改习惯 / 本书特定要求）——语义是「作者是谁」
+而非「写作 pattern 库」，但覆盖了「从会话与作者行为中学习并影响后续写作」这一目标。
+「预计触碰」四个落点中三个已不存在，施工指引作废；**不补做的依据是目标已由 F-12 达成**，
+不是工期。
+
+**未覆盖**：验收第一条「`/webnovel-review` 高分章后自动候选 pattern」在 v7 **无对应物**——
+如需，属新需求而非 W6 补做。
+
+**另立核验项**（todohub `t-20260913-02e7`）：实测中 `learn` 报「事件范围：**0/2** 条」，
+说明它对 journal 行有筛选口径；真书的 `作者/journal.jsonl` 主要由审查绕过留痕产生、量可能很薄。
+**闭环的输入端够不够料**是比「W6 是否补做」更实际的问题，需在真书仓上核。
 
 ### W7 · 机检加强与字数口径（R12）
 - 改动：v7 上限告警/承诺推进存在性检查/占位符正则扩展/字数口径统一/机检回退对齐书史；v6 write-gate 同源上限告警。
@@ -69,9 +94,24 @@
 - 预计触碰：`v7_write.py`、`prewrite_validator.py`、相关测试。
 
 ### W8 · 排序信号升级（R13）
+
+> ✅ **已实现**（2026-09-12，提交 `01fe438`）。附带裁定（2026-09-13）：**D-8「`memory_pack`
+> 是否进排序」不补做，随 v6 冻结**（todohub `t-20260912-8f3e`）。
+
 - 改动：orchestrator 语义过滤改实体+关键词组重合度；删 `_length_score`；主路径引入排序。
 - 验收：代称召回对比测试；长而空 vs 短而实排序断言。
 - 预计触碰：`memory/orchestrator.py`、`context_ranker.py`、测试。
+
+**D-8 不补做的依据**：`memory_pack` 只出现在 **v6 模块**——`context_manager.py:219`
+（→ `memory/orchestrator.py:53 build_memory_pack`）与 `context_budget.py` 的配额/子配额表；
+排序主体 `context_ranker.py` 的生产引用者也只有 v6 的 `context_manager`。
+而 v7 的 `pack` 有**独立的 section 表**（`v7_write.V7_SECTION_QUOTAS/TITLES`，不含
+`memory_pack`），且 v7 上 `context` 命令已明示不支持。即 D-8 是**纯 v6 域内**的排序问题，
+补它没有 v7 消费者。
+
+**附带发现（另立议题，不在 D-8 内）**：W8 的成果 `_density_score` 落在 `context_ranker.py`，
+而该模块**无 v7 生产引用**——那部分工作目前只服务 v6 域，而 v6 写链已 frozen-legacy。
+是否把 R13 的排序能力搬进 v7 的 `pack`，见 todohub `t-20260913-b673`。
 
 ### W9 · 技法盲区与结构补齐（R11 + R14）
 - 改动：幽默/POV/修辞/亲密戏/商业文案五类条目与共享 md；系统流/都市异能模板补厚；CSV 分类收敛。
