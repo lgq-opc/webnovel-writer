@@ -12,10 +12,14 @@
 可直接使用：
 
     book.yaml                    spec_version 7.0 + 书名/类型/字数/卷规模等
-    大纲/ 素材/ 作者/ 文风/ …     六域骨架（domain_contract.init_domain_skeleton）
+    大纲/ 素材/ 作者/ 文风/        六域骨架（domain_contract.init_domain_skeleton）
+    定稿/正文/                    本函数补建（doctor 的 v7 required 检查项，见 :145）
     素材/活/*                    按题材播种（material_store.seed_materials）
     .gitignore                   .cache/ 工作区/ .webnovel/tmp/ .webnovel/logs/
     .git                         初始提交（`--no-git` 可跳过）
+
+    **实测顶层域 5/6**：六域里 `设定/` 不预建（内容属 advisory，按需创建，
+    见 domain_contract.ADVISORY_FILES）——t-20260913-3e73 统一口径。
 
 **安全**：目标目录已存在且非空时拒绝执行——绝不在有内容的目录上播种。
 """

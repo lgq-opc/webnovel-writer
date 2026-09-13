@@ -155,6 +155,28 @@ class TestInitDomainSkeleton:
         init_domain_skeleton(v7_book)
         assert gi.read_text(encoding="utf-8") == content
 
+    def test_skeleton_covers_four_of_six_top_dirs(self, tmp_path: Path):
+        """把「六域骨架 ≠ 建出六个顶层域」这条口径钉成可跑的检查（t-20260913-3e73）。
+
+        口径漂移过一次：`smoke_v7_newbook.py` 曾注释「book-init 只建空的 设定/」，
+        而实测 book-init **根本不建** `设定/`（是冒烟脚本自己 mkdir 的）。
+        本用例固定事实：本函数建 **大纲/素材/作者/文风** 四域，`定稿` 由 `init_book` 补建、
+        `设定` 按需创建——`book-init` 之后实测 5/6。改契约时这里会先红。
+
+        刻意用裸 `tmp_path` 而非 `v7_book` 夹具：后者预建了 定稿/设定/大纲，
+        会掩盖本函数自己建了什么。
+        """
+        from data_modules.domain_contract import DOMAIN_TOP_DIRS, init_domain_skeleton
+
+        root = tmp_path / "bare"
+        root.mkdir()
+
+        init_domain_skeleton(root)
+
+        built = {name for name in DOMAIN_TOP_DIRS if (root / name).is_dir()}
+        assert built == {"大纲", "素材", "作者", "文风"}
+        assert "设定" not in built and "定稿" not in built, "这两域不由本函数创建（见其 docstring）"
+
 
 class TestCheckDomainContract:
     def test_all_ok_after_init(self, v7_book: Path):

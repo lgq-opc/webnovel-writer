@@ -220,8 +220,10 @@ def main() -> int:
         _report(results, args, root)
         return 1
 
-    # 造一个设定文件：book-init 只建空的 设定/（advisory 文件不自动生成），
-    # 不造文件则 setting-read 恒报「未找到」——那是业务正常，验不出 U-8/B1 是否生效。
+    # 造一个设定文件。**`book-init` 并不建 `设定/`**（2026-09-13 实测，t-20260913-3e73）：
+    # `init_domain_skeleton` 只建 大纲/素材/作者/文风，`init_book` 补 `定稿/正文`，
+    # 实测共 5/6 顶层域，缺的正是 `设定/`——所以下面这行 mkdir 是冒烟自己补的，不是冗余。
+    # 不造文件则 setting-read 恒报「未找到」——那是业务正常，验不出 U-8/B1（设定目录多路径回退）是否生效。
     (book / "设定").mkdir(parents=True, exist_ok=True)
     (book / "设定" / "世界观.md").write_text(
         "# 世界观\n\n修炼体系：练气、筑基、金丹。\n", encoding="utf-8"

@@ -143,6 +143,13 @@ def _item(item_id: str, status: str, expected: str, actual: str) -> dict[str, st
 def init_domain_skeleton(project_root: str | Path) -> dict[str, Any]:
     """幂等创建六域骨架。返回 {created_dirs, created_files, skipped}。
 
+    **注意：「六域骨架」不等于「建出六个顶层域」**（2026-09-13 实测，t-20260913-3e73）：
+    本函数只按 `REQUIRED_DIRS` 建 **大纲 / 素材 / 作者 / 文风** 四域；
+    `定稿` 由 `init_book` 补建（`定稿/正文` 是 doctor 的 v7 required 检查项）；
+    `设定` **不预建**，按需创建（其内容属 advisory，见 `ADVISORY_FILES`）。
+    故 `book-init` 之后实测为 **5/6 顶层域**（缺 `设定`）。
+    这不影响判定：`is_story_repo_strict` 只要求「六域顶层目录**之一**存在」。
+
     红线：既有文件内容一律不动（journal 里有作者事件时绝不截断）。
     """
     root = Path(project_root)
