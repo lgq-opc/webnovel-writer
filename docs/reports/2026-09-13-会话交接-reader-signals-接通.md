@@ -61,7 +61,7 @@
 | 全量 pytest | **EXIT=0**，覆盖率 82.64%（≥80 闸） |
 | 冒烟 | **PASS 19 ｜ BREAK 0 ｜ BIZ 2**，退出码 0 |
 | 四校验 | `sync_plugin_version --check` / `validate_release_notes` / `validate_plugin_package` / `validate_reference_wiring` **全 EXIT=0** |
-| CI | **未跑**——分支未 push，`.github/workflows/plugin-tests.yml` 尚未触发 |
+| CI | ✅ **已跑且双平台绿**：run `34747226885` @ `dff8ea0` —— `tests-windows` ✓ 2m13s、`tests`（ubuntu）✓ 1m14s |
 
 > **冒烟基线变了**：`PASS 18` → `PASS 19`。原因是 `reader-signals` 移出「8 只读工具面」
 > 通用循环（−1）并新增轮 C 的 C1/C2 两步（+2）。**不是新缺陷被修**，是步骤重排。
@@ -70,8 +70,9 @@
 
 ## 二、假设 / 待确认
 
-- **假设**：CI 双平台会绿。本地全量 + 冒烟 + 四校验已绿，但 ubuntu job 与 windows job 的
-  真实结果**未验证**（分支未 push）。首次跑红时优先怀疑平台相关项（历史上 N-1/N-5 均属此类）。
+- ~~**假设**：CI 双平台会绿。~~ → ✅ **2026-09-13 已验证为事实**：push 后 run `34747226885`
+  双 job 全绿（见上表）。本会话涉及的是纯 Python/sqlite 改动 + 冒烟步骤重排，无平台敏感项，
+  与结果一致。
 - **假设**：存量 v6 书仓的读者信号行为未变。已加反向守住用例
   （`test_v6_repo_still_reads_webnovel_index_db`：构造有 `state.json` 的仓并真写
   `chapter_reading_power` 行，断言仍读 `.webnovel/index.db`），但**未在真实 v6 书仓上跑过**。
@@ -103,7 +104,10 @@
 - **进行到**：`t-20260913-6202` 已结（范围重新定性后全部落地）。v6 线退役 Phase 3 的
   `reader_signals` 一项从「待做」推进到「已接通且有端到端守护」。
 - **下一步（建议顺序）**：
-  1. **push 并确认 CI 双平台绿**（本轮所有提交未 push，CI 未跑）——需 Human 授权远程操作。
+  1. ~~**push 并确认 CI 双平台绿**~~ → ✅ **已完成**（2026-09-13，Human 授权后推送；
+     `8b3bfb8..dff8ea0`，CI run `34747226885` 双 job 绿）。**注意**：本次推送一并带上了
+     上会话遗留的 3 个 OpenCode 文档提交（`63da9af` / `6b03d20` / `492c68d`），它们是快进，
+     非本会话产物。
   2. **D-2 乙 剩余决策**（P1，需 Human 拍板）：`rag_search` / `knowledge` 真砍 vs 在 v7 写链补生产者，
      外加 `meter` 去留；定了才能同步 README/AGENTS/commands.md 的「14 只读工具」承诺数。
   3. **`t-20260913-1072` 的另一半**：`pack` 副作用建 `style_samples.db`（本轮已消解
