@@ -18,6 +18,9 @@ venv/
 
 # Local runtime data
 .webnovel/
+# 宿主会话本地状态，不入库：OpenCode 续跑状态、OpenViking 本机配置
+.omo/
+.openviking/
 
 # OS / editor
 .DS_Store

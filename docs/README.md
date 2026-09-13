@@ -37,6 +37,7 @@
 | 📋 **现状截面** | [`reports/2026-09-12-需求与设计对账.md`](./reports/2026-09-12-需求与设计对账.md) | 四套方案集 × 实现的逐条对账（P/T/D/F 编号，含未核项） |
 | 📋 现状截面 | [`reports/2026-09-11-待办全景梳理.md`](./reports/2026-09-11-待办全景梳理.md) | 待办入口归属判定与三类收尾 |
 | 📋 复审报告 | [`cursor/项目复审/2026-09-04-项目复审报告.md`](./cursor/项目复审/2026-09-04-项目复审报告.md) | v8.0.0 发版后全项目复审（P0/P1/P2 + 建议执行顺序） |
+| 📋 复审报告 | [`opencode/项目复审/2026-09-13-项目复审报告.md`](./opencode/项目复审/2026-09-13-项目复审报告.md) | v8.1.0 全项目只读复审（P0 为空；P1 三项：备份漏 v7 域 / MCP 工具面名实落差 / W6 学习闭环未实现） |
 
 ### 方案集（按任务成套：spec / plan / ledger / 审计）
 
@@ -45,6 +46,7 @@
 - [`zcode/writing-quality-review/`](./zcode/writing-quality-review/README.md)：写作质量机制审计与路线图
 - [`zcode/v8-migration-gap-audit/`](./zcode/v8-migration-gap-audit/README.md)：v6→v7/v8 功能继承缺口审计（28 项）
 - [`cursor/`](./cursor/)：Cursor 宿主产出（审查报告 / 分析），按任务名分目录
+- [`opencode/`](./opencode/)：OpenCode 宿主产出（审阅报告 / 分析），按任务名分目录
 
 ### 报告与决策
 
@@ -76,7 +78,7 @@
 - `memory/`：长期记忆架构说明
 - `research/`：论文总结与外部方案调研
 - `reports/` / `plans/` / `decisions/`：工作区统一四类（分析报告 / 实施计划 / ADR）
-- `zcode/<任务名>/`、`cursor/<任务名>/`：按宿主与任务成套的方案集与产出
+- `zcode/<任务名>/`、`cursor/<任务名>/`、`opencode/<任务名>/`：按宿主与任务成套的方案集与产出
 - `archive/`：历史架构快照、spec 与设计计划
 
 ## 推荐阅读顺序
