@@ -121,7 +121,12 @@ def test_v7_write_forwarding_settle_gate_exit_code(tmp_path):
     draft = repo / "工作区" / "草稿-0003.md"
     draft.write_text("# 三\n\n" + "夜" * 1200, encoding="utf-8")
     dj = tmp_path / "d.json"
-    dj.write_text(json.dumps({"chapter": 3, "title": "三", "waiver": "t"}, ensure_ascii=False), encoding="utf-8")
+    # hook_waiver 一并给值：本用例测的是「转发不吞退出码 2」且断言指向 review 门禁，
+    # 钩子硬闸不该抢先成为拒绝原因（钩子闸自身在 test_v7_write.py 单测）。
+    dj.write_text(
+        json.dumps({"chapter": 3, "title": "三", "waiver": "t", "hook_waiver": "t"}, ensure_ascii=False),
+        encoding="utf-8",
+    )
 
     proc = _run(repo, "settle", "--chapter", "3", "--draft", str(draft), "--json", str(dj), "--summary", "s", "--no-commit")
 

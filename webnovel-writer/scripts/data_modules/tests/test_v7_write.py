@@ -79,6 +79,7 @@ def _decision(chapter: int = 37) -> dict:
         "forbidden": ["不写城北决战", "风暴不来"],
         "promises": [],
         "waiver": "迁移仓无承诺档案，切片章豁免承诺结转",
+        "hook_waiver": "切片章豁免钩子声明",
         "contract": ["内患收拢：赵姓汉子留下并领了备战差事", "暗哨情报线开启"],
         "entities": ["苏小白", "林知夏", "老周", "老六", "赵姓汉子"],
         "new_entities": [
@@ -195,6 +196,49 @@ class TestChecks:
         report = run_checks(repo, d, draft)
 
         assert "张三丰" in report["new_name_candidates"]
+
+
+class TestHookGate:
+    """reader_signals 接通 Task 3（spec §3.2，Human 2026-09-13 裁定硬闸）。
+
+    钩子须声明或显式豁免——把「静默跳过」变成「显式决定」。若只发 warning，
+    本仓已实测的失效模式（恒 skipped 且无人察觉）会原样复现。
+    """
+
+    _DRAFT = "# 不眠夜\n\n" + "苏小白看着围墙外的风暴云。" * 180
+
+    def test_missing_hook_fails(self, tmp_path):
+        repo = _v7_repo(tmp_path)
+        d = _decision()
+        d["hook_waiver"] = ""
+        d["hook_type"] = ""
+
+        report = run_checks(repo, d, self._DRAFT)
+
+        assert report["hook_ok"] is False
+        assert report["ok"] is False
+        assert any(i["category"] == "hook" for i in report["issues"])
+
+    def test_declared_hook_passes(self, tmp_path):
+        repo = _v7_repo(tmp_path)
+        d = _decision()
+        d["hook_waiver"] = ""
+        d["hook_type"] = "危机钩"
+
+        report = run_checks(repo, d, self._DRAFT)
+
+        assert report["hook_ok"] is True
+        assert report["ok"] is True
+
+    def test_waived_hook_passes(self, tmp_path):
+        repo = _v7_repo(tmp_path)
+        d = _decision()
+        d["hook_type"] = ""  # hook_waiver 保留夹具默认值
+
+        report = run_checks(repo, d, self._DRAFT)
+
+        assert report["hook_ok"] is True
+        assert report["ok"] is True
 
 
 class TestSettle:

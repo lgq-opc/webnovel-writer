@@ -85,8 +85,12 @@ def _make_decision(chapter: int) -> dict[str, Any]:
         "forbidden": ["不得出现超纲境界"],
         "promises": [],
         # 承诺结转豁免：第 1 章无前序承诺可推进。check 要求 promises 或 waiver 二者必有其一
-        # （v7_write.py:433 `promise_ok = bool(promises) or bool(decision.get("waiver"))`）
+        # （`promise_ok = bool(promises) or bool(decision.get("waiver"))`）
         "waiver": "smoke：新书首章，无既有承诺可结转",
+        # 钩子硬闸（reader_signals 接通 spec §3.2）：check 要求 hook_type 或 hook_waiver。
+        # 这里给真钩子（强度写中文「中」），顺带在端到端上覆盖词表归一。
+        "hook_type": "危机钩",
+        "hook_strength": "中",
         "entities": ["主角"],
     }
 

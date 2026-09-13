@@ -73,7 +73,10 @@ def _review(repo: Path, blocking: int, chapter: int = 42, nested: bool = False) 
 
 
 def _decision(**over) -> dict:
-    d = {"chapter": 42, "title": "风暴前夜", "entities": ["苏小白"], "promises": [], "waiver": "测试", "contract": []}
+    # hook_waiver 默认给值：本文件的用例都在测别的门禁，钩子硬闸不该成为噪声源
+    # （钩子闸自身的行为在 test_v7_write.py 里单测）。
+    d = {"chapter": 42, "title": "风暴前夜", "entities": ["苏小白"], "promises": [],
+         "waiver": "测试", "hook_waiver": "测试", "contract": []}
     d.update(over)
     return d
 
@@ -257,3 +260,42 @@ class TestSettleCli:
         assert proc.returncode == 0, proc.stderr
         assert "OK v7-write settle chapter=42" in proc.stdout and "bypassed=True" in proc.stdout
         assert "post=" in proc.stdout
+
+
+class TestSettleHookFrontMatter:
+    """reader_signals 接通 Task 2（spec §3.1）：钩子落正文 front matter —— 唯一事实源。
+
+    落这里而非 工作区/ 的理由：工作区是草稿区、可清理，做不了 .cache 的重建源；
+    正文 front matter 与 书内时间/推进承诺/合同 同处 canonical。
+    """
+
+    def _chapter_text(self, repo: Path) -> str:
+        return next((repo / "定稿" / "正文").glob("0042-*.md")).read_text(encoding="utf-8")
+
+    def test_hook_written_into_front_matter(self, tmp_path):
+        repo = _repo(tmp_path)
+        _review(repo, 0)
+
+        _settle(repo, _decision(hook_type="危机钩", hook_strength="强"))
+
+        text = self._chapter_text(repo)
+        assert "钩子类型: 危机钩" in text
+        assert "钩子强度: strong" in text  # 词表归一：章纲侧写「强」
+
+    def test_strength_defaults_to_medium_when_omitted(self, tmp_path):
+        repo = _repo(tmp_path)
+        _review(repo, 0)
+
+        _settle(repo, _decision(hook_type="信息钩", hook_strength=""))
+
+        assert "钩子强度: medium" in self._chapter_text(repo)
+
+    def test_no_hook_lines_when_waived(self, tmp_path):
+        repo = _repo(tmp_path)
+        _review(repo, 0)
+
+        _settle(repo, _decision(hook_type="", hook_waiver="过渡章，本章无钩子"))
+
+        text = self._chapter_text(repo)
+        assert "钩子类型:" not in text
+        assert "钩子强度:" not in text

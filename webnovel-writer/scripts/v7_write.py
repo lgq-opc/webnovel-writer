@@ -432,6 +432,11 @@ def run_checks(repo: Path, decision: dict[str, Any], draft_text: str) -> dict[st
     promises = decision.get("promises") or []
     promise_ok = bool(promises) or bool(decision.get("waiver"))
 
+    # 钩子硬闸（reader_signals 接通 spec §3.2，Human 2026-09-13 裁定）：沿用 promises/waiver
+    # 的同一 idiom——把「静默跳过」变成「显式决定」。此前 v7 追读力恒 skipped 且无人察觉。
+    hook_type = str(decision.get("hook_type") or "").strip()
+    hook_ok = bool(hook_type) or bool(decision.get("hook_waiver"))
+
     roster_names = {p.stem for p in (repo / "定稿" / "设定" / "名册").glob("*.md")}
     known = set(decision.get("entities") or []) | roster_names | set((decision.get("title") or "").split())
     new_name_candidates = sorted({n for n in QUOTED_NAME_RE.findall(body) if n not in known})
@@ -480,8 +485,17 @@ def run_checks(repo: Path, decision: dict[str, Any], draft_text: str) -> dict[st
                     "evidence": str(item["promise"]),
                 }
             )
+    if not hook_ok:
+        issues.append(
+            {
+                "severity": "high",
+                "category": "hook",
+                "description": "钩子未声明：决策卡需给出 hook_type 或 hook_waiver（追读力投影据此落账）",
+                "evidence": "hook_type 为空且无 hook_waiver",
+            }
+        )
 
-    ok = word_count >= min_words and not placeholders and title_ok and promise_ok
+    ok = word_count >= min_words and not placeholders and title_ok and promise_ok and hook_ok
     return {
         "ok": ok,
         "word_count": word_count,
@@ -491,6 +505,7 @@ def run_checks(repo: Path, decision: dict[str, Any], draft_text: str) -> dict[st
         "placeholders": placeholders,
         "title_ok": title_ok,
         "promise_ok": promise_ok,
+        "hook_ok": hook_ok,
         "promise_progress": promise_progress,
         "new_name_candidates": new_name_candidates,
         "issues": issues,
@@ -500,6 +515,7 @@ def run_checks(repo: Path, decision: dict[str, Any], draft_text: str) -> dict[st
             "book_max": book_stats["max"],
             "placeholder_scan": "v7-write",
             "promise_waiver_reason": decision.get("waiver") or "",
+            "hook_waiver_reason": decision.get("hook_waiver") or "",
         },
     }
 
@@ -768,6 +784,14 @@ def settle(
         front.append(f"视角: {decision['pov']}")
     if decision.get("time_anchor"):
         front.append(f"书内时间: {decision['time_anchor']}")
+    # 钩子落 canonical（reader_signals 接通 spec §3.1）：.cache 的追读力表由此重算，
+    # 故必须与 书内时间/推进承诺/合同 同处正文 front matter，而非可清理的 工作区/。
+    hook_type = str(decision.get("hook_type") or "").strip()
+    if hook_type:
+        from v7_cache import normalize_hook_strength
+
+        front.append(f"钩子类型: {hook_type}")
+        front.append(f"钩子强度: {normalize_hook_strength(decision.get('hook_strength', ''))}")
     front.append(f"字数: {word_count}")
     if gates["bypassed"]:
         front.append(f"审查绕过: {gates['bypass_reason']}")
