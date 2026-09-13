@@ -212,3 +212,40 @@ class TestCLI:
         assert main(["golden-feed", "--id", "G-001", "--project-root", str(book)]) == 0
         out = capsys.readouterr().out
         assert "G-001" in out
+
+
+class TestStyleSamplesLanding:
+    """t-20260913-1072：风格样本库的落点必须随书仓形态。
+
+    修复前：纯 v7 仓跑一次 `pack` 就建出 `.webnovel/style_samples.db`（实测 2026-09-13）。
+    危害有两层：① 污染 v6 域，v7 的文风域反而空着；② `book-init` 的 `.gitignore` 只忽略
+    `.webnovel/tmp/` 与 `.webnovel/logs/`，**不忽略 `.webnovel/` 整体**，故该空壳 db
+    在 `git status` 里是未跟踪且未被忽略（`?? .webnovel/`），作者一 `git add -A` 就进库。
+    """
+
+    def test_v7_book_lands_samples_in_style_domain(self, book: Path):
+        from data_modules.style_domain import build_style_anchor_section
+
+        # `book` 夹具只有六域骨架，`book.yaml` 是 v7 书仓的标志（`book-init` 才建），
+        # 缺它时 resolve_write_mode 会按「宁可判 v6」的方向判为 v6——这里补上。
+        (book / "book.yaml").write_text("书名: 测试书\n", encoding="utf-8")
+
+        build_style_anchor_section(book)
+
+        assert (book / "文风" / "风格样本.db").is_file()
+        assert not (book / ".webnovel").exists(), "v7 仓不得再产生 .webnovel/ 副作用"
+
+    def test_v6_book_keeps_legacy_location(self, tmp_path: Path):
+        """反向守住：v6 遗留仓（有 state.json）路径不变，仍写 `.webnovel/`。"""
+        import json
+
+        from data_modules.style_domain import build_style_anchor_section
+
+        repo = tmp_path / "v6book"
+        (repo / ".webnovel").mkdir(parents=True)
+        (repo / ".webnovel" / "state.json").write_text(json.dumps({}), encoding="utf-8")
+
+        build_style_anchor_section(repo)
+
+        assert (repo / ".webnovel" / "style_samples.db").is_file()
+        assert not (repo / "文风").exists()

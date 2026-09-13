@@ -55,8 +55,12 @@ class StyleSampler:
         self._init_db()
 
     def _init_db(self):
-        """初始化数据库"""
-        self.config.ensure_dirs()
+        """初始化数据库。
+
+        2026-09-13（t-20260913-1072）：**不再调 `config.ensure_dirs()`**——它等价于
+        `mkdir .webnovel/`，在 v7 书仓上每次 `pack` 都会副作用建出 v6 域目录。
+        采样库的父目录由 `_get_conn` 负责建（v6 下落在 `.webnovel/`，效果与原先一致）。
+        """
         with self._get_conn() as conn:
             cursor = conn.cursor()
 
@@ -80,7 +84,8 @@ class StyleSampler:
     @contextmanager
     def _get_conn(self):
         """获取数据库连接（确保关闭，避免 Windows 下文件句柄泄漏导致无法清理临时目录）"""
-        db_path = self.config.webnovel_dir / "style_samples.db"
+        db_path = self.config.style_samples_db
+        db_path.parent.mkdir(parents=True, exist_ok=True)
         conn = connect(db_path)
         try:
             yield conn

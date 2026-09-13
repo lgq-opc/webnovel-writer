@@ -136,6 +136,27 @@ class DataModulesConfig:
         return (self.project_root / "设定", self.project_root / "设定集")
 
     @property
+    def style_samples_db(self) -> Path:
+        """风格样本库落点——**随书仓形态**（t-20260913-1072）。
+
+        v7 书仓 → `文风/风格样本.db`：样本属文风域，且 v7 的 `.webnovel/` 不是六域之一。
+        v6 遗留仓 → `.webnovel/style_samples.db`（冻结，原样不改）。
+
+        为什么必须分形态：v7 仓跑一次 `pack` 就会因打开该库而**副作用建出** `.webnovel/`，
+        而 `book-init` 的 `.gitignore` 只忽略 `.webnovel/tmp/` 与 `.webnovel/logs/`、
+        **不忽略 `.webnovel/` 整体**，故那个空壳 db 在 `git status` 里未跟踪且未被忽略，
+        作者一 `git add -A` 就进库（2026-09-13 实测）。
+
+        判据复用 `domain_contract.resolve_write_mode`（与 doctor / 其余分流同源），
+        不另立第二套；延迟导入避免 config ↔ domain_contract 循环。
+        """
+        from .domain_contract import resolve_write_mode
+
+        if resolve_write_mode(self.project_root) == "v7":
+            return self.project_root / "文风" / "风格样本.db"
+        return self.webnovel_dir / "style_samples.db"
+
+    @property
     def settings_dir(self) -> Path:
         """首个存在的设定目录；都不存在时返回新路径（默认落点）。
 
