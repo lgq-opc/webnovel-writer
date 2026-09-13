@@ -13,6 +13,13 @@ on:
       - 'webnovel-writer/scripts/**'
       - 'webnovel-writer/mcp/**'
       - 'webnovel-writer/dashboard/**'
+      # skills/agents/evals 补入（t-20260913-d8bb，2026-09-13）：test_prompt_integrity.py 的
+      # 守卫（CLI 子命令有效性、各引导文件的一致性断言）测的正是这三处的文件，而它本身住在
+      # scripts/ 下——不加这些路径，**单独改 skills/ 或 agents/ 时 CI 完全不跑**，
+      # 守卫恰在它最该跑的场合失效。代价：纯文案改动也跑全量（约 2 分钟）。
+      - 'webnovel-writer/skills/**'
+      - 'webnovel-writer/agents/**'
+      - 'webnovel-writer/evals/**'
       - '.github/workflows/plugin-tests.yml'
   pull_request:
     paths:
@@ -23,6 +30,9 @@ on:
       - 'webnovel-writer/scripts/**'
       - 'webnovel-writer/mcp/**'
       - 'webnovel-writer/dashboard/**'
+      - 'webnovel-writer/skills/**'
+      - 'webnovel-writer/agents/**'
+      - 'webnovel-writer/evals/**'
       - '.github/workflows/plugin-tests.yml'
   workflow_dispatch:
 
