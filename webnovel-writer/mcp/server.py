@@ -110,20 +110,6 @@ def _build_meter(params: dict[str, Any]) -> list[str]:
     return _base_args(params.get("project_root")) + ["meter", "report"]
 
 
-def _build_rag_search(params: dict[str, Any]) -> list[str]:
-    args = _base_args(params.get("project_root")) + [
-        "rag",
-        "search",
-        "--query",
-        str(params["query"]),
-    ]
-    if params.get("top_k") is not None:
-        args.extend(["--top-k", str(int(params["top_k"]))])
-    if params.get("chunk_type"):
-        args.extend(["--chunk-type", str(params["chunk_type"])])
-    return args
-
-
 def _build_knowledge(params: dict[str, Any]) -> list[str]:
     mode = params.get("mode", "entity_state")
     subcommand = "query-entity-state" if mode == "entity_state" else "query-relationships"
@@ -134,14 +120,6 @@ def _build_knowledge(params: dict[str, Any]) -> list[str]:
         str(params["entity"]),
         "--at-chapter",
         str(int(params["at_chapter"])),
-    ]
-
-
-def _build_context(params: dict[str, Any]) -> list[str]:
-    return _base_args(params.get("project_root")) + [
-        "context",
-        "--chapter",
-        str(int(params["chapter"])),
     ]
 
 
@@ -265,21 +243,10 @@ TOOLS: list[dict[str, Any]] = [
         "build": _build_meter,
     },
     {
-        "name": "webnovel_rag_search",
-        "description": "章节场景/摘要的语义检索（RAG）。",
-        "inputSchema": _schema(
-            {
-                "query": {"type": "string", "description": "检索 query"},
-                "top_k": {"type": "integer", "description": "返回条数（默认 5）"},
-                "chunk_type": {"type": "string", "enum": ["scene", "summary"]},
-            },
-            required=["query"],
-        ),
-        "build": _build_rag_search,
-    },
-    {
         "name": "webnovel_knowledge",
-        "description": "实体知识查询：指定章节的实体状态或关系。",
+        "description": "实体知识查询。v6 仓：指定章节的实体状态或关系；v7 仓：名册级信息"
+                       "（正名/别名/首现章）——v7 写链不产实体逐章状态与关系，故此范围是"
+                       "如实的能力边界，不是降级。",
         "inputSchema": _schema(
             {
                 "mode": {
@@ -293,15 +260,6 @@ TOOLS: list[dict[str, Any]] = [
             required=["entity", "at_chapter"],
         ),
         "build": _build_knowledge,
-    },
-    {
-        "name": "webnovel_context",
-        "description": "写前上下文预算与组装预览。",
-        "inputSchema": _schema(
-            {"chapter": {"type": "integer", "description": "目标章节号"}},
-            required=["chapter"],
-        ),
-        "build": _build_context,
     },
     {
         "name": "webnovel_materials_status",

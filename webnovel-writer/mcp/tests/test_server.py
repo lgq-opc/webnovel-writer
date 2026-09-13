@@ -56,14 +56,22 @@ def test_unknown_method_returns_error():
     assert response["error"]["code"] == -32601
 
 
-def test_tools_list_contains_fourteen_tools():
+def test_tools_list_contains_twelve_tools():
+    """D-2 乙（2026-09-13，Human 裁定）：14 → 12。
+
+    撤出 `webnovel_rag_search`（v7 无向量库，补生产＝新建 embedding 子系统，成本最高）
+    与 `webnovel_context`（已被 `v7-write pack` 取代——是**取代关系**，不是缺失，留着是冗余）。
+    `webnovel_knowledge` **保留**但改落点：v7 走 `.cache` 名册级查询。
+    """
     response = server.handle_request({"jsonrpc": "2.0", "id": 4, "method": "tools/list"})
     tools = response["result"]["tools"]
-    assert len(tools) == 14, "M7/T31：9 基础 + 5 治理只读工具"
+    assert len(tools) == 12, "D-2 乙 后：12 只读工具"
     names = {tool["name"] for tool in tools}
     assert "webnovel_where" in names
     assert "webnovel_doctor" in names
-    assert "webnovel_rag_search" in names
+    assert "webnovel_knowledge" in names, "knowledge 保留（改落点，非撤出）"
+    assert "webnovel_rag_search" not in names, "rag_search 已撤出工具面"
+    assert "webnovel_context" not in names, "context 已被 v7-write pack 取代"
     assert {
         "webnovel_materials_status",
         "webnovel_materials_assemble",
@@ -90,11 +98,8 @@ def test_tools_list_contains_fourteen_tools():
         ("webnovel_setting_read", {"name": "世界观"}, ["setting-read", "--name", "世界观"]),
         ("webnovel_timeline_check", {"volume": "1"}, ["timeline-check", "--volume", "1", "--format", "json"]),
         ("webnovel_meter", {}, ["meter", "report"]),
-        ("webnovel_rag_search", {"query": "主角 突破"}, ["rag", "search", "--query", "主角 突破"]),
-        ("webnovel_rag_search", {"query": "x", "top_k": 3}, ["--top-k", "3"]),
         ("webnovel_knowledge", {"entity": "E1", "at_chapter": 5}, ["knowledge", "query-entity-state", "--entity", "E1", "--at-chapter", "5"]),
         ("webnovel_knowledge", {"entity": "E1", "at_chapter": 5, "mode": "relationships"}, ["query-relationships"]),
-        ("webnovel_context", {"chapter": 30}, ["context", "--chapter", "30"]),
         ("webnovel_materials_status", {}, ["materials", "list", "--format", "json"]),
         ("webnovel_materials_status", {"table": ["桥段"]}, ["--table", "桥段"]),
         ("webnovel_materials_assemble", {"k": 5, "table": ["桥段", "梗与反差"]}, ["assemble", "--k", "5"]),

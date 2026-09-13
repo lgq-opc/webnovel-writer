@@ -48,7 +48,8 @@ webnovel-writer/              ← 外层仓库根（marketplace.json 双位置�
 
 ## 当前状态
 
-- 当前版本：v8.1.0（作者主权 + 300 章连贯：六域书仓治理 + MCP 14 只读工具 + 13 条命令；`v8-author` 分支，tag `v8.1.0` 已推送远端）
+- 当前版本：v8.1.0（作者主权 + 300 章连贯：六域书仓治理 + MCP 12 只读工具 + 13 条命令；`v8-author` 分支，tag `v8.1.0` 已推送远端）
+- MCP 工具面 14 → 12（D-2 乙，2026-09-13）：撤出 `rag_search`（v7 无向量库）与 `context`（已被 `v7-write pack` 取代）；`knowledge` 保留但按书仓形态分流（v7 只答名册级）。
 - 领先 master 的提交数**不在此处写死**（N-3：这是个滚动快照，写下的数字第二天就过期）——需要时现算：
   `git log --oneline origin/master..HEAD | wc -l`
 - **v6 写链已冻结（frozen-legacy，2026-09-10 退役方案 Phase 1）**：仅维护、不再演进。**新书写章一律走 v7 写链**（`v7-write decision/pack/check/settle`，见 `skills/webnovel-write/SKILL.md`）。**新书用 `book-init` 直接建 v7 书仓**（`python -X utf8 webnovel-writer/scripts/webnovel.py book-init <目录> <书名> --genre <题材>`，播种 book.yaml + 六域骨架，无 v6 遗留）；既有 v6 书项目先迁移：`python -X utf8 webnovel-writer/scripts/migrate_v6_to_v7.py --project-root <v6根> --output <新 v7 书仓>`。v6 代码与测试**保留但不再新增**，物理删除见 `docs/plans/2026-09-10-v6线退役方案.md` Phase 2。

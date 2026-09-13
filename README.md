@@ -20,7 +20,7 @@
 >
 > | 分支 | 版本 | 状态 |
 > |---|---|---|
-> | `v8-author` | v8.0.0 · ZCode 插件（MCP 14 只读工具 + 13 条 `/webnovel:*` 命令 + 六域书仓治理） | **当前主线**，本 README 描述的即此版本 |
+> | `v8-author` | v8.0.0 · ZCode 插件（MCP 12 只读工具 + 13 条 `/webnovel:*` 命令 + 六域书仓治理） | **当前主线**，本 README 描述的即此版本 |
 > | `tmp/zcode` | v7.1.0 · ZCode 原生化 | 已并入 v8-author，保留作档案 |
 > | `v7-tmp` | v7.0.0 · Story-Repo 书仓迁移 | 已并入 v8-author，保留作档案 |
 > | `master` | v6.x · Claude Code 插件基线 | 只修致命 bug，Claude Code 用户可用 |
@@ -74,7 +74,9 @@ Webnovel Writer 用业余时间维护。如果它帮你省下了梳理设定、�
 | 战力校验 | `/webnovel:power` | 跨阶依据 / 境界链矛盾 / 通胀曲线 |
 | 文风域 | `/webnovel:style` | 文风宪法迁移 / 指纹 / 金句库 |
 
-会话内还自动挂载 `webnovel` MCP 服务（14 个只读工具：where / project_status / doctor / setting_read / timeline_check / meter / rag_search / knowledge / context / materials_status / materials_assemble / power_check / foreshadow_scan / reader_signals），供 AI 结构化查询，不暴露写路径。
+会话内还自动挂载 `webnovel` MCP 服务（12 个只读工具：where / project_status / doctor / setting_read / timeline_check / meter / knowledge / materials_status / materials_assemble / power_check / foreshadow_scan / reader_signals），供 AI 结构化查询，不暴露写路径。
+
+> **v7 书仓的工具面差异**：`rag_search` 与 `context` 已撤出工具面（D-2 乙，2026-09-13）——前者数据源是 v6 的 `vectors.db`，v7 侧无向量库且补生产等于新建 embedding 子系统；后者已被 `v7-write pack`（上下文包）取代，留着是冗余。`knowledge` 保留但按书仓形态分流：v6 仓答「指定章节的实体状态/关系」，v7 仓答**名册级**信息（正名/别名/首现章）并显式声明未覆盖逐章状态与关系（v7 写链不产这两类数据）。
 
 ## 系统长什么样
 

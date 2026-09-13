@@ -42,14 +42,13 @@ def _run(monkeypatch, argv_tail, capsys):
     return exc.value.code, capsys.readouterr().out
 
 
-_V6_DOMAIN_TOOLS = [
+_STILL_UNSUPPORTED = [
     ["rag", "search", "--query", "x"],
-    ["knowledge", "query-entity-state", "--entity", "主角", "--at-chapter", "1"],
     ["context", "--chapter", "1"],
 ]
 
 
-@pytest.mark.parametrize("tail", _V6_DOMAIN_TOOLS)
+@pytest.mark.parametrize("tail", _STILL_UNSUPPORTED)
 def test_v6_domain_tools_report_unsupported_on_v7_repo(monkeypatch, tmp_path, capsys, tail):
     repo = _make_v7_repo(tmp_path / "book")
 
@@ -61,7 +60,7 @@ def test_v6_domain_tools_report_unsupported_on_v7_repo(monkeypatch, tmp_path, ca
     assert code == 0, "明示不支持是预期行为，不应以非 0 退出"
 
 
-@pytest.mark.parametrize("tail", _V6_DOMAIN_TOOLS)
+@pytest.mark.parametrize("tail", _STILL_UNSUPPORTED)
 def test_v6_repo_does_not_report_unsupported(monkeypatch, tmp_path, capsys, tail):
     """v6 仓不得被这条闸门拦下（别把闸门拆了/误伤）。"""
     repo = _make_v6_repo(tmp_path / "book")
@@ -72,3 +71,56 @@ def test_v6_repo_does_not_report_unsupported(monkeypatch, tmp_path, capsys, tail
         return  # v6 路径本身可能因缺数据报错，那不是本测试关心的
 
     assert '"unsupported"' not in out and "'unsupported'" not in out
+
+
+# ---------------------------------------------------------------------------
+# knowledge：D-2 乙 收缩后改落点（不再整条不支持），但**能力边界必须如实声明**
+# ---------------------------------------------------------------------------
+
+def test_knowledge_on_v7_repo_returns_roster_scope(monkeypatch, tmp_path, capsys):
+    repo = _make_v7_repo(tmp_path / "book")
+    roster_dir = repo / "定稿" / "设定" / "名册"
+    roster_dir.mkdir(parents=True)
+    (roster_dir / "苏小白.md").write_text(
+        "---\n正名: 苏小白\n别名: [\"小苏\"]\n类型: 角色\n首现章: 3\n---\n", encoding="utf-8"
+    )
+
+    code, out = _run(monkeypatch, [
+        "--project-root", str(repo),
+        "knowledge", "query-entity-state", "--entity", "苏小白", "--at-chapter", "10",
+    ], capsys)
+
+    assert code == 0, "knowledge 在 v7 仓不再是 unsupported"
+    data = json.loads(out)["data"]
+    assert data["found"] is True
+    assert data["roster"]["name"] == "苏小白"
+    assert data["roster"]["first_chapter"] == "3"
+    assert "不产" in data["not_covered"], "必须如实声明未覆盖逐章状态与关系"
+    assert data["where_to_look"], "必须给出取值范围指引"
+
+
+def test_knowledge_on_v7_repo_reports_not_found(monkeypatch, tmp_path, capsys):
+    """查不到时如实返回 found=false，不得伪造空状态对象。"""
+    repo = _make_v7_repo(tmp_path / "book")
+
+    code, out = _run(monkeypatch, [
+        "--project-root", str(repo),
+        "knowledge", "query-entity-state", "--entity", "查无此人", "--at-chapter", "1",
+    ], capsys)
+
+    assert code == 0
+    data = json.loads(out)["data"]
+    assert data["found"] is False
+    assert data["roster"] is None
+
+
+def test_knowledge_on_v7_repo_is_not_unsupported(monkeypatch, tmp_path, capsys):
+    """回归守住：knowledge 已移出 _V7_UNSUPPORTED，不得再返回 unsupported。"""
+    repo = _make_v7_repo(tmp_path / "book")
+
+    _, out = _run(monkeypatch, [
+        "--project-root", str(repo),
+        "knowledge", "query-entity-state", "--entity", "主角", "--at-chapter", "1",
+    ], capsys)
+
+    assert '"unsupported"' not in out

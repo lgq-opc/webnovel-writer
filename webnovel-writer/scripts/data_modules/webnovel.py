@@ -179,14 +179,14 @@ def _resolve_root_lenient(raw: Optional[str]) -> Path:
 
 # v7 书仓不提供的 v6 域工具（D-2 乙，2026-09-13）：
 # 数据源在 v6 系统域（.webnovel/），v7 侧无替代或只有形态不同的等价物。
+# 2026-09-13 收缩：`knowledge` 移出本表——它改由 `_knowledge_v7` 提供名册级查询
+# （见下方分支），不再是「整条不支持」。留在这里的是**真缺失**：
+# `rag`（v7 无向量库，补生产＝新建 embedding 子系统）与 `context`
+# （v7 有更好的等价物 `v7-write pack`，此命令在 v7 仓已是冗余入口）。
 _V7_UNSUPPORTED: dict[str, tuple[str, str]] = {
     "rag": (
         "语义检索",
         "v7 侧无向量库；可读 `定稿/记忆/章摘要/NNNN.md`（前情摘要）或直接读 `定稿/正文/`",
-    ),
-    "knowledge": (
-        "实体逐章状态与实体关系",
-        "v7 侧可用 `定稿/设定/名册/`（实体名册）与 `大纲/条目/`（伏笔/悬念/感情线状态）",
     ),
     "context": (
         "写前上下文装配",
@@ -194,6 +194,33 @@ _V7_UNSUPPORTED: dict[str, tuple[str, str]] = {
         "（产出 `工作区/上下文包-NNNN.md`）",
     ),
 }
+
+
+def _knowledge_v7(project_root: Path, entity: str) -> dict:
+    """v7 书仓的实体查询：**名册级**信息（能力边界如实声明，不假装有逐章状态）。
+
+    `.cache/index.db` 的 entities 表由 rebuild_cache 从 `定稿/设定/名册/` 重算，
+    给出正名 / 别名 / 首现章。实体逐章状态与关系在 v7 写链上**无生产者**，
+    故作 `not_covered` 显式声明并给出取值范围指引，而不是返回空结构让调用方误判。
+    """
+    try:
+        from v7_cache import find_entity
+    except ImportError:  # pragma: no cover - scripts 直跑时的回退
+        from scripts.v7_cache import find_entity
+
+    roster = find_entity(project_root, entity) if entity else None
+    return {
+        "entity": entity,
+        "roster": roster,
+        "found": roster is not None,
+        "scope": "名册级：正名 / 别名 / 首现章",
+        "not_covered": "实体逐章状态与实体关系（v7 写链不产这两类数据）",
+        "where_to_look": [
+            "定稿/设定/名册/<正名>.md —— 名册原文",
+            "定稿/正文/NNNN-*.md —— 逐章正文（状态需自行判读）",
+            "大纲/条目/ —— 伏笔 / 悬念 / 感情线状态",
+        ],
+    }
 
 
 def _resolve_root_or_report(raw: Optional[str]) -> Optional[Path]:
@@ -1434,6 +1461,21 @@ def _main_impl() -> None:
             from data_modules.reader_signal_builder import build_reader_signal
 
             print_success(build_reader_signal(project_root), message="reader_signals")
+            raise SystemExit(0)
+
+    # 纯 v7 书仓的实体查询走 `.cache` 名册（D-2 乙，2026-09-13）。**能力边界如实声明**：
+    # v7 写链不产实体逐章状态与实体关系（交接文件已核），故只返回名册级信息 + 取值范围指引，
+    # 不假装有逐章状态——工具描述同步写明，避免调用方误读。
+    if tool == "knowledge":
+        from data_modules import domain_contract
+
+        if domain_contract.resolve_write_mode(project_root) == "v7":
+            from data_modules.cli_output import print_success
+
+            print_success(
+                _knowledge_v7(project_root, getattr(args, "entity", "") or ""),
+                message="knowledge",
+            )
             raise SystemExit(0)
 
     if tool == "index":

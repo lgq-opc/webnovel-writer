@@ -101,7 +101,9 @@
 
 ## MCP 服务 `webnovel`（会话自动挂载，只读）
 
-14 个工具全部是 CLI 子命令的薄壳转发，不暴露写路径：`webnovel_where` / `webnovel_project_status` / `webnovel_doctor` / `webnovel_setting_read` / `webnovel_timeline_check` / `webnovel_meter` / `webnovel_rag_search` / `webnovel_knowledge` / `webnovel_context` / `webnovel_materials_status` / `webnovel_materials_assemble` / `webnovel_power_check` / `webnovel_foreshadow_scan`（强制 `--no-apply`）/ `webnovel_reader_signals`。书项目根来自 userConfig `bookProjectRoot`（注入 `WEBNOVEL_BOOK_ROOT`），留空走探测链。
+12 个工具全部是 CLI 子命令的薄壳转发，不暴露写路径：`webnovel_where` / `webnovel_project_status` / `webnovel_doctor` / `webnovel_setting_read` / `webnovel_timeline_check` / `webnovel_meter` / `webnovel_knowledge` / `webnovel_materials_status` / `webnovel_materials_assemble` / `webnovel_power_check` / `webnovel_foreshadow_scan`（强制 `--no-apply`）/ `webnovel_reader_signals`。书项目根来自 userConfig `bookProjectRoot`（注入 `WEBNOVEL_BOOK_ROOT`），留空走探测链。
+
+**工具面收缩（D-2 乙，2026-09-13）**：`webnovel_rag_search` 与 `webnovel_context` 已撤出。前者数据源是 v6 的 `vectors.db`，v7 侧无向量库、补生产等于新建 embedding 子系统；后者已被 `v7-write pack`（上下文包，`工作区/上下文包-NNNN.md`）取代。`webnovel_knowledge` 保留并**按书仓形态分流**：v6 仓答指定章节的实体状态/关系，v7 仓答名册级信息（正名/别名/首现章）并在返回体里显式声明 `not_covered`（v7 写链不产逐章状态与关系）。底层 CLI 的 `rag` / `context` 子命令仍在（v6 仓可用），只是不再有 MCP 壳。
 
 ## 统一 CLI（命令行使用）
 
