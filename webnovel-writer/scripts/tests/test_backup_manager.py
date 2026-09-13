@@ -215,6 +215,51 @@ def _run_v7_local_backup_assertions(tmp_path):
     assert (snapshot / "作者" / "author_model.md").exists()
 
 
+def test_no_git_v7_book_is_not_auto_initialized(tmp_path, monkeypatch):
+    """t-20260913-7c91：`book.yaml` 存在而 `.git` 缺失 = 作者**显式选择**了 `--no-git`。
+
+    原行为：`__init__` 见到 `.git` 缺失就自动 `git init`（文案假设「未初始化＝忘了 init」），
+    把作者的显式选择覆盖掉——实测（2026-09-13）在 `--no-git` 书仓上跑 backup 会建出 `.git`。
+    要不要版本控制是作者的決定，工具不得代选；应改走本地备份。
+    """
+    monkeypatch.setattr(backup_manager, "is_git_available", lambda: True)
+
+    (tmp_path / "book.yaml").write_text("书名: 测试书\n", encoding="utf-8")
+    (tmp_path / "定稿" / "正文").mkdir(parents=True)
+    (tmp_path / "定稿" / "正文" / "0001-开篇.md").write_text("正文内容", encoding="utf-8")
+
+    manager = GitBackupManager(str(tmp_path))
+
+    assert not (tmp_path / ".git").exists(), "不得自动 git init 覆盖作者的 --no-git 选择"
+
+    assert manager.backup(1) is True
+    snapshot = next((tmp_path / ".webnovel" / "backups").glob("snapshot_ch0001_*"))
+    assert (snapshot / "定稿" / "正文" / "0001-开篇.md").read_text(encoding="utf-8") == "正文内容"
+
+
+def test_non_v7_repo_without_git_still_auto_initializes(tmp_path, monkeypatch):
+    """反向守住：没有 `book.yaml` 的仓（v6 遗留 / 非书仓）**保留**自动 init 行为。
+
+    自动 init 本身不是缺陷——它对「忘了 init」是合理的补救；只有当 `book.yaml` 在场时，
+    `.git` 缺失才是显式选择（`--no-git`）。
+    """
+    calls = []
+
+    def fake_run(args, cwd=None, check=False, capture_output=False, text=False, encoding=None, timeout=None):
+        calls.append(args)
+        if args == ["git", "init"]:
+            (tmp_path / ".git").mkdir(exist_ok=True)
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(backup_manager, "is_git_available", lambda: True)
+    monkeypatch.setattr(backup_manager.subprocess, "run", fake_run)
+
+    GitBackupManager(str(tmp_path))
+
+    assert ["git", "init"] in calls, "非 v7 仓仍应自动 init"
+    assert (tmp_path / ".git").exists()
+
+
 def test_rollback_removes_files_created_after_target_tag(tmp_path):
     """增量审阅 P3-19：回滚须删除 tag 之后新增的文件，与『恢复到备份点 100% 一致』承诺相符。"""
     project_root = tmp_path / "project"

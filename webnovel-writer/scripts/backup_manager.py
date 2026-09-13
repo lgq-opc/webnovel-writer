@@ -79,6 +79,9 @@ class GitBackupManager:
         self.project_root = Path(project_root)
         self.git_dir = self.project_root / ".git"
         self.git_available = is_git_available()
+        # 书仓是否启用 git。与 `git_available`（git **程序**是否安装）是两件事：
+        # `book-init --no-git` 的 v7 书仓，程序装了、仓里却没有 .git，那是作者的显式选择。
+        self.git_enabled = True
 
         if not self.git_available:
             print("⚠️  Git 不可用，将使用本地备份模式")
@@ -87,6 +90,14 @@ class GitBackupManager:
 
         # 检查 Git 是否初始化
         if not self.git_dir.exists():
+            # v7 书仓（book.yaml 在场）而没有 .git = `book-init --no-git` 的**显式选择**，
+            # 不是「忘了 init」。要不要版本控制是作者的決定，工具不得代选——故不自动 init，
+            # 改走本地备份（t-20260913-7c91）。实测修复前：在 --no-git 书仓上跑 backup 会建出 .git。
+            if (self.project_root / "book.yaml").is_file():
+                print("ℹ️  本书仓未启用 Git（`book-init --no-git`），改用本地备份模式")
+                print("💡 如需版本控制：在书仓执行 git init 后重新备份")
+                self.git_enabled = False
+                return
             print("⚠️  Git 未初始化，请先运行 /webnovel-init 或手动执行 git init")
             print("💡 现在自动初始化 Git...")
             self._init_git()
@@ -156,6 +167,10 @@ __pycache__/
         """执行 Git 命令（支持优雅降级）"""
         if not self.git_available:
             return False, "", "Git 不可用"
+        if not self.git_enabled:
+            # 统一闸：`--no-git` 书仓的一切 git 操作都从这里降级（backup 走本地、
+            # rollback 等如实报不可用），不必逐个方法各加一次判断。
+            return False, "", "书仓未启用 Git（book-init --no-git）"
 
         try:
             result = subprocess.run(
@@ -282,8 +297,8 @@ __pycache__/
         """
         print(f"📝 正在备份第 {chapter_num} 章...")
 
-        # 如果 Git 不可用，使用本地备份
-        if not self.git_available:
+        # Git 不可用、或本书仓未启用 git（--no-git）时，走本地备份
+        if not self.git_available or not self.git_enabled:
             return self._local_backup(chapter_num)
 
         # Step 1: git add .
