@@ -1423,6 +1423,19 @@ def _main_impl() -> None:
             }, ensure_ascii=False, indent=2))
             raise SystemExit(0)
 
+    # 纯 v7 书仓的读者信号读 .cache（reader_signals 接通 spec §3.5）。信封复用
+    # cli_output.print_success——与 v6 路径（index_manager 的 emit_success）同形，
+    # 避免两套 JSON 形状各自漂移。
+    if tool == "index" and rest[:1] == ["get-reader-signals"]:
+        from data_modules import domain_contract
+
+        if domain_contract.resolve_write_mode(project_root) == "v7":
+            from data_modules.cli_output import print_success
+            from data_modules.reader_signal_builder import build_reader_signal
+
+            print_success(build_reader_signal(project_root), message="reader_signals")
+            raise SystemExit(0)
+
     if tool == "index":
         raise SystemExit(_run_data_module("index_manager", [*forward_args, *rest]))
     if tool == "state":
