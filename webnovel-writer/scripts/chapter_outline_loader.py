@@ -254,8 +254,12 @@ _DIRECTIVE_FIELD_MAP = {
     "本章禁区": "forbidden_zones",
     "章末未闭合问题": "chapter_end_open_question",
     "章末问题": "chapter_end_open_question",
-    "钩子类型": "hook_type",
-    "钩子强度": "hook_strength",
+    # 2026-09-13（t-20260913-d85d）：删除「钩子类型/钩子强度」两行映射。
+    # 它们是**死映射**——章纲卡模板没有这两个标签、真实书仓的卡里也没有
+    # （`fantasy01-pov` 第 41/42 章 directive 探针实测 hook_type=None），
+    # 且映射产出的键**全仓无消费者**（追读力的钩子走决策卡 → 正文 front matter → `.cache`，
+    # 见 docs/plans/2026-09-13-reader-signals-v7-spec.md）。留着会让人误以为章纲能带钩子。
+    # 逐字复核见该 spec 的 E-7/E-8/E-9。
     "关键实体": "key_entities",
     "涉及实体": "key_entities",
     "strand": "strand",

@@ -33,8 +33,6 @@ def test_load_chapter_execution_directive_from_volume_outline(tmp_path):
                 "- 必须覆盖节点：借据金额；复利算法",
                 "- 本章禁区：不得离开宗门；不得提前摊牌",
                 "- 章末未闭合问题：谁改了借据？",
-                "- 钩子类型：信息钩",
-                "- 钩子强度：中",
                 "",
                 "### 第二章：井边口风",
                 "- 目标：打听债主来历",
@@ -53,6 +51,38 @@ def test_load_chapter_execution_directive_from_volume_outline(tmp_path):
     assert "不得离开宗门" in directive["forbidden_zones"]
     assert "借据" in directive["key_entities"]
     assert directive["chapter_end_open_question"] == "谁改了借据？"
+
+
+def test_directive_has_no_hook_fields(tmp_path):
+    """口径钉：章纲 directive **不产** hook_type/hook_strength（t-20260913-d85d）。
+
+    2026-09-13 删掉了 `_DIRECTIVE_FIELD_MAP` 里的「钩子类型/钩子强度」两行死映射——
+    章纲卡模板没有这两个标签、真实书仓的卡里也没有，且映射出的键全仓无消费者。
+    追读力的钩子走**决策卡** → 正文 front matter → `.cache`
+    （见 docs/plans/2026-09-13-reader-signals-v7-spec.md）。
+    本用例守住这条边界：若日后有人把钩子塞回章纲，会先在这里红——那时应先回答
+    「谁消费它」，而不是直接加映射。
+    """
+    (tmp_path / ".webnovel").mkdir()
+    (tmp_path / ".webnovel" / "state.json").write_text(
+        json.dumps({"progress": {"volumes_planned": [{"volume": 1, "chapters_range": "1-50"}]}}),
+        encoding="utf-8",
+    )
+    (tmp_path / "大纲").mkdir()
+    (tmp_path / "大纲" / "第1卷-详细大纲.md").write_text(
+        "\n".join([
+            "### 第一章：债从天降",
+            "- 目标：搞清楚借据条款的荒谬",
+            "- 钩子类型：信息钩",
+            "- 钩子强度：中",
+        ]),
+        encoding="utf-8",
+    )
+
+    directive = load_chapter_execution_directive(tmp_path, 1)
+
+    assert directive["goal"] == "搞清楚借据条款的荒谬"
+    assert "hook_type" not in directive and "hook_strength" not in directive
 
 
 def test_load_chapter_execution_directive_from_canonical_nested_outline(tmp_path):
