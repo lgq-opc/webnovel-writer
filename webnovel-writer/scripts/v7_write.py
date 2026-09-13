@@ -778,6 +778,15 @@ def settle(
     # 章号前缀判重（增量审阅 P2-1）：同章改标题不得绕过防双写
     if has_v7_settled_chapter(repo, chapter):
         raise RuntimeError(f"唯一写入路径：该章已 settle（定稿/正文 存在 {chapter:04d}- 前缀文件），禁止双写")
+    # t-20260913-a126：`book-init --no-git` 建的仓没有 .git，settle 默认承诺「原子提交」履行不了。
+    # 这里在任何落盘之前给出**可执行**诊断；否则作者看到的是 git 的原始报错
+    # 「fatal: not a git repository (or any of the parent directories): .git」，
+    # 与 `--no-git` 的因果关系完全看不出来（该报错还被包在「settle 回滚」里，更难定位）。
+    if commit and not (repo / ".git").exists():
+        raise RuntimeError(
+            f"settle 需要 git 才能提交，但该书仓不是 git 仓库：{repo}（`book-init --no-git` 建的仓没有 .git）。"
+            "二选一：① 在该仓执行 `git init` 后重跑；② 本次加 `--no-commit`（只落盘、不提交）。"
+        )
     chapter_file = repo / "定稿" / "正文" / f"{chapter:04d}-{title}.md"
 
     word_count = len(re.sub(r"\s", "", body_clean))

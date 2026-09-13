@@ -8,6 +8,7 @@ spec：docs/cursor/阶段一-写前链路补全/2026-09-04-v7-write-chain-spec.m
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -299,3 +300,55 @@ class TestSettleHookFrontMatter:
         text = self._chapter_text(repo)
         assert "钩子类型:" not in text
         assert "钩子强度:" not in text
+
+
+def _strip_git(repo: Path) -> None:
+    """把仓变成「没有 .git」——模拟 `book-init --no-git`。
+
+    用**重命名**而非 rmtree：Windows 上 git 对象文件带只读属性，递归删除会
+    报 WinError 5（本项目 F7 踩过同一个坑）；重命名只动父目录项，不受其影响。
+    """
+    (repo / ".git").rename(repo / ".git-disabled")
+
+
+class TestSettleWithoutGit:
+    """t-20260913-a126：`book-init --no-git` 建的仓没有 .git，settle 默认承诺「原子提交」履行不了。
+
+    修复前作者看到的是 git 的原始报错「fatal: not a git repository (or any of the parent
+    directories): .git」，与 `--no-git` 的因果关系完全看不出来。本类钉住「可执行诊断」。
+    """
+
+    def test_non_git_repo_gets_actionable_diagnostic(self, tmp_path):
+        repo = _repo(tmp_path)
+        _review(repo, 0)
+        _strip_git(repo)  # 模拟 book-init --no-git 的产物
+
+        with pytest.raises(RuntimeError) as exc:
+            _settle(repo, _decision(), commit=True)
+
+        msg = str(exc.value)
+        assert "--no-commit" in msg, "必须给出「只落盘不提交」这条出路"
+        assert "git init" in msg, "必须给出「补建 git 仓」这条出路"
+        assert "not a git repository" not in msg, "不得把 git 原始报错当诊断抛给作者"
+
+    def test_non_git_repo_writes_nothing_before_failing(self, tmp_path):
+        """诊断必须在**任何落盘之前**——否则会留下半写的定稿又回滚，作者更难判断。"""
+        repo = _repo(tmp_path)
+        _review(repo, 0)
+        _strip_git(repo)
+
+        with pytest.raises(RuntimeError):
+            _settle(repo, _decision(), commit=True)
+
+        assert not list((repo / "定稿" / "正文").glob("0042-*.md")), "失败前不得落盘正文"
+
+    def test_non_git_repo_with_no_commit_still_succeeds(self, tmp_path):
+        """反向守住：`--no-commit` 是给出的出路，必须真的走得通（别只写进文案）。"""
+        repo = _repo(tmp_path)
+        _review(repo, 0)
+        _strip_git(repo)
+
+        result = _settle(repo, _decision(), commit=False)
+
+        assert result["committed"] is False
+        assert list((repo / "定稿" / "正文").glob("0042-*.md")), "no-commit 应正常落盘"

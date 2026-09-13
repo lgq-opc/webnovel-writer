@@ -240,6 +240,8 @@ python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" met
 
 草稿不合格 → 重跑机检并按提示改稿。审查缺失/章号不符 → 重跑审查。`materials.unresolved` → 改决策 JSON 的 `material_refs` 或章纲卡的 `素材引用`。settle 门禁拒绝 → 改稿 → 重审 → 再 settle。
 
+`settle` 报「该书仓不是 git 仓库」→ 这是一本用 `book-init --no-git` 建的书，`settle` 默认要提交但无处可提交。二选一并在报告里如实告诉作者：① 在书仓执行 `git init` 后重跑（此后每章自动提交）；② 本次加 `--no-commit`（只落盘、不提交，每次都需带）。**不要**替作者静默选择——这关系到他要不要版本控制。
+
 ## 作者友好最终报告契约
 
 最终回复必须面向作者，不输出原始 JSON、traceback 或长命令日志。使用固定三段式，并以一句总状态开头：
