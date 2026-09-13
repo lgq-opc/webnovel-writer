@@ -646,12 +646,15 @@ _SETTLE_ADD_PATHS = (
     "素材/使用轨迹.jsonl",
     "文风/指纹.yaml",
     "作者/journal.jsonl",
-    ".webnovel/index.db",
 )
 
 
-def _run_post_hooks(repo: Path, chapter: int, summary_text: str) -> dict[str, Any]:
-    """P3-1：素材轨迹 → 文风指纹/采样 → 追读力。各自失败不阻断 settle。"""
+def _run_post_hooks(repo: Path, chapter: int, decision: dict[str, Any]) -> dict[str, Any]:
+    """P3-1：素材轨迹 → 文风指纹/采样 → 追读力。各自失败不阻断 settle。
+
+    追读力自 2026-09-13 起不再写盘：钩子已随正文 front matter 落 canonical，
+    `.cache` 由 settle 末尾的 rebuild 重算（见 reading_power_projection.reading_status）。
+    """
     post: dict[str, Any] = {}
     try:
         from data_modules.material_usage import log_chapter_materials
@@ -684,9 +687,13 @@ def _run_post_hooks(repo: Path, chapter: int, summary_text: str) -> dict[str, An
     except Exception as exc:
         post["style"] = {"status": "error", "reason": str(exc)}
     try:
-        from data_modules.reading_power_projection import settle_reading_power
+        from data_modules.reading_power_projection import reading_status
 
-        post["reading"] = settle_reading_power(repo, chapter, summary_text)
+        post["reading"] = reading_status(
+            chapter,
+            decision.get("hook_type", ""),
+            decision.get("hook_strength", ""),
+        )
     except Exception as exc:
         post["reading"] = {"status": "error", "reason": str(exc)}
     return post
@@ -857,7 +864,7 @@ def settle(
                     }
                 ],
             )
-        result["post"] = _run_post_hooks(repo, chapter, summary_text)
+        result["post"] = _run_post_hooks(repo, chapter, decision)
         if commit:
             _git_add_settle_paths(repo)
             _commit_with_identity_fallback(repo, f"settle: 第{chapter:04d}章 {title}")

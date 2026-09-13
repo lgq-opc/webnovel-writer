@@ -68,29 +68,36 @@ def test_fingerprint_written_and_committed(tmp_path: Path):
     assert any(path.endswith("指纹.yaml") for path in _ls_files(repo))
 
 
-def test_reading_power_from_summary_front_matter(tmp_path: Path):
+def test_reading_reported_from_decision_card(tmp_path: Path):
+    """Task 4：追读力写盘退役——钩子来自决策卡，落 canonical 后由缓存重建承载。
+
+    此前该用例走的是「摘要 front matter + 写 v6 .webnovel/index.db」，那条路径在
+    真实流程下恒 skipped（摘要传纯文本）且污染 v6 域，均已退役。
+    """
     repo = _repo(tmp_path)
     _review(repo, 0)
-    summary = "---\nhook_type: 悬念\nhook_strength: strong\n---\n夜未完。"
     result = settle(
         repo,
-        _decision(),
+        _decision(hook_type="悬念", hook_strength="strong"),
         draft_path=repo / "工作区" / "草稿-0042.md",
-        summary=summary,
+        summary="夜未完。",
         commit=False,
     )
     assert result["post"]["reading"]["status"] == "ok"
-    from data_modules.config import DataModulesConfig
-    from data_modules.index_manager import IndexManager
+    assert result["post"]["reading"]["hook_type"] == "悬念"
+    assert not (repo / ".webnovel" / "index.db").exists()  # 不再落 v6 域
+    assert result["cache_rebuilt"] is True
+    from v7_cache import get_recent_reading_power
 
-    row = IndexManager(DataModulesConfig.from_project_root(repo)).get_chapter_reading_power(42)
-    assert row and row["hook_type"] == "悬念"
+    assert get_recent_reading_power(repo, limit=5) == [
+        {"chapter": 42, "hook_type": "悬念", "hook_strength": "strong"}
+    ]
 
 
-def test_reading_skipped_without_hook(tmp_path: Path):
+def test_reading_skipped_when_waived(tmp_path: Path):
     repo = _repo(tmp_path)
     _review(repo, 0)
-    result = _settle(repo, _decision())
+    result = _settle(repo, _decision(hook_type="", hook_waiver="过渡章，本章无钩子"))
     assert result["post"]["reading"]["status"] == "skipped"
 
 

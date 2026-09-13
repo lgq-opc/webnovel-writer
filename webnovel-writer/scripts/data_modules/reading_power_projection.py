@@ -1,9 +1,13 @@
 """追读力投影 writer（webnovel-copilot-300 · M5/T25，R4/F-05）。
 
-accepted 提交在投影链自动落 `chapter_reading_power` 表——数据源为 data-agent
-extraction_result 的钩子字段（顶层 `hook_type`/`hook_strength`，或摘要 front
-matter 中的同名键）；无钩子字段时 skipped（不阻断提交）。
-此投影闭合 F-05「追读力指标无生产者」：写前指导的钩子差异化/爽点去重从此有据。
+**v7 路径**（2026-09-13 起）：钩子由决策卡声明 → settle 写入正文 front matter →
+`.cache/index.db` 的 chapter_reading_power 表由 `v7_cache.rebuild_cache` 重算。
+本模块在 v7 侧只剩 `reading_status`（回报落账状态，不写盘）。
+
+**v6 路径**（冻结）：`ReadingPowerProjectionWriter` 仍服务 v6 投影链——accepted 提交
+自动落表，数据源为 data-agent extraction_result 的钩子字段（顶层 `hook_type`/
+`hook_strength`，或摘要 front matter 中的同名键）；无钩子字段时 skipped（不阻断提交）。
+该 writer 的生产引用者的去留属 Phase 3（见 docs/plans/2026-09-10-v6线退役方案.md）。
 """
 
 from __future__ import annotations
@@ -37,26 +41,25 @@ def extract_hook_fields(extraction_result: dict[str, Any]) -> tuple[str, str]:
     return hook_type, hook_strength
 
 
-def settle_reading_power(project_root: str | Path, chapter: int, summary_text: str = "") -> dict[str, Any]:
-    """v7 settle 后置：从摘要 front matter 提取钩子并写入 chapter_reading_power。无 hook_type 则 skip。"""
-    root = Path(project_root)
-    hook_type, hook_strength = extract_hook_fields({"summary_text": summary_text or ""})
-    if not hook_type:
-        summary_file = root / "定稿" / "记忆" / "章摘要" / f"{int(chapter):04d}.md"
-        if summary_file.is_file():
-            hook_type, hook_strength = extract_hook_fields({"summary_text": summary_file.read_text(encoding="utf-8")})
-    if not hook_type:
-        return {"ok": True, "applied": False, "status": "skipped", "reason": "not_required"}
-    from .config import DataModulesConfig
-    from .index_manager import ChapterReadingPowerMeta, IndexManager
+def reading_status(chapter: int, hook_type: str = "", hook_strength: str = "") -> dict[str, Any]:
+    """v7 settle 后置：回报本章追读力落账状态（写盘职责已退役，见 spec §3.4）。
 
-    meta = ChapterReadingPowerMeta(
-        chapter=int(chapter),
-        hook_type=hook_type,
-        hook_strength=hook_strength or "medium",
-    )
-    IndexManager(DataModulesConfig.from_project_root(root)).save_chapter_reading_power(meta)
-    return {"ok": True, "applied": True, "status": "ok", "hook_type": hook_type, "chapter": int(chapter)}
+    钩子由决策卡声明、settle 写入正文 front matter（canonical），`.cache` 的
+    chapter_reading_power 表由 `v7_cache.rebuild_cache` 从那里重算——故此处**只回报不写盘**。
+
+    此前它从摘要 front matter 提取钩子再写 v6 `.webnovel/index.db`：真实流程传的是
+    纯文本摘要（`skills/webnovel-write/SKILL.md:177`），故恒 skipped；且属 D-2 乙要消灭的
+    v6 域副作用。两条问题一并随本次改动消失。
+    """
+    hook = str(hook_type or "").strip()
+    if not hook:
+        return {"status": "skipped", "reason": "not_required"}
+    return {
+        "status": "ok",
+        "hook_type": hook,
+        "hook_strength": hook_strength or "medium",
+        "chapter": int(chapter),
+    }
 
 
 class ReadingPowerProjectionWriter:
