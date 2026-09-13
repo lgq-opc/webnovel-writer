@@ -163,6 +163,58 @@ def _run_local_backup_assertions(tmp_path, monkeypatch):
     assert snapshot not in snapshots
 
 
+def test_local_backup_covers_v7_six_domains(tmp_path, monkeypatch):
+    """t-20260913-f847：本地备份清单必须覆盖 v7 六域。
+
+    原实现只列 v6 的 `正文/大纲/设定集` + `.story-system` + `.webnovel` 四个文件，
+    纯 v7 仓跑本地备份的结果是**只剩 `大纲/`**——`定稿/`（正文 + 章摘要 + 名册）、
+    `设定/`、`文风/`、`素材/`、`作者/` 全部漏掉。**备份静默漏内容比不备份更危险**：
+    作者以为有备份，恢复时才发现正文没了。
+    """
+    monkeypatch.setattr(backup_manager, "is_git_available", lambda: False)
+
+    # 与 v6 用例同因：pytest tmp_path 过长会触发 MAX_PATH，改用系统短临时目录。
+    import shutil as _shutil
+    import tempfile as _tempfile
+
+    short_root = Path(_tempfile.mkdtemp(prefix="wtest7_"))
+    try:
+        _run_v7_local_backup_assertions(short_root)
+    finally:
+        _shutil.rmtree(short_root, ignore_errors=True)
+
+
+def _run_v7_local_backup_assertions(tmp_path):
+    from data_modules.domain_contract import init_domain_skeleton
+
+    init_domain_skeleton(tmp_path)
+    (tmp_path / "book.yaml").write_text("书名: 测试书\n", encoding="utf-8")
+    for rel, body in (
+        ("定稿/正文/0001-开篇.md", "正文内容"),
+        ("定稿/记忆/章摘要/0001.md", "摘要内容"),
+        ("定稿/设定/名册/苏小白.md", "名册内容"),
+        ("设定/世界观.md", "世界观内容"),
+        ("文风/宪法.md", "宪法内容"),
+        ("素材/活/桥段.csv", "桥段内容"),
+        ("作者/author_model.md", "作者模型内容"),
+    ):
+        path = tmp_path / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(body, encoding="utf-8")
+
+    manager = GitBackupManager(str(tmp_path))
+    assert manager.backup(1) is True
+
+    snapshot = next((tmp_path / ".webnovel" / "backups").glob("snapshot_ch0001_*"))
+    assert (snapshot / "定稿" / "正文" / "0001-开篇.md").read_text(encoding="utf-8") == "正文内容"
+    assert (snapshot / "定稿" / "记忆" / "章摘要" / "0001.md").exists()
+    assert (snapshot / "定稿" / "设定" / "名册" / "苏小白.md").exists()
+    assert (snapshot / "设定" / "世界观.md").read_text(encoding="utf-8") == "世界观内容"
+    assert (snapshot / "文风" / "宪法.md").exists()
+    assert (snapshot / "素材" / "活" / "桥段.csv").exists()
+    assert (snapshot / "作者" / "author_model.md").exists()
+
+
 def test_rollback_removes_files_created_after_target_tag(tmp_path):
     """增量审阅 P3-19：回滚须删除 tag 之后新增的文件，与『恢复到备份点 100% 一致』承诺相符。"""
     project_root = tmp_path / "project"

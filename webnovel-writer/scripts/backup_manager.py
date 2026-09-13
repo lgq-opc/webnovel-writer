@@ -192,6 +192,9 @@ __pycache__/
         合同树与 index.db/vectors.db 等投影数据库，与 docstring"数据 100% 一致"
         矛盾。现补全备份范围，并改用临时目录 + 原子 rename，避免中途崩溃留下
         半套备份。
+
+        t-20260913-f847（2026-09-13）：清单再加 v7 六域之 定稿/设定/文风/素材/作者。
+        此前只覆盖 v6 布局，纯 v7 仓的备份**只剩 大纲/**——备份静默漏内容比不备份更危险。
         """
         backup_dir = self.project_root / ".webnovel" / "backups"
         backup_dir.mkdir(parents=True, exist_ok=True)
@@ -210,8 +213,12 @@ __pycache__/
             tmp_path.mkdir(parents=True, exist_ok=True)
             copied = []
 
-            # 1. 正文 / 大纲 / 设定集（文本真源）
-            for folder_name in ("正文", "大纲", "设定集"):
+            # 1. 文本真源：v6 的 正文/大纲/设定集 与 v7 六域之一的 定稿/设定/文风/素材/作者
+            #    一并纳入（t-20260913-f847）。**刻意不做形态判断**——不存在的目录会被下面的
+            #    `exists()` 跳过，故超集清单既不会误备、也不会漏备；而按形态分支则多一处
+            #    会漂移的判据。修复前只列 v6 三项，纯 v7 仓的备份**只剩 大纲/**，
+            #    定稿（正文+章摘要+名册）/设定/文风/素材/作者 全部丢失。
+            for folder_name in ("定稿", "正文", "大纲", "设定", "设定集", "文风", "素材", "作者"):
                 source_dir = self.project_root / folder_name
                 if source_dir.exists():
                     shutil.copytree(source_dir, tmp_path / folder_name)
@@ -255,7 +262,8 @@ __pycache__/
             if copied:
                 print(f"📦 已备份: {', '.join(copied)}")
             else:
-                print("⚠️  未找到正文/大纲/设定集或 story-system 可备份")
+                print("⚠️  未找到可备份的文本真源（定稿/正文/大纲/设定/设定集/文风/素材/作者）"
+                      "或 .story-system 可备份")
             return True
         except OSError as e:
             # 失败时清理临时目录，避免残留。
