@@ -44,7 +44,7 @@
 | `webnovel-writer/scripts/data_modules/reading_power_projection.py` | 追读力写盘（退役） | 改 |
 | `webnovel-writer/scripts/data_modules/reader_signal_builder.py` | 读者信号装配（消费侧） | 改 |
 | `webnovel-writer/scripts/data_modules/webnovel.py` | 统一 CLI 派发（`index` 分流） | 改 |
-| `webnovel-writer/scripts/data_modules/tests/test_v7_cache_reading_power.py` | Task 1 测试 | 新增 |
+| `webnovel-writer/scripts/data_modules/tests/test_v7_cache.py` | Task 1 测试 | 改（**2026-09-13 实施订正**：原计划新建 `test_v7_cache_reading_power.py`；实施时改为此文件新增 `TestReadingPowerFromFrontMatter` 类——它已有可复用的 `_raw_v7_repo` 夹具，新建文件会重复造夹具且分散同一模块的测试） |
 | `webnovel-writer/scripts/data_modules/tests/test_v7_write_post_hooks.py` | Task 4 改写 | 改 |
 | `webnovel-writer/scripts/data_modules/tests/test_v7_write_gates.py` | `_decision()` 夹具补默认豁免 | 改 |
 | `webnovel-writer/scripts/smoke_v7_newbook.py` | 端到端断言升级 | 改 |
@@ -55,7 +55,8 @@
 
 **验证/MCP：** 无特殊需求（stdlib sqlite3）。
 
-- [ ] 写失败测试 `webnovel-writer/scripts/data_modules/tests/test_v7_cache_reading_power.py`：
+- [ ] 写失败测试（**实施订正**：追加到既有 `webnovel-writer/scripts/data_modules/tests/test_v7_cache.py`，
+  新增 `TestReadingPowerFromFrontMatter` 类并补两处 import；不新建文件，理由见「文件结构」表）：
 
 ```python
 #!/usr/bin/env python3
