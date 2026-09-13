@@ -458,8 +458,14 @@ def test_v7_repo_without_cache_degrades_gracefully(tmp_path: Path):
 
 **验证/MCP：** playwright 不需要（纯 CLI）。
 
-- [ ] `smoke_v7_newbook.py` 的 `reader-signals` 步骤由「仅退出 0」升级为断言内容非空：
-  在 `:239` 的循环中把该步骤移出通用循环，单独跑并断言 `recent_reading_power` 非空。
+- [ ] `smoke_v7_newbook.py`：把 `reader-signals` 移出 `:239` 的通用只读工具循环，单独跑。
+  **2026-09-13 实施订正（Human 裁定）**：原计划的「直接断言内容非空」在当前冒烟里**必然失败**——
+  主流程的 settle 被 **prose 门禁**拒（实测 `码=2 REJECTED … 门禁拒绝（prose）`，fixture 正文命中
+  Anti-AI 词库，是交接文件在案的既有 BIZ 基线）→ 定稿/正文无文件 → `.cache` 追读力表为空。
+  改为 **旁路 settle 子步骤**：保持主流程只读真实链路、判据不变（settle 被拒仍计 BIZ），
+  另加一段用 `--force-review-bypass "<smoke 理由>"`（该参数只放行 ①② 两门禁）让 settle 真正写章，
+  随后断言 `reader-signals` 的 `recent_reading_power` 非空且 `hook_type == "危机钩"`。
+  理由：既验到端到端钩子链路，又不篡改冒烟对真实链路的监测语义。
 - [ ] 跑冒烟：`python -X utf8 webnovel-writer/scripts/smoke_v7_newbook.py`
   预期：`reader-signals` PASS 且内容非空；BREAK 仍为 0。
 - [ ] 文档回改（spec §8）：对账 §D-2 乙就地订正；`SKILL.md:174` 对齐实现；
@@ -479,4 +485,5 @@ def test_v7_repo_without_cache_degrades_gracefully(tmp_path: Path):
 3. 「v6 仓（有 `state.json`）路径行为不变——仍写 `.webnovel/index.db`，读亦原样」
 4. 「删 `.cache/` 后 `rebuild` 重算出的追读力与删除前一致」
 5. 「`smoke_v7_newbook.py` 的 `reader-signals` 步骤由「仅退出 0」升级为**断言内容非空**」
+   ——**2026-09-13 订正**：改为经**旁路 settle** 造出真实钩子后再断言非空（原因见 Task 6 步骤内）。
 6. 「全量 pytest + 四校验 + CI 双平台绿」
