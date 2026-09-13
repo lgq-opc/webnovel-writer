@@ -24,6 +24,24 @@ def cache_path(repo_root: Path) -> Path:
     return Path(repo_root) / ".cache" / "index.db"
 
 
+# 缓存表结构版本：新增/变更表时递增，旧缓存首查即整体重建（不写迁移代码）。
+_CACHE_SCHEMA_VERSION = "2"
+_REQUIRED_TABLES = ("chapters", "entities", "summaries", "meta")
+
+_HOOK_STRENGTH_ALIASES = {"强": "strong", "中": "medium", "弱": "weak"}
+
+
+def normalize_hook_strength(value: str) -> str:
+    """钩子强度归一：章纲要写「强/中/弱」，追读力表用 strong/medium/weak（T25 词表）。
+
+    跨模块复用（v7_write 写 front matter 时同口径），故为公开名。
+    """
+    text = str(value or "").strip()
+    if not text:
+        return "medium"
+    return _HOOK_STRENGTH_ALIASES.get(text, text)
+
+
 # ---------- 源文件解析（缓存不遮蔽真相：每次 rebuild 重读源） ----------
 
 
@@ -154,6 +172,33 @@ def _iter_summaries(repo_root: Path):
             yield int(m.group(1)), _read(path).strip()
 
 
+def _iter_reading_power(repo_root: Path):
+    """追读力源＝`定稿/正文/*.md` 的 front matter（钩子由 settle 从决策卡写入）。
+
+    与 书内时间/推进承诺/合同 同处 canonical，故缓存重建只读它，不读 `工作区/`
+    （草稿区可清理，做不了唯一事实源）。无钩子的章不入表。
+    """
+    body_dir = Path(repo_root) / "定稿" / "正文"
+    if not body_dir.exists():
+        return
+    for path in sorted(body_dir.glob("*.md")):
+        num, _ = _parse_chapter_filename(path.name)
+        if num is None:
+            continue
+        try:
+            fields, _ = _parse_front_matter(_read(path))
+        except (OSError, UnicodeDecodeError):
+            continue  # 单文件损坏只跳过该章（同 _iter_roster_directory 口径）
+        hook_type = str(fields.get("钩子类型") or "").strip()
+        if not hook_type:
+            continue
+        yield {
+            "chapter": num,
+            "hook_type": hook_type,
+            "hook_strength": normalize_hook_strength(fields.get("钩子强度", "")),
+        }
+
+
 # ---------- 重建与查询 ----------
 
 
@@ -174,6 +219,9 @@ def rebuild_cache(repo_root: Path) -> dict[str, Any]:
             CREATE TABLE entities (name TEXT PRIMARY KEY, aliases TEXT, first_chapter TEXT NOT NULL DEFAULT '');
             CREATE TABLE summaries (num INTEGER PRIMARY KEY, content TEXT);
             CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
+            CREATE TABLE chapter_reading_power (chapter INTEGER PRIMARY KEY,
+                                                hook_type TEXT NOT NULL DEFAULT '',
+                                                hook_strength TEXT NOT NULL DEFAULT 'medium');
             """
         )
         chapters = list(_iter_chapters(repo_root))
@@ -190,11 +238,16 @@ def rebuild_cache(repo_root: Path) -> dict[str, Any]:
             [(num, content) for num, content in _iter_summaries(repo_root)],
         )
         conn.executemany(
+            "INSERT INTO chapter_reading_power VALUES (?,?,?)",
+            [(r["chapter"], r["hook_type"], r["hook_strength"]) for r in _iter_reading_power(repo_root)],
+        )
+        conn.executemany(
             "INSERT INTO meta VALUES (?,?)",
             [
                 ("rebuilt_at", str(int(__import__("time").time()))),
                 ("chapters", str(len(chapters))),
                 ("书名", book.get("书名", "")),
+                ("schema_version", _CACHE_SCHEMA_VERSION),
             ],
         )
         conn.commit()
@@ -204,15 +257,23 @@ def rebuild_cache(repo_root: Path) -> dict[str, Any]:
 
 
 def _cache_intact(path: Path) -> bool:
-    """健康检查：四张核心表齐备才算完好（零字节/半写坏/缺表 → False，首查重建）。"""
+    """健康检查：核心表齐备 **且** schema 版本匹配才算完好（否则首查重建）。
+
+    版本这一维是必需的：旧版缓存四表俱全但缺新表，只查表存在会判「完好」，
+    随后查询直接抛 sqlite3.OperationalError。
+    """
     try:
         conn = sqlite3.connect(path)
         try:
             row = conn.execute(
                 "SELECT count(*) FROM sqlite_master WHERE type='table'"
-                " AND name IN ('chapters','entities','summaries','meta')"
+                " AND name IN (?,?,?,?)",
+                _REQUIRED_TABLES,
             ).fetchone()
-            return bool(row) and row[0] == 4
+            if not row or row[0] != len(_REQUIRED_TABLES):
+                return False
+            version = conn.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()
+            return bool(version) and version[0] == _CACHE_SCHEMA_VERSION
         finally:
             conn.close()
     except sqlite3.Error:
@@ -263,11 +324,41 @@ def get_summary(repo_root: Path, num: int) -> Optional[str]:
     return row[0] if row else None
 
 
+def get_recent_reading_power(repo_root: Path, limit: int = 5) -> list[dict[str, Any]]:
+    """最近 limit 章的追读力（按章号降序）。无钩子的章不入表，故结果可能少于 limit。"""
+    conn = _conn(repo_root)
+    try:
+        rows = conn.execute(
+            "SELECT chapter, hook_type, hook_strength FROM chapter_reading_power"
+            " ORDER BY chapter DESC LIMIT ?",
+            (int(limit),),
+        ).fetchall()
+    finally:
+        conn.close()
+    return [{"chapter": r[0], "hook_type": r[1], "hook_strength": r[2]} for r in rows]
+
+
+def get_hook_type_usage(repo_root: Path, last_n: int = 20) -> dict[str, int]:
+    """最近 last_n 章的钩子类型分布（先按章号降序截断，再分组计数）。"""
+    conn = _conn(repo_root)
+    try:
+        rows = conn.execute(
+            "SELECT hook_type, COUNT(*) FROM ("
+            " SELECT hook_type FROM chapter_reading_power"
+            " WHERE hook_type != '' ORDER BY chapter DESC LIMIT ?"
+            ") GROUP BY hook_type",
+            (int(last_n),),
+        ).fetchall()
+    finally:
+        conn.close()
+    return {r[0]: r[1] for r in rows}
+
+
 # ---------- 验收：删缓存 → 重建 → 快照等价 ----------
 
 
 def snapshot(repo_root: Path) -> dict[str, Any]:
-    """缓存查询面快照：三类查询的全量结果（排序后可比）。"""
+    """缓存查询面快照：四类查询的全量结果（排序后可比）。"""
     repo_root = Path(repo_root)
     conn = _conn(repo_root)
     try:
@@ -276,9 +367,17 @@ def snapshot(repo_root: Path) -> dict[str, Any]:
         ).fetchall()
         entities = conn.execute("SELECT name, aliases FROM entities ORDER BY name").fetchall()
         summaries = conn.execute("SELECT num, content FROM summaries ORDER BY num").fetchall()
+        reading_power = conn.execute(
+            "SELECT chapter, hook_type, hook_strength FROM chapter_reading_power ORDER BY chapter"
+        ).fetchall()
     finally:
         conn.close()
-    return {"chapters": chapters, "entities": entities, "summaries": summaries}
+    return {
+        "chapters": chapters,
+        "entities": entities,
+        "summaries": summaries,
+        "reading_power": reading_power,
+    }
 
 
 def verify_rebuild(repo_root: Path) -> dict[str, Any]:

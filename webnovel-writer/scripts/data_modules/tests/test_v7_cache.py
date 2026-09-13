@@ -17,6 +17,8 @@ from v7_cache import (  # noqa: E402
     cache_path,
     find_entity,
     get_chapter,
+    get_hook_type_usage,
+    get_recent_reading_power,
     get_summary,
     rebuild_cache,
     snapshot,
@@ -212,3 +214,101 @@ class TestCorruptCacheSelfHeals:
         rebuild_cache(repo)
 
         assert find_entity(repo, "好角色")["name"] == "好角色"
+
+
+class TestReadingPowerFromFrontMatter:
+    """reader_signals 接通（spec: docs/plans/2026-09-13-reader-signals-v7-spec.md）。
+
+    追读力是 settle 从决策卡写进正文 front matter 的 canonical 事实；
+    缓存从它重算，故「派生物可丢弃」对追读力同样成立。
+    """
+
+    def test_collects_hook_from_front_matter(self, tmp_path):
+        repo = _raw_v7_repo(tmp_path)
+        (repo / "定稿" / "正文" / "0001-开篇.md").write_text(
+            "---\n章号: 1\n标题: 开篇\n钩子类型: 危机钩\n钩子强度: 强\n---\n正文\n",
+            encoding="utf-8",
+        )
+
+        rebuild_cache(repo)
+
+        assert get_recent_reading_power(repo, limit=5) == [
+            {"chapter": 1, "hook_type": "危机钩", "hook_strength": "strong"}
+        ]
+
+    def test_chapter_without_hook_is_absent(self, tmp_path):
+        repo = _raw_v7_repo(tmp_path)
+        (repo / "定稿" / "正文" / "0001-开篇.md").write_text(
+            "---\n章号: 1\n标题: 开篇\n钩子类型: 危机钩\n钩子强度: 强\n---\n正文\n",
+            encoding="utf-8",
+        )
+        (repo / "定稿" / "正文" / "0002-过渡.md").write_text(
+            "---\n章号: 2\n标题: 过渡\n---\n正文\n", encoding="utf-8"
+        )
+
+        rebuild_cache(repo)
+
+        assert {row["chapter"] for row in get_recent_reading_power(repo, limit=10)} == {1}
+
+    def test_strength_defaults_to_medium_when_omitted(self, tmp_path):
+        repo = _raw_v7_repo(tmp_path)
+        (repo / "定稿" / "正文" / "0001-开篇.md").write_text(
+            "---\n章号: 1\n标题: 开篇\n钩子类型: 信息钩\n---\n正文\n", encoding="utf-8"
+        )
+
+        rebuild_cache(repo)
+
+        assert get_recent_reading_power(repo, limit=5)[0]["hook_strength"] == "medium"
+
+    def test_hook_type_usage_counts(self, tmp_path):
+        repo = _raw_v7_repo(tmp_path)
+        for num, hook in ((1, "危机钩"), (2, "危机钩"), (3, "信息钩")):
+            (repo / "定稿" / "正文" / f"{num:04d}-章{num}.md").write_text(
+                f"---\n章号: {num}\n标题: 章{num}\n钩子类型: {hook}\n---\n正文\n", encoding="utf-8"
+            )
+
+        rebuild_cache(repo)
+
+        assert get_hook_type_usage(repo, last_n=20) == {"危机钩": 2, "信息钩": 1}
+
+    def test_verify_rebuild_covers_reading_power(self, tmp_path):
+        """不变量：删缓存 → 重建 → 快照等价（含追读力表）。"""
+        repo = _raw_v7_repo(tmp_path)
+        (repo / "定稿" / "正文" / "0001-开篇.md").write_text(
+            "---\n章号: 1\n标题: 开篇\n钩子类型: 危机钩\n钩子强度: 强\n---\n正文\n",
+            encoding="utf-8",
+        )
+        rebuild_cache(repo)
+
+        result = verify_rebuild(repo)
+
+        assert result["equal"] is True
+        assert result["after"]["reading_power"]
+
+    def test_legacy_cache_without_schema_version_is_rebuilt(self, tmp_path):
+        """旧版缓存（4 表、无 schema_version）不得被判为完好——
+        否则追读力表缺失，查询会抛 sqlite3.OperationalError。"""
+        import sqlite3
+
+        repo = _raw_v7_repo(tmp_path)
+        (repo / "定稿" / "正文" / "0001-开篇.md").write_text(
+            "---\n章号: 1\n标题: 开篇\n钩子类型: 危机钩\n钩子强度: 强\n---\n正文\n",
+            encoding="utf-8",
+        )
+        cache = cache_path(repo)
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(cache)
+        conn.executescript(
+            "CREATE TABLE chapters (num INTEGER PRIMARY KEY, title TEXT, volume INTEGER,"
+            " words INTEGER, file TEXT, body TEXT);"
+            "CREATE TABLE entities (name TEXT PRIMARY KEY, aliases TEXT,"
+            " first_chapter TEXT NOT NULL DEFAULT '');"
+            "CREATE TABLE summaries (num INTEGER PRIMARY KEY, content TEXT);"
+            "CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);"
+        )
+        conn.commit()
+        conn.close()
+
+        assert get_recent_reading_power(repo, limit=5) == [
+            {"chapter": 1, "hook_type": "危机钩", "hook_strength": "strong"}
+        ]
