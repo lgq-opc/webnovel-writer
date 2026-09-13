@@ -98,22 +98,23 @@
       "id": "skill_query_contract",
       "type": "skill_contract",
       "skill": "webnovel-query",
-      "description": "/webnovel-query stays read-only and prioritizes Story System sources.",
+      "description": "/webnovel-query stays read-only and prioritizes v7 six-domain sources.",
       "required": [
         "只读操作，不修改任何项目文件",
-        "memory-contract load-context",
-        "写前真源"
+        "book.yaml",
+        "定稿/",
+        ".cache/index.db"
       ]
     },
     {
       "id": "skill_learn_contract",
       "type": "skill_contract",
       "skill": "webnovel-learn",
-      "description": "/webnovel-learn writes through the project-memory CLI instead of manual JSON edits.",
+      "description": "/webnovel-learn writes through the learn CLI into the author model instead of manual edits.",
       "required": [
-        "project-memory add-pattern",
-        "不删除旧记录，仅追加",
-        "禁止使用 `Write`"
+        "learn apply",
+        "作者/author_model.md",
+        "不删除旧条目，仅追加"
       ]
     },
     {

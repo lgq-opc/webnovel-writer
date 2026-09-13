@@ -1,6 +1,6 @@
 ---
 name: webnovel-learn
-description: 从当前会话提取成功写作模式并写入 project_memory.json
+description: 从当前会话提取成功写作模式，经 learn 命令归入作者模型（作者/author_model.md）
 allowed-tools: Read Bash
 argument-hint: "[要记住的写作经验]"
 ---
@@ -9,7 +9,7 @@ argument-hint: "[要记住的写作经验]"
 
 ## Project Root Guard（必须先确认）
 
-- 必须在项目根目录执行（需存在 `.webnovel/state.json`）
+- 必须在书仓根执行（v7 书仓的标志是 `book.yaml`；v6 遗留仓为 `.webnovel/state.json`）
 - 用统一入口解析项目根，避免写错目录：
 
 ```bash
@@ -20,37 +20,52 @@ export PROJECT_ROOT="$(python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-roo
 
 ## 目标
 
-提取可复用的写作模式（钩子/节奏/对话/微兑现等），追加到 `.webnovel/project_memory.json`。
+把本次会话里作者认可的写法提炼成**可复用的作者模型条目**（节奏偏好 / 雷点 / 修改习惯 / 本书特定要求），
+经 `learn` 命令归入 `作者/author_model.md`——**v7 不再有 `project_memory.json`**（该文件随 v6 退役 Phase 2 一并删除）。
 
 ## 执行流程
 
-1. 读取 `"$PROJECT_ROOT/.webnovel/state.json"` 的 `progress.current_chapter` 作为当前章节号；缺失则用 `source_chapter: null`，不阻断。
-2. 解析用户输入（`/webnovel-learn` 后的经验文本；为空则取本次对话中用户认可的写法），归类 `pattern_type`（hook/pacing/dialogue/payoff/emotion/format/other，无法归类用 `other`）。
-3. 调用 `project-memory add-pattern` 写入，不得手写或拼接 JSON：
+学习闭环是**两段式：先归纳出建议，作者确认后才回写**——不得一步直写作者模型。
+
+1. **归纳**：卷级归纳从 `.webnovel/journal` 之外的真源读——v7 的作者行为记录在 `作者/journal.jsonl`：
 
 ```bash
-python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" project-memory add-pattern \
-  --pattern-type "{pattern_type}" \
-  --description "{用户输入或提炼后的完整描述}" \
-  --category "{分类，可空}" \
-  --importance "{high|medium|low}"
+python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" learn --from-journal --volume {volume_id}
 ```
+
+   产出 `作者/author_model-建议.md`（含证据）。当前章节号取自 `定稿/正文/` 的最大章号或
+   `.cache` 的 `chapters` 表；取不到时不阻断。
+
+2. **作者确认**：把建议读给作者看，明确列出「将要写进作者模型的条目」。**作者未确认不得 apply。**
+
+3. **回写**：作者确认后执行
+
+```bash
+python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" learn apply --suggestion "${PROJECT_ROOT}/作者/author_model-建议.md"
+```
+
+   双层回写：项目层 `作者/author_model.md` + 用户层 `作者/跨书偏好.yaml`（跨书统计）。
+
+4. **查看**（可选）：`learn show` 打印当前作者模型与偏好。
 
 ## 约束
 
-- 不删除旧记录，仅追加。
-- 追加前扫描已有 `patterns`；`pattern_type` + `description` 完全相同则跳过并告知用户，部分相似不去重。
-- 禁止使用 `Write` 或手工编辑 `.webnovel/project_memory.json`。
+- **不得手工编辑或拼接** `作者/author_model.md` / `作者/跨书偏好.yaml`——一律经 `learn apply`，
+  否则作者的改动不会走 journal 留痕。
+- 不删除旧条目，仅追加。
+- 追加前先 `learn show` 或 Read 现有 `作者/author_model.md`；同义条目跳过并告知作者，部分相似不去重。
+- 与写作无关的闲聊、一次性偏好不入库。
 
 ## 成功标准
 
-- `project_memory.json` 存在且格式合法，新 pattern 已追加到 `patterns` 数组。
-- 输出包含 `status: success` 和完整 `learned` 对象。
+- 归纳段：`作者/author_model-建议.md` 存在且含证据。
+- 回写段：作者确认后 `作者/author_model.md` 出现新条目，且 `learn apply` 输出 `status: success`。
 
 ## 失败恢复
 
 | 故障 | 恢复方式 |
 |------|---------|
-| `project_memory.json` 不存在 | 脚本自动初始化 `{"patterns": []}` 后继续 |
-| JSON 解析失败 | 不写入脏数据，告知用户文件损坏并建议手动修复 |
-| `state.json` 缺失无法取章节号 | 用 `source_chapter: null`，不阻断 |
+| `作者/` 目录不存在 | `book-init` 已建；缺失则先跑 `doctor` 查六域骨架，不手工 `mkdir` |
+| `作者/journal.jsonl` 为空 | 说明尚无作者行为记录，告知作者「先写几章再学」，不报错退出 |
+| 建议文件为空 | 本轮无可复用模式，如实告知，不产出空 apply |
+| `learn apply` 报错 | 保留建议文件原样，把报错原文给作者；不得改用手写绕开 |

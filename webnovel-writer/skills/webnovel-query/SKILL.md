@@ -20,21 +20,25 @@ export SKILL_ROOT="${CLAUDE_PLUGIN_ROOT}/skills/webnovel-query"
 export PROJECT_ROOT="$(python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${WORKSPACE_ROOT}" where)"
 ```
 
-- `PROJECT_ROOT` 必须包含 `.webnovel/state.json`
+- `PROJECT_ROOT` 由 `where` 解析。**v7 书仓的标志是 `book.yaml`**（v6 遗留仓为 `.webnovel/state.json`），两者都是合法项目根
 - **禁止**在 `${CLAUDE_PLUGIN_ROOT}/` 下读取或写入项目文件
 
 ## 查询分类 → 最窄工具
 
-先识别查询类型，再用下表最窄工具。不默认全量加载，只在综合 / 跨多类型查询时用 `memory-contract load-context`。
+先识别查询类型，再用下表最窄工具。不默认全量加载，只在综合 / 跨多类型查询时用 `v7-write pack`（装配上下文包）。
 
 | 查询类型 | 关键词 | 最窄工具 |
 |---------|--------|---------|
-| 角色历史状态 | 某角色在第N章时 / 时间点状态 / 境界变化 | `knowledge query-entity-state` |
-| 实体关系 | 关系 / 敌友 / 师徒 / 阵营归属 | `knowledge query-relationships` |
-| 世界规则 | 力量规则 / 设定铁律 / 境界体系约束 | `memory-contract query-rules` |
-| 伏笔 / open loop | 伏笔 / 紧急伏笔 / 未闭合悬念 | `memory-contract get-open-loops` |
-| 综合 / 复杂 | 跨多类型、需要时间线 + 长期记忆联合 | `memory-contract load-context` |
-| 静态设定 | 角色卡 / 力量体系 / 世界观 / 势力 / 标签格式 | `Grep` + `Read` 设定集 |
+| 角色名册信息 | 某角色是谁 / 别名 / 首现章 | `knowledge query-entity-state`（v7 答**名册级**）或 Read `定稿/设定/名册/<正名>.md` |
+| 角色逐章状态 | 某角色在第N章时 / 时间点状态 / 境界变化 | Read `定稿/正文/`；v6 遗留仓可用 `knowledge query-entity-state` |
+| 世界规则 | 力量规则 / 设定铁律 / 境界体系约束 | `setting-read --name <设定名>`，或 Read `设定/` 对应文件 |
+| 伏笔 / open loop | 伏笔 / 紧急伏笔 / 未闭合悬念 | `foreshadow-scan` / `promise-ledger`，或读 `大纲/条目/` |
+| 综合 / 复杂 | 跨多类型、需要时间线 + 长期记忆联合 | `v7-write pack --chapter {N}`（产出上下文包） |
+| 静态设定 | 角色卡 / 力量体系 / 世界观 / 势力 / 标签格式 | `Grep` + `Read` `设定/` |
+
+> **v7 的能力边界（勿臆造）**：v7 写链**不产**实体逐章状态与实体关系。`knowledge query-entity-state`
+> 在 v7 仓只答名册级（正名/别名/首现章），返回体的 `not_covered` 会写明这一点；
+> **没有** `knowledge query-relationships` 的 v7 等价物——关系要自己从 `定稿/正文/` 与 `大纲/条目/` 判读。
 
 ## 引用加载策略
 
@@ -52,39 +56,35 @@ export PROJECT_ROOT="$(python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-roo
 ## 查询流程
 
 1. **识别查询类型**：按「查询分类 → 最窄工具」表匹配关键词。
-2. **按优先级定位写前真源**（写前真源 → 写后真源 → 投影层）：
-   1. `.story-system/MASTER_SETTING.json` - 全书主设定（题材、调性、核心禁忌）
-   2. `.story-system/volumes/*.json` - 卷级合同（本卷目标、节奏策略）
-   3. `.story-system/chapters/*.json` - 章级合同（本章焦点、动态上下文）
-   4. latest accepted `.story-system/commits/chapter_XXX.commit.json` - 写后事实（已发布章节的定稿状态）
-   5. `memory-contract` 系列查询 - 记忆编排结果（长期记忆、伏笔、时间线）
-   6. `.webnovel/state.json` / `index.db` - 投影层（仅 fallback / read-model，类比网文后台的"角色卡"、"章节列表"）
+2. **按优先级定位真源**（写前真源 → 写后真源 → 投影层）。v7 的写前真源是**六域**，
+   **没有** `.story-system/` 合同树（那是 v6 写链产物，已冻结）：
+   1. `book.yaml` — 书级声明（书名 / 题材 / 主角 / 卷规模 / 素材装配条数）
+   2. `大纲/` — 总纲 / 卷纲（详细大纲、节拍表）/ 章纲 / 条目（`F-*` 伏笔、`S-*` 悬念）
+   3. `设定/` 与 `文风/宪法.md` — 世界观 / 力量体系 / 名册 / 力量锚点 / 风格契约（作者开写前必须遵守）
+   4. `定稿/` — **写后真源**，不可篡改：正文 `NNNN-标题.md`（front matter 含 书内时间 / 推进承诺 / 合同 / 钩子）、`记忆/章摘要/`、`设定/名册/`
+   5. `.cache/index.db` — **投影层**：chapters / entities / summaries / chapter_reading_power，
+      由 `rebuild_cache` 从 1-4 重算，**可随时整目录删除**（下次查询自动重建）
 
-   **优先级说明**：
-   - 写前真源（1-3）：作者开写前必须遵守的"大纲、设定、禁区"
-   - 写后真源（4）：已发布章节的"定稿状态"，不可篡改
-   - 投影层（5-6）：从写后真源自动生成的"查询视图"，方便快速检索
-
-3. **调用最窄工具检索**：按类型只调用所需命令，不默认全量 `load-context`。
+3. **调用最窄工具检索**：按类型只调用所需命令，不默认装配整包。
 
 ```bash
-# 角色历史状态：某实体在指定章节时的状态
+# 角色名册信息（v7 答名册级：正名/别名/首现章；返回体 not_covered 写明边界）
 python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" knowledge query-entity-state --entity "{entity_id}" --at-chapter {N}
 
-# 实体关系：某实体在指定章节时的所有关系
-python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" knowledge query-relationships --entity "{entity_id}" --at-chapter {N}
+# 世界规则 / 设定原文
+python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" setting-read --name "{设定名}"
 
-# 世界规则
-python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" memory-contract query-rules
+# 伏笔 / open loop（跨卷未回收）
+python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" foreshadow-scan scan --chapter {N} --no-apply
+python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" promise-ledger list
 
-# 伏笔 / open loop
-python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" memory-contract get-open-loops
-
-# 仅综合 / 复杂查询：需要时间线 + 长期记忆联合时才用
-python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" memory-contract load-context --chapter {chapter_num}
+# 仅综合 / 复杂查询：需要时间线 + 长期记忆联合时才用（装配上下文包）
+python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" v7-write pack --chapter {chapter_num} --json "${PROJECT_ROOT}/工作区/决策-{chapter_num}.json"
 ```
 
-   静态设定（角色卡 / 力量体系 / 世界观 / 标签格式）直接用 `Grep` 定位行号再 `Read` 取片段，不经 memory-contract。
+   静态设定（角色卡 / 力量体系 / 世界观 / 标签格式）直接用 `Grep` 定位行号再 `Read` 取片段。
+
+   `query-relationships` 只在 v6 遗留仓可用；v7 仓请按上方「能力边界」自行判读，不要臆造关系。
 
 4. **格式化输出**：按下方模板输出。
 
@@ -110,4 +110,6 @@ python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" mem
 - 只读操作，不修改任何项目文件
 - 若数据源缺失，明确告知用户缺少什么文件
 - 若查询无匹配，返回空结果并建议检查范围
-- 若 `.story-system/` 合同与 accepted commit 缺失，必须显式说明当前查询已降级到 legacy fallback
+- 若 `book.yaml` 或六域目录缺失，**先跑 `doctor`** 看骨架缺哪一块，如实转述给作者，不要凭猜测作答
+- v6 遗留仓（有 `.webnovel/state.json` 但无 `book.yaml`）仍走 `.story-system/` 合同与 accepted commit；
+  合同缺失时须显式说明该查询已降级到 legacy fallback

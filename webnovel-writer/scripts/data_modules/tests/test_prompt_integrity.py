@@ -48,22 +48,37 @@ SUBAGENT_PROMPT_FILES = (
     "deconstruction-agent.md",
 )
 
-# webnovel.py 注册的子命令（从 add_parser 提取）
-REGISTERED_CLI_SUBCOMMANDS = {
-    "where", "preflight", "project-status", "doctor", "write-gate", "projections", "user-report",
-    "run-ledger", "run-log", "use",
-    "index", "state", "rag", "style", "entity", "context", "memory",
-    "migrate", "status", "update-state", "backup", "archive",
-    "init", "extract-context", "memory-contract", "project-memory", "review-pipeline",
-    "placeholder-scan", "master-outline-sync",
-    "story-system", "chapter-commit", "story-events", "knowledge", "timeline-check",
-    "meter", "setting-read",
-    "materials",
-    "style-domain", "learn", "power", "forge", "prose-check", "drafts",
-    "foreshadow-scan", "promise-ledger", "name-check", "volume-reconcile",
-    "v7-write",
-    "invariants",
-}
+def _registered_cli_subcommands() -> set[str]:
+    """**活**注册表：从 `data_modules/webnovel.py` 源码的顶层 `add_parser` 调用实提取。
+
+    2026-09-13 修正：此处原为**手工维护的字面量集合**（注释却写「从 add_parser 提取」）。
+    v6 退役 Phase 2 删掉 `chapter-commit` / `memory-contract` / `project-memory` /
+    `projections` / `story-events` / `write-gate` 六个子命令后它没同步，后果是双重的：
+    ① 这 6 个**死命令被白名单放过**——引导文件因此长期教模型调不存在的命令
+    （2026-09-13 实测 `memory-contract` 退出码 2），而守卫全绿；
+    ② 另有 21 个活命令漏收，正常的引用反而可能被误判。
+    改为实提取后，源码增删子命令会自动反映到守卫上，这类漂移不再能隐身。
+    """
+    source = (SCRIPTS_DIR / "data_modules" / "webnovel.py").read_text(encoding="utf-8")
+    match = re.search(r"^\s*(\w+)\s*=\s*parser\.add_subparsers\(", source, re.MULTILINE)
+    assert match, "未找到顶层 add_subparsers —— 提取逻辑失效，守卫会退化为空集（比红灯更危险）"
+    return set(re.findall(rf"{match.group(1)}\.add_parser\(\s*\"([^\"]+)\"", source))
+
+
+REGISTERED_CLI_SUBCOMMANDS = _registered_cli_subcommands()
+
+
+def test_registered_cli_subcommands_extracted_from_source():
+    """守住提取本身：集合必须非空、含代表性活命令、且**不含**已知已删命令。
+
+    没有这条，提取逻辑一旦静默失效（返回空集或全集）守卫就形同虚设——
+    这正是上一个版本长期绿着却放任死引用的原因。
+    """
+    assert len(REGISTERED_CLI_SUBCOMMANDS) > 40, "提取结果过小，疑似正则失效"
+    for live in ("v7-write", "knowledge", "foreshadow-scan", "book-init"):
+        assert live in REGISTERED_CLI_SUBCOMMANDS, f"活命令 {live} 未被提取到"
+    for removed in ("memory-contract", "chapter-commit", "projections", "story-events", "write-gate"):
+        assert removed not in REGISTERED_CLI_SUBCOMMANDS, f"已删命令 {removed} 不得在注册表内"
 
 
 # ---------------------------------------------------------------------------
@@ -533,18 +548,43 @@ def test_webnovel_write_skill_commits_via_cli_not_bare_git_add():
     assert "git commit" not in text, "提交必须由 settle 完成，不得让主流程自己 commit"
 
 
-def test_webnovel_query_skill_prefers_story_system_and_memory_contract():
+def test_webnovel_query_skill_uses_v7_truth_sources():
+    """v7 查询技能必须指向六域真源，而不是 v6 的合同树与已删的 memory-contract。
+
+    2026-09-13 改写：原断言要求 `memory-contract load-context` 与 `.story-system/` **存在**，
+    等于把 v6 模型锁进技能。而 `memory-contract` 已被 v6 退役 Phase 2 删除（实测退出码 2），
+    于是技能长期在教模型调一个不存在的命令，且守卫全绿（注册表是硬编码快照，见上方说明）。
+    新断言反向守住两件事：v7 真源必须在，已删命令不得再出现。
+    """
     text = (SKILLS_DIR / "webnovel-query" / "SKILL.md").read_text(encoding="utf-8")
-    assert "memory-contract load-context" in text
-    assert ".story-system/" in text
-    assert 'cat "$PROJECT_ROOT/.webnovel/state.json"' not in text
+    # v7 真源与最窄工具
+    assert "book.yaml" in text, "v7 书仓标志必须写明"
+    assert "定稿/" in text
+    assert ".cache/index.db" in text
+    assert "setting-read" in text
+    assert "foreshadow-scan" in text or "promise-ledger" in text
+    # 不得再教模型调已删命令
+    assert "memory-contract" not in text
+    assert "project-memory" not in text
+    # v7 的能力边界必须写明（不产逐章状态与关系，勿臆造）
+    assert "不产" in text
 
 
-def test_context_agent_prefers_contract_and_latest_commit_mainline():
+def test_context_agent_uses_v7_pack_and_six_domains():
+    """context-agent 的主入口是 v7 的 `v7-write pack`，真源是六域——不是 v6 合同树。
+
+    2026-09-13 改写：原断言要求 `story_contracts`/`.story-system/`、`CHAPTER_COMMIT`/
+    `chapter-commit`、`load-context` 三者齐备，全是 v6 写链概念；其中 `chapter-commit`
+    与 `memory-contract`（load-context 的载体）均已删除。该 agent 在 v7 写链中会被调用，
+    指引错了会直接影响写章行为。
+    """
     text = (AGENTS_DIR / "context-agent.md").read_text(encoding="utf-8")
-    assert "story_contracts" in text or ".story-system/" in text
-    assert "CHAPTER_COMMIT" in text or "chapter-commit" in text
-    assert "load-context" in text
+    assert "v7-write pack" in text, "主入口必须是 v7 的上下文包装配"
+    assert "上下文包" in text
+    assert "book.yaml" in text
+    assert "定稿/" in text
+    assert "memory-contract" not in text
+    assert "chapter-commit" not in text
 
 
 def test_context_agent_loads_fixed_guides_and_outputs_writer_brief():

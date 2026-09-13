@@ -84,19 +84,24 @@ GENRE="$(python -X utf8 -c "import json; s=json.load(open('${PROJECT_ROOT}/.webn
 
 如果项目存在 `设定集/增强设定/索引.md`，仅在本卷涉及能力、物品、资源或战力边界时读取索引及相关卡片。卡片用于补充规划约束，不得覆盖总纲、Story System 合同或已确认设定；`规划设定` 和 `待确认` 内容必须保留其状态。
 
-**跨卷状态读取**（已有已完成卷，即 `.webnovel/summaries/` 下有文件时必须执行）：
+**跨卷状态读取**（已有已完成卷，即 `定稿/记忆/章摘要/` 下有文件时必须执行）：
 
 ```bash
-# 最近 5 章摘要
+# 最近 5 章摘要（v7 落点：定稿/记忆/章摘要/NNNN.md）
 for ch in $(seq $((START_CH - 5)) $((START_CH - 1))); do
-  cat "$PROJECT_ROOT/.webnovel/summaries/ch$(printf '%04d' $ch).md" 2>/dev/null
+  cat "$PROJECT_ROOT/定稿/记忆/章摘要/$(printf '%04d' $ch).md" 2>/dev/null
 done
 
-# 核心角色当前状态 / 核心关系当前状态 / 活跃伏笔（跨卷未回收）
+# 核心角色当前状态（v7 答名册级：正名/别名/首现章；逐章状态需 Read 定稿/正文/）
 python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" knowledge query-entity-state --entity "{protagonist_id}" --at-chapter {上一卷最后章}
-python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" knowledge query-relationships --entity "{protagonist_id}" --at-chapter {上一卷最后章}
-python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" memory-contract get-open-loops
+
+# 活跃伏笔 / 未闭合悬念（跨卷未回收）
+python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" foreshadow-scan scan --chapter {上一卷最后章} --no-apply
+python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" promise-ledger list
 ```
+
+> v7 写链不产实体逐章状态与实体关系，故**没有** `knowledge query-relationships` 的等价物——
+> 关系需从 `定稿/正文/` 与 `大纲/条目/` 自行判读，不要臆造。
 
 ### Step 2：补齐设定基线
 
