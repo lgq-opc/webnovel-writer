@@ -1,5 +1,11 @@
 # ZCode 原生化改造 · 任务文档集
 
+> ⚠️ **本集是 2026-09-03 的任务设计记录（该任务已完成，目标 v7.1.0 已达成），不是现状文档。**
+> 其中的工具面数字、路径与清单为**设计时点**的值，之后有过变更（例如 MCP 工具面
+> 设计时 9 个 → 实施后 14 个 → 2026-09-13 D-2 乙 收缩到 12 个）。
+> **要现状请看**：`webnovel-writer/mcp/server.py` 的 `TOOLS`、`docs/guides/commands.md`、
+> `docs/guides/v7-write-path.md`。本集的各件按设计记录保留原貌，不回改。
+
 > 任务名称：`zcode-native-adaptation`
 > 立项日期：2026-09-03
 > 执行分支：`tmp/zcode`（自 `master` 拉出）
