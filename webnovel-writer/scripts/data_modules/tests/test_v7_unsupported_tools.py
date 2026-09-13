@@ -45,6 +45,9 @@ def _run(monkeypatch, argv_tail, capsys):
 _STILL_UNSUPPORTED = [
     ["rag", "search", "--query", "x"],
     ["context", "--chapter", "1"],
+    # t-20260913-4a4d：status 由 status_reporter.py 实现，硬编码 state.json / 正文/。
+    # 在 v7 仓上原本只打印「状态文件不存在」并退出 1（误导）；`project-status` 不受影响。
+    ["status", "--focus", "urgency"],
 ]
 
 
@@ -71,6 +74,17 @@ def test_v6_repo_does_not_report_unsupported(monkeypatch, tmp_path, capsys, tail
         return  # v6 路径本身可能因缺数据报错，那不是本测试关心的
 
     assert '"unsupported"' not in out and "'unsupported'" not in out
+
+
+def test_project_status_not_in_unsupported_gate():
+    """反回归（t-20260913-4a4d 查证结论）：`project-status` 走 `project_status.py`，
+    实测在纯 v7 仓上码=0、正确输出 `phase: v7_story_repo`——**不受** `status_reporter.py`
+    的 v6 硬编码影响。它与被闸的 `status` 只差一个词，最容易被顺手一起加进去，
+    而一旦加了，`/webnovel:status`、doctor、session_start hook 三条链会一起断。
+    """
+    from data_modules import webnovel as webnovel_module
+
+    assert "project-status" not in webnovel_module._V7_UNSUPPORTED
 
 
 # ---------------------------------------------------------------------------

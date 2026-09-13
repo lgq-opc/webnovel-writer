@@ -193,6 +193,16 @@ _V7_UNSUPPORTED: dict[str, tuple[str, str]] = {
         "v7 请用 `webnovel.py v7-write pack --chapter N --json 决策.json`"
         "（产出 `工作区/上下文包-NNNN.md`）",
     ),
+    # t-20260913-4a4d（2026-09-13 查证后补入）：`status` 由 status_reporter.py 实现，
+    # 硬编码 `.webnovel/state.json` 与 `正文/`。在纯 v7 仓上它只打印「状态文件不存在」
+    # 并退出 1——是误导而非故障（v7 本就没有 state.json）。给如实的不支持与替代指引。
+    # 注意：**`project-status` 不受影响**（它走 project_status.py，实测 v7 仓码=0），
+    # 故 `/webnovel:status`、doctor、session_start hook 全部照常。
+    "status": (
+        "健康报告 / 伏笔紧急度视图",
+        "v7 请用 `project-status`（机器可读短状态：phase/章号/next_action）与 `doctor`（阶段感知体检）；"
+        "伏笔紧急度用 `foreshadow-scan` / `promise-ledger`",
+    ),
 }
 
 

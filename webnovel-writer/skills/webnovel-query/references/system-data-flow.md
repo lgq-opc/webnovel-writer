@@ -304,7 +304,8 @@ python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "$PROJECT_ROOT" index
 <input>检查伏笔紧急度</input>
 <output>
 ```bash
-python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "$PROJECT_ROOT" status -- --focus urgency
+# v7 书仓：伏笔/未闭合悬念用 foreshadow-scan（v6 时代的 `status --focus urgency` 不认 v7 仓）
+python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "$PROJECT_ROOT" foreshadow-scan scan --chapter {N} --no-apply
 ```
 </output>
 </example>
