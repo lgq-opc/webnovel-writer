@@ -33,6 +33,32 @@ python v7_cache.py snapshot --repo <v7仓>   # 打印查询面快照
 - 查询面：`get_chapter` / `find_entity` / `get_summary` / `get_recent_reading_power` / `get_hook_type_usage`（Python API）。实体来源 = `名册.md` 单表 + `名册/<正名>.md` 目录（同名目录优先）；追读力来源 = `定稿/正文/*.md` 的 front matter 钩子字段（由 settle 从决策卡写入）。
 - **schema 版本化**：`meta.schema_version` 与实现常量不匹配时，首次查询即整库重建——旧缓存的表结构差异不会变成查询期报错。
 
+### 2.1 读者信号的两条边界（`index get-reader-signals`）
+
+- **`review_trend` 在 v7 恒为空数组，这是设计而非缺陷**（t-20260913-3e39，2026-09-13 裁定）。
+  它唯一的生产者是 v6 的 `review-pipeline --save-metrics`；v7 的 reviewer 只写
+  `.webnovel/tmp/review_results.json`（当期门禁输入、不入库）。v7 的审查本就是**逐章门禁**，
+  跨章分数趋势在其语义下价值有限，故不补生产者。
+  该字段的其余四节（近期追读力 / 钩子分布 / 差异化提醒）在 v7 均有真实数据。
+- **实体查询只到名册级**：`knowledge query-entity-state` 在 v7 答正名/别名/首现章，
+  返回体的 `not_covered` 会写明「不含逐章状态与关系」——v7 写链不产这两类数据。
+
+### 2.2 `.webnovel/tmp/` 怎么处理（t-20260913-0cbc，2026-09-13 裁定）
+
+**不做自动清理**——该目录里混着性质不同的文件，自动清理极易删掉活文件：
+
+| 文件 | 性质 | 能否删 |
+|---|---|---|
+| `chapter_meter.json` | **`meter start/stop` 的活标记**（`meter report` 读它） | ❌ 计量进行中删了会断 |
+| `review_results.json` | **settle 门禁的输入**（缺、章号不符、blocking>0 均拒） | ❌ 当期必需 |
+| `fulfillment/disambiguation/extraction_result.json` | v6 写链遗物（v7 不产） | ✅ 可删 |
+| `cli_out/<tool>.txt` | `output_guard` 的溢出全文（同名覆盖） | ✅ 可删 |
+
+建议：**卷末或收尾时手动清**，只清上表标 ✅ 的两类。该目录在书仓 `.gitignore` 内
+（`domain_contract._GITIGNORE_LINES`），**不会污染 git**；对账 §U-3 的结论是它的真实影响
+仅为「磁盘累积」，不构成「每章产生垃圾并入库」。若日后要自动化，应做成作者显式触发的
+`tmp-clean` 而非 settle 自动清理。
+
 ## 3. 写一章：`v7_write.py`
 
 ```bash
