@@ -30,7 +30,8 @@ python v7_cache.py snapshot --repo <v7仓>   # 打印查询面快照
 ```
 
 - `.cache/` 是唯一持久派生物，**可随时整目录删除**，下次查询自动重建。
-- 查询面：`get_chapter` / `find_entity` / `get_summary`（Python API）。实体来源 = `名册.md` 单表 + `名册/<正名>.md` 目录（同名目录优先）。
+- 查询面：`get_chapter` / `find_entity` / `get_summary` / `get_recent_reading_power` / `get_hook_type_usage`（Python API）。实体来源 = `名册.md` 单表 + `名册/<正名>.md` 目录（同名目录优先）；追读力来源 = `定稿/正文/*.md` 的 front matter 钩子字段（由 settle 从决策卡写入）。
+- **schema 版本化**：`meta.schema_version` 与实现常量不匹配时，首次查询即整库重建——旧缓存的表结构差异不会变成查询期报错。
 
 ## 3. 写一章：`v7_write.py`
 
@@ -40,7 +41,7 @@ python v7_write.py decision --repo <v7仓> --json 决策内容.json
 # ② 上下文包（20,000 字符预算；stats 含 truncated_sections / dropped_sections / section_errors / budget_used_ratio）
 python v7_write.py pack --repo <v7仓> --chapter 38 --json 决策内容.json   # --json 可省，省略时从决策卡回退解析实体
 # ③ 草稿落 工作区/草稿-NNNN.md（LLM/作者）
-# ④ 机检（字数契约 / 占位符 / 标题一致 / 承诺或豁免 / 名册 advisory）
+# ④ 机检（字数契约 / 占位符 / 标题一致 / 承诺或豁免 / 钩子或豁免 / 名册 advisory）
 python v7_write.py check --repo <v7仓> --chapter 38 --draft 工作区/草稿-0038.md --json 决策内容.json
 # ⑤ reviewer 直写 .webnovel/tmp/review_results.json（顶层 chapter + blocking_count）；prose-check 到 flagged 为空
 # ⑥ settle（三门禁 → 原子 git commit：正文+章摘要+名册新实体 → 刷新缓存）
@@ -55,7 +56,7 @@ python v7_write.py settle --repo <v7仓> --chapter 38 --draft 工作区/草稿-0
 
 要点：
 
-- **机检是硬闸**：下限 = 目标字数×0.75；`check` 退出码 2 = 拒绝 settle。
+- **机检是硬闸**：下限 = 目标字数×0.75；钩子须由 `hook_type` 或 `hook_waiver` 声明（二者皆空即拒）；`check` 退出码 2 = 拒绝 settle。
 - **settle 三门禁**：① 审查——`.webnovel/tmp/review_results.json` 缺失、`chapter` 与本章不符、或 `blocking_count > 0` 均拒；② 文笔——`prose_check` 的 `flagged` 非空拒；③ 素材引用——决策 JSON `material_refs` ∪ 章纲卡 `素材引用` 中任一 ID 解析不到即拒，**不可绕过**。
 - **显式绕过**：`--force-review-bypass "<理由>"` 只放行 ①②；放行后正文 front matter 加 `审查绕过: <理由>`，`作者/journal.jsonl` 追加 `actor=author action=settle domain=正文` 事件。门禁本来全绿时不写痕迹。
 - **唯一写入路径**：settle 前经 `dual_format_guard` 校验同一章节未在 v6 侧落定（`STORY_REPO_ROOT` 配置）。
@@ -73,6 +74,9 @@ python v7_write.py settle --repo <v7仓> --chapter 38 --draft 工作区/草稿-0
 | `target_words` | int | 目标字数（机检下限 ×0.75；缺省用书史均值） |
 | `goal` / `nodes` / `forbidden` / `contract` | str / list | 决策卡正文：目标 / 必须覆盖节点 / 禁区 / 合同断言 |
 | `promises` / `waiver` | list / str | 推进承诺（机检做关键词存在性）/ 承诺结转豁免理由 |
+| `hook_type` | str | 章末钩子类型（taxonomy 见 `references/reading-power-taxonomy.md`）；settle 写入正文 front matter |
+| `hook_strength` | str | 钩子强度，缺省 `medium`；`强/中/弱` 由 settle 归一为 `strong/medium/weak` |
+| `hook_waiver` | str | 钩子豁免理由——机检要求 `hook_type` 与它**二者必有其一** |
 | `entities` | list[str] | 本章实体（上下文包名册查询；机检新名 advisory 白名单） |
 | `new_entities` | list[{name,type,aliases}] | settle 写入名册 |
 | `material_refs` | list[str] | 素材引用 `表:ID` 或裸 ID；settle 门③校验存在性（与章纲卡 `素材引用` 取并集） |

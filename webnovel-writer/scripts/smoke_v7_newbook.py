@@ -15,6 +15,12 @@ v8.1.0 发版链全绿（pytest 1452 / 行为评测 22 / 四校验），但该�
 只读性：书仓建在临时目录，默认跑完即删；`--keep` 保留并打印路径。
 用法：
     python -X utf8 scripts/smoke_v7_newbook.py [--keep] [--json-out PATH]
+
+轮次（2026-09-13 增轮 C）：主链 1-8 + 轮 B（按 skill 真实行为取 PROJECT_ROOT）+ 轮 C。
+轮 C 专测追读力链路：主链 settle 被 prose 门禁拒时定稿无文件、`.cache` 追读力表为空，
+故另用 `--force-review-bypass`（只放行审查与文笔两道门禁）再 settle 一次，
+再断言 `index get-reader-signals` 的 `recent_reading_power` **非空**。
+绕过只用于「造出可验证的数据」，主链对真实链路的判定口径不变。
 """
 
 from __future__ import annotations
@@ -54,8 +60,9 @@ def _run(name: str, args: list[str], *, cwd: Path | None = None) -> dict[str, An
             errors="replace", timeout=300, cwd=str(cwd) if cwd else None,
         )
         code, out = proc.returncode, (proc.stdout or "") + (proc.stderr or "")
+        stdout = proc.stdout or ""
     except subprocess.TimeoutExpired:
-        code, out = 124, "TIMEOUT"
+        code, out, stdout = 124, "TIMEOUT", ""
 
     first = next((ln for ln in out.splitlines() if ln.strip()), "")
     if code == 0:
@@ -68,8 +75,29 @@ def _run(name: str, args: list[str], *, cwd: Path | None = None) -> dict[str, An
         verdict = "BIZ"
     return {
         "step": name, "code": code, "verdict": verdict,
-        "first_line": first[:100], "output": out,
+        "first_line": first[:100], "output": out, "stdout": stdout,
     }
+
+
+def _run_assert(name: str, args: list[str], predicate) -> dict[str, Any]:
+    """跑一条 CLI 并**断言其 stdout**——通过但断言不成立时判 BREAK（计入缺陷）。
+
+    断言只解析 stdout：`output` 是 stdout+stderr 合并流，混入任何告警就不是合法 JSON。
+    """
+    result = _run(name, args)
+    if result["verdict"] == "PASS" and not predicate(result):
+        result["verdict"] = "BREAK"
+        result["first_line"] = "断言失败：" + result["first_line"][:80]
+    return result
+
+
+def _reading_power_non_empty(result: dict[str, Any]) -> bool:
+    """reader-signals 的 data.recent_reading_power 非空。"""
+    try:
+        payload = json.loads(result.get("stdout") or "")
+    except json.JSONDecodeError:
+        return False
+    return bool((payload.get("data") or {}).get("recent_reading_power"))
 
 
 def _make_decision(chapter: int) -> dict[str, Any]:
@@ -236,11 +264,11 @@ def main() -> int:
     ]))
 
     # ---- 8. 只读工具面 ----
+    # reader-signals 不在此列：它要断言**内容非空**，见下方轮 C（reader_signals 接通 spec §7 判据 5）。
     for name, argv in (
         ("setting-read", ["setting-read", "--name", "世界观"]),
         ("timeline-check", ["timeline-check", "--volume", "1", "--format", "json"]),
         ("knowledge", ["knowledge", "query-entity-state", "--entity", "主角", "--at-chapter", "1"]),
-        ("reader-signals", ["index", "get-reader-signals", "--limit", "5", "--last-n", "20"]),
         ("context", ["context", "--chapter", "1"]),
         ("meter", ["meter", "report"]),
         ("materials", ["materials", "list", "--format", "json"]),
@@ -249,6 +277,27 @@ def main() -> int:
         ("rag-search", ["rag", "search", "--query", "宗门"]),
     ):
         results.append(_run(f"8 {name}", P + argv))
+
+    # ---- 轮 C：追读力链路（reader_signals 接通 spec §3.4 / §7 判据 1、5）----
+    # 步骤 7 的 settle 通常被 prose 门禁拒（fixture 正文命中 Anti-AI 词库，是既有 BIZ 基线），
+    # 故定稿无文件、.cache 追读力表为空——此时断言非空必然失败。
+    # 处置：**不改变步骤 7 对真实链路的监测语义**，另用显式绕过（--force-review-bypass 只放行
+    # 审查与文笔两道门禁）再 settle 一次，让钩子真正落盘，才验得到端到端。
+    if not list((book / "定稿" / "正文").glob("0001-*.md")):
+        results.append(_run("C1 settle(绕过)", P + [
+            "v7-write", "settle", "--chapter", "1", "--draft", str(draft),
+            "--json", str(dec_file), "--summary", "主角抵达宗门，通过认碑考验取得入门木牌。",
+            "--force-review-bypass", "smoke：绕过审查与文笔门禁，以验证追读力落账链路",
+            # 本冒烟的书仓是 book-init --no-git 建的（见步骤 0），无 .git；
+            # settle 默认 commit=True 会做 git add/commit 并因「not a git repository」失败。
+            # 本轮只验追读力落盘，故显式 --no-commit（写盘与缓存重建照常发生）。
+            "--no-commit",
+        ]))
+    results.append(_run_assert(
+        "C2 reader-signals",
+        P + ["index", "get-reader-signals", "--limit", "5", "--last-n", "20"],
+        _reading_power_non_empty,
+    ))
 
     # ---- 轮 B：完全按 skill 的真实行为（后续步骤沿用 preflight 给出的 PROJECT_ROOT）----
     # skills/webnovel-write/SKILL.md:58-60 —— skill 正是这样取 PROJECT_ROOT 的

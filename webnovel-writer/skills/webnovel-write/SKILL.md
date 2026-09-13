@@ -171,7 +171,9 @@ python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" pro
 
 ### 6. settle
 
-原子提交（含正文 / 章摘要 / 新实体），随后自动刷新 v7 缓存，并落账素材轨迹、文风指纹/采样、追读力：
+原子提交（含正文 / 章摘要 / 新实体），随后自动刷新 v7 缓存，并落账素材轨迹、文风指纹/采样。
+
+**章末钩子**由决策卡的 `hook_type` 声明（`hook_strength` 可省，缺省 medium）；本章确无钩子时用 `hook_waiver` 写豁免理由——**两者皆空时 `check` 会拒绝**（退出码 2）。settle 把钩子写进正文 front matter，追读力表由随后的缓存刷新从那里重算，**不需要**任何手动落账：
 
 ```bash
 python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" v7-write settle --chapter {chapter_num} --draft "${PROJECT_ROOT}/工作区/草稿-{NNNN}.md" --json "${PROJECT_ROOT}/工作区/决策-{chapter_num}.json" --summary "{≤200 字章摘要}"
