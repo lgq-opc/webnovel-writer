@@ -122,6 +122,33 @@ class TestDecisionCard:
 
         assert "- 推进承诺:" not in text
 
+    def test_card_shows_derived_target_words(self, tmp_path):
+        """S19 第二半（t-20260913-38c4）：决策卡没显式给 `target_words` 时也必须显示**推导值**。
+
+        `docs/plans/2026-09-01-S19-垂直切片-plan.md:42` 要求「决策卡带『目标字数 = 书史均值 +
+        下限 75%』」。原实现只在 `decision["target_words"]` 显式给出时才渲染该行，
+        取书史均值推导的那条路作者侧看不到——而决策卡正是**作者界面单位**。
+        """
+        repo = _v7_repo(tmp_path)
+        d = _decision()
+        assert "target_words" not in d
+
+        text = Path(write_decision_card(repo, d)).read_text(encoding="utf-8")
+
+        assert "目标字数" in text, "推导值也必须上卡"
+        assert "推导" in text, "必须标明来源，别让作者以为是他自己定的"
+
+    def test_card_marks_explicit_target_words_as_explicit(self, tmp_path):
+        """反向守住：显式给值时照旧显示，且**不得**标成推导。"""
+        repo = _v7_repo(tmp_path)
+        d = _decision()
+        d["target_words"] = 3000
+
+        text = Path(write_decision_card(repo, d)).read_text(encoding="utf-8")
+
+        assert "目标字数: 3000" in text
+        assert "推导" not in text
+
     def test_fallback_returns_none_when_card_absent(self, tmp_path):
         """决策卡不存在时回退解析必须显式表达「没有卡」（None），不得静默返回空壳决策。"""
         repo = _v7_repo(tmp_path)

@@ -97,14 +97,34 @@ def book_word_stats(repo: Path) -> dict[str, int]:
     return {"mean": int(sum(counts) / n), "median": counts[n // 2], "min": counts[0], "max": counts[-1], "chapters": n}
 
 
+def resolve_target_words(repo: Path, decision: dict[str, Any]) -> tuple[int, str]:
+    """本章目标字数的**唯一事实源**：决策卡显式值 > 书史均值 > 2000 兜底。
+
+    返回 `(字数, 来源)`，来源 ∈ `{"explicit", "book_mean", "default"}`。
+
+    决策卡与上下文包都必须走这里。S19 曾把这条规则只写进了上下文包一侧，
+    决策卡上作者看不到推导值——「两处各写一遍」正是它会漂的原因（t-20260913-38c4）。
+    """
+    explicit = int(decision.get("target_words") or 0)
+    if explicit:
+        return explicit, "explicit"
+    mean = int(book_word_stats(repo)["mean"] or 0)
+    if mean:
+        return mean, "book_mean"
+    return 2000, "default"
+
+
 def write_decision_card(repo: Path, decision: dict[str, Any]) -> Path:
     chapter = int(decision["chapter"])
     lines = [f"# 决策卡 · 第{chapter:04d}章", ""]
     for key in ("title", "pov", "time_anchor"):
         if decision.get(key):
             lines.append(f"- {key}: {decision[key]}")
-    if decision.get("target_words"):
-        lines.append(f"- 目标字数: {decision['target_words']}（下限 {int(decision['target_words'] * 0.75)}）")
+    # S19 第二半（t-20260913-38c4）：没显式给也要显示**推导值**——决策卡是作者界面单位，
+    # 推导出来的字数契约同样要让他看见，并标明来源，免得他以为是自己的设定。
+    target, target_source = resolve_target_words(Path(repo), decision)
+    target_note = {"book_mean": "（推导自书史均值）", "default": "（默认值：书史不足）"}.get(target_source, "")
+    lines.append(f"- 目标字数: {target}（下限 {int(target * 0.75)}）{target_note}")
     lines.append(f"- 目标: {decision.get('goal', '')}")
     lines.append("- 必须覆盖节点:")
     lines += [f"  - {n}" for n in decision.get("nodes") or []]
@@ -332,7 +352,7 @@ def build_context_pack(repo: Path, decision: dict[str, Any], *, db_path: Optiona
 
     # S19 诊断修复：字数契约——书史基准 + 本章目标进入上下文包
     stats = book_word_stats(repo)
-    target = int(decision.get("target_words") or stats["mean"] or 2000)
+    target, _target_source = resolve_target_words(repo, decision)  # 与决策卡同源，勿另写规则
     sections["length_contract"] = {
         "书史章数": stats["chapters"],
         "书史均值": stats["mean"],
