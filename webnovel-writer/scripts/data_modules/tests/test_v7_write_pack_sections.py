@@ -236,3 +236,36 @@ class TestPackCli:
         assert "decision" in proc.stderr and "pack" in proc.stderr, proc.stderr
         assert "Traceback" not in proc.stderr
         assert not (repo / "工作区" / "上下文包-0042.md").exists(), "缺决策卡时不得产出上下文包"
+
+
+class TestLengthContractSection:
+    """U-14（t-20260913-ff22）：字数契约必须是**真 section**，不是幽灵。
+
+    S19 方案 `docs/plans/2026-09-01-S19-垂直切片-plan.md:42` 原文要求：
+    「v7_write 新增 book_word_stats（定稿正文直算），决策卡带『目标字数 = 书史均值 +
+    下限 75%』，**上下文包新增 `length_contract` 节**」。
+
+    实现写了 `sections["length_contract"]`，却没登记进 `V7_SECTION_TITLES`——而渲染只遍历
+    `V7_RENDER_ORDER`（= 标题表的键序），于是这份数据被算出来、计入 `sections_before`
+    统计，却**从未出现在上下文包里**；又因不在 `V7_DROP_ORDER` 里，预算超限时也无法回收。
+    2026-09-13 逐行复核确认（原判定来自子代理提炼，未独立复核）。
+    """
+
+    def test_pack_renders_length_contract(self, tmp_path):
+        repo = _v7_repo(tmp_path)
+
+        md, _ = build_context_pack(repo, _decision())
+
+        assert "## 字数契约" in md, "S19 要求它进上下文包，不能只是算出来不用"
+        assert "本章目标字数" in md
+        assert "下限" in md
+
+    def test_length_contract_registered_in_all_three_tables(self):
+        """缺任何一张表都会退化成幽灵：标题表（渲染）、配额表（预算）、丢弃顺序（可回收）。"""
+        assert "length_contract" in v7w.V7_SECTION_TITLES
+        assert "length_contract" in v7w.V7_SECTION_QUOTAS
+        assert "length_contract" in v7w.V7_DROP_ORDER, "非 PROTECTED 段必须可被丢弃，否则超预算时不可回收"
+
+    def test_length_contract_is_not_protected(self):
+        """它不该进 PROTECTED——那是决策卡/上一章结尾/stale/承诺账本的位置。"""
+        assert "length_contract" not in v7w.V7_PROTECTED_SECTIONS

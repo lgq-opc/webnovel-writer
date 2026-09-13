@@ -28,6 +28,8 @@ TOTAL_BUDGET_DEFAULT = 20000
 
 V7_SECTION_QUOTAS: dict[str, int] = {
     "decision_card": 2000,
+    # U-14（2026-09-13）：字数契约原来只算不渲染（幽灵 section）。小字典，配额给足即可。
+    "length_contract": 300,
     "recent_summaries": 1200,
     "entities": 3000,
     "roster": 1500,
@@ -50,9 +52,14 @@ V7_PROTECTED_SECTIONS = ("decision_card", "prev_chapter_tail", "stale_notes", "p
 V7_DROP_ORDER = (
     "materials", "reader_signal", "style_contract", "outline_excerpt", "protagonist",
     "pov_discipline", "style_anchor", "author_model", "roster", "recent_summaries", "entities",
+    "length_contract",  # U-14：小且是写作契约，放最后丢——但必须可丢（非 PROTECTED）
 )
 V7_SECTION_TITLES: dict[str, str] = {
     "decision_card": "决策卡",
+    # U-14（t-20260913-ff22）：渲染只遍历本表（见 V7_RENDER_ORDER），故「进上下文包」
+    # 必须在这里登记——S19 方案 :42 要求「上下文包新增 length_contract 节」，
+    # 此前只写了数据没登记标题，于是它计入 sections_before 统计却从未出现在包里。
+    "length_contract": "字数契约（书史基准）",
     "outline_excerpt": "本章章纲节选",
     "pending_promises": "本章应推进（承诺账本）",
     "stale_notes": "作者修改未消费（stale）",

@@ -52,7 +52,7 @@ python v7_write.py settle --repo <v7仓> --chapter 38 --draft 工作区/草稿-0
 
 以上每条都可经统一入口转发：`python webnovel.py --project-root <v7仓> v7-write <pack|check|settle|decision> ...`（`/webnovel:write` 在 `book.yaml` 存在时即走这条链）。
 
-上下文包 section（v8 阶段一起）：决策卡 / 本章章纲节选（`大纲/卷纲/第NN卷-详细大纲.md` 中本章小节，回退 `第NN卷.md`）/ 本章应推进（承诺账本，`大纲/条目`）/ 作者修改未消费（stale）/ 前情摘要 / 上一章结尾 / 本章实体 / 主角卡（需 `book.yaml` 声明 `主角:`）/ 视角纪律（pov ≠ 主角时）/ 名册清单 / 素材装配（`素材/`，条数 `book.yaml` `素材装配条数:` 默认 3）/ 文风宪法 / 文风锚点 / 作者模型 / 读者信号。域为空则整节省略；读函数出错记 `stats.section_errors`，不阻断。超总预算时按 materials → reader_signal → style_contract → outline_excerpt → protagonist → pov_discipline → style_anchor → author_model → roster → recent_summaries → entities 顺序整段丢弃，决策卡 / 上一章结尾 / stale / 承诺账本只截不丢。
+上下文包 section（v8 阶段一起）：决策卡 / 字数契约（书史章数·均值·中位 + 本章目标字数与下限）/ 本章章纲节选（`大纲/卷纲/第NN卷-详细大纲.md` 中本章小节，回退 `第NN卷.md`）/ 本章应推进（承诺账本，`大纲/条目`）/ 作者修改未消费（stale）/ 前情摘要 / 上一章结尾 / 本章实体 / 主角卡（需 `book.yaml` 声明 `主角:`）/ 视角纪律（pov ≠ 主角时）/ 名册清单 / 素材装配（`素材/`，条数 `book.yaml` `素材装配条数:` 默认 3）/ 文风宪法 / 文风锚点 / 作者模型 / 读者信号。域为空则整节省略；读函数出错记 `stats.section_errors`，不阻断。超总预算时按 materials → reader_signal → style_contract → outline_excerpt → protagonist → pov_discipline → style_anchor → author_model → roster → recent_summaries → entities 顺序整段丢弃，决策卡 / 上一章结尾 / stale / 承诺账本只截不丢。
 
 要点：
 
