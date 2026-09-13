@@ -40,19 +40,23 @@ marketplace 登记与克隆**保留 id 不动、原地改指向**（见 §2）�
 
 > 注意：新源 marketplace.json 的 `name` 必须仍为 `webnovel-writer-marketplace`（id 稳定的前提）。
 
-## 3. 重装 v7.1.0（模拟 ZCode 安装产物）
+## 3. 重装 v8.1.0（模拟 ZCode 安装产物）
+
+> 版本号以 `webnovel-writer/.zcode-plugin/plugin.json` 为准；本文件每次发版需同步。
+> 2026-09-13 订正：本文件此前通篇停留在 7.1.0（§3 标题 / 缓存目录 / installed_plugins.json
+> 示例 / §4 判据 1），且 §4 判据 2 的「9 条命令」为 v7 旧口径（现为 13 条）。
 
 ```powershell
 # 1) 建版本缓存目录：
-#    cache/webnovel-writer-marketplace/webnovel-writer/7.1.0/
+#    cache/webnovel-writer-marketplace/webnovel-writer/8.1.0/
 # 2) 复制插件本体（内层目录完整内容，排除 .git / __pycache__ / *.pyc / .pytest_cache）到上述目录
 # 3) installed_plugins.json 追加条目：
 {
   "id": "webnovel-writer@webnovel-writer-marketplace",
   "name": "webnovel-writer",
   "marketplace": "webnovel-writer-marketplace",
-  "version": "7.1.0",
-  "installPath": "C:\\Users\\a6748\\.zcode\\cli\\plugins\\cache\\webnovel-writer-marketplace\\webnovel-writer\\7.1.0",
+  "version": "8.1.0",
+  "installPath": "C:\\Users\\a6748\\.zcode\\cli\\plugins\\cache\\webnovel-writer-marketplace\\webnovel-writer\\8.1.0",
   "installedAt": "<now ISO8601 Z>",
   "updatedAt": "<now ISO8601 Z>",
   "scope": "user",
@@ -69,8 +73,8 @@ marketplace 登记与克隆**保留 id 不动、原地改指向**（见 §2）�
 
 | # | 验证点 | 判据 |
 |---|--------|------|
-| 1 | 插件版本 | Settings → Plugin Management → webnovel-writer 显示 7.1.0；会话 skill 前缀 `webnovel-writer:` 的 8 个 skill 均可发现 |
-| 2 | 斜杠命令 | `/` 菜单出现 `/webnovel:status` … `/webnovel:dashboard` 9 条 |
+| 1 | 插件版本 | Settings → Plugin Management → webnovel-writer 显示 8.1.0；会话 skill 前缀 `webnovel-writer:` 的 8 个 skill 均可发现 |
+| 2 | 斜杠命令 | `/` 菜单出现 `/webnovel:status` … `/webnovel:dashboard` 13 条 |
 | 3 | MCP server | Settings → MCP 出现 `webnovel`（built-in 标记）且 connected；会话内可调用 `mcp__webnovel__webnovel_where` 类工具 |
 | 4 | hooks | 新会话首条消息后出现 webnovel 项目状态注入（SessionStart/`chapter_meter` 链路）；对运行时文件的直写被 `guard_runtime_write` 阻断（可低风险试探一次） |
 | 5 | agents | Agent 工具可用类型含 `webnovel-writer:context-agent` 等 4 个 |
