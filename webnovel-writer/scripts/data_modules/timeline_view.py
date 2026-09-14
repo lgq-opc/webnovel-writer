@@ -81,7 +81,7 @@ def build_timeline_view(project_root: str | Path, *, volume: int) -> dict[str, A
     age_note = ""
     age_columns: list[dict[str, Any]] = []
     try:
-        from .continuity_check import _book_age_base, build_age_columns
+        from .continuity_shared import _book_age_base, build_age_columns
 
         age_base = _book_age_base(Path(project_root))
         if age_base and rows:

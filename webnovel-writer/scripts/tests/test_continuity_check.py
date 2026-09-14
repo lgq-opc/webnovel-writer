@@ -90,7 +90,8 @@ class TestAgeDerivation:
         assert "主角年龄" not in view_path.read_text(encoding="utf-8")
 
     def test_unparsable_anchor_shows_dash(self, book: Path):
-        from data_modules.continuity_check import derive_age_columns, parse_anchor_day
+        from data_modules.continuity_check import derive_age_columns
+        from data_modules.continuity_shared import parse_anchor_day
         from data_modules.timeline_view import build_timeline_view
 
         (book / "book.yaml").write_text('书名: 测试\n主角年龄: 24\n觉醒日: 1\n', encoding="utf-8")
