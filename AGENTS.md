@@ -57,7 +57,7 @@ webnovel-writer/              ← 外层仓库根（marketplace.json 双位置�
 - 远程：git@github.com:lgq-opc/webnovel-writer.git
 - CI：`.github/workflows/plugin-tests.yml`（push master/v8-author 与 PR 按 scripts/mcp/dashboard 路径触发全量 pytest + 四校验脚本；依赖按 `requirements.lock` 锁定）
 - ZCode 装机：marketplace `webnovel-writer-marketplace` → 本仓库根（directory 源）
-- 当前待办入口：**`docs/plans/2026-09-10-v6线退役方案.md`**（`[~]` 进行中：Phase 1 与 Phase 2 增量 1-3 已完成，剩余项见其 §1.5 / §3，**Phase 3 待 Human 决策**）。以下三份**已清空或降为历史**：`docs/TODO-from-v8-author-review.md`（2026-09-12 实测 24 项全 `[x]`）、`docs/zcode/v8-gap-review-3rounds/README.md`（P1-1~P4-3 全 ✅，2026-09-04 收官）、`docs/plans/2026-08-25-status-and-pending-work.md`（superseded）。现状截面见 `docs/reports/2026-09-12-需求与设计对账.md`
+- 当前待办入口：**`docs/plans/2026-09-10-v6线退役方案.md`**（`[~]` 进行中：Phase 1 与 Phase 2 增量 1-4 已完成，剩余项见其 §1.5 / §3，**Phase 3 待 Human 决策**）。以下三份**已清空或降为历史**：`docs/TODO-from-v8-author-review.md`（2026-09-12 实测 24 项全 `[x]`）、`docs/zcode/v8-gap-review-3rounds/README.md`（P1-1~P4-3 全 ✅，2026-09-04 收官）、`docs/plans/2026-08-25-status-and-pending-work.md`（superseded）。现状截面见 `docs/reports/2026-09-12-需求与设计对账.md`
 
 ## OpenCode 工作区规则：任务状态必须与代码同步
 
