@@ -20,6 +20,14 @@ from long_paths import WIN_EXTENDED_PREFIX
 _ORIGINAL_SQLITE_CONNECT = sqlite3.connect
 _ORIGINAL_TEMPORARY_DIRECTORY = tempfile.TemporaryDirectory
 
+# 系统临时目录基准：**必须在导入期**取值。_install_safe_tempfile() 一旦跑过，
+# tempfile.tempdir 就被指向我们自己的临时根，那时再调 gettempdir() 只会拿回被
+# 覆盖的值（自指，得到 <root>/wn-pytest 的嵌套）。见 _tmp_root()。
+_ORIGINAL_TEMP_ROOT = Path(tempfile.gettempdir())
+
+# 测试临时根目录名：固定短名，与控制台/仓库/检出目录名无关，长度可预期。
+_TMP_ROOT_DIRNAME = "wn-pytest"
+
 
 def _delete_path_str(path) -> str:
     """删除专用的路径字符串：Windows 上**无条件**加扩展前缀。
@@ -145,7 +153,23 @@ def _repo_root() -> Path:
 
 
 def _tmp_root() -> Path:
-    root = _repo_root() / ".tmp" / "pytest"
+    """测试临时根：落在**系统临时目录**下的短名目录，而不是仓库内的 ``.tmp/pytest``。
+
+    **为什么不再放仓库内（2026-09-14 夜审 I-5 / R-1）**：旧实现返回
+    ``<仓库根>/.tmp/pytest``，路径长度随检出目录名线性增长；Windows MAX_PATH(260)
+    下，比主检出更长的 worktree 会让「测试名较长 + fixture 相对路径较深」的用例在
+    `open`/`write_text` 时直接 ENOENT（实测 pilot-verify 1 failed、pilot-night-opencode
+    2 failed，同一用例在主检出却过）。于是「全量绿」成了**路径敏感**的陈述，换个
+    worktree 就不可复现——而本仓的完成证据正是建立在测试之上。
+
+    改用系统临时目录（``%TEMP%``）下的固定短名后，基准长度 = 「系统临时目录 + 固定
+    短名」，与 worktree 名解耦；测试名与 fixture 相对路径一字不改，故**清理语义不变**
+    （``tmp_path`` 夹具仍逐个 :func:`rmtree_safely`）。
+
+    取值走导入期捕获的 :data:`_ORIGINAL_TEMP_ROOT`，避免被 _install_safe_tempfile
+    覆盖后的 ``tempfile.tempdir`` 自指。
+    """
+    root = _ORIGINAL_TEMP_ROOT / _TMP_ROOT_DIRNAME
     root.mkdir(parents=True, exist_ok=True)
     return root
 
@@ -169,6 +193,7 @@ def _safe_mkdtemp(suffix: str | None = None, prefix: str | None = None, dir: str
 
 
 def _install_safe_tempfile() -> None:
+    # 根走 _tmp_root()：系统临时目录下的短名目录（不再落仓库内，避免长 worktree 撞 MAX_PATH）。
     root = _tmp_root()
     for name in ("TMP", "TEMP", "TMPDIR"):
         os.environ[name] = str(root)

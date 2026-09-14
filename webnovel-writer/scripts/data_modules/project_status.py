@@ -54,7 +54,10 @@ def next_action_for_phase(snapshot: ProjectPhaseSnapshot) -> str:
     if phase == PHASE_DRAFT_IN_PROGRESS:
         return f"finish review/data artifacts for chapter {target}"
     if phase == PHASE_READY_TO_COMMIT:
-        return f"run webnovel.py chapter-commit --chapter {target}"
+        # v6 写链已退役（`chapter-commit` CLI 已撤，走它会 rc=2 invalid choice）；
+        # 该相位只对含 .webnovel/state.json 的 v6 书仓可达，唯一在役路径是先迁移到
+        # v7 书仓，再用 v7 写链 settle 落定（见 skills/webnovel-write/SKILL.md）。
+        return f"v6 write chain retired; migrate with migrate_v6_to_v7.py, then webnovel.py v7-write settle --chapter {target}"
     if phase == PHASE_CHAPTER_COMMITTED:
         return f"continue with chapter {snapshot.latest_accepted_chapter + 1}"
     if phase == PHASE_PROJECTION_FAILED:

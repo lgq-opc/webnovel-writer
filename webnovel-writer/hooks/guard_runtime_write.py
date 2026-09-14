@@ -21,13 +21,6 @@ PROTECTED_SUFFIXES = (
     ".webnovel/memory_scratchpad.json",
     ".webnovel/projection_log.jsonl",
 )
-ALLOWED_RUNTIME_MARKERS = (
-    "webnovel.py",
-    "chapter-commit",
-    "write-gate",
-    "projections retry",
-    "projections replay",
-)
 
 
 def _truthy(value: str | None) -> bool:
@@ -131,7 +124,9 @@ def main() -> int:
     if tool.lower() == "bash" or command:
         if _looks_like_direct_projection_write(command):
             return _deny(
-                "webnovel-writer blocked a direct write or bypass command for Story System/read-model files. Use webnovel.py write-gate, chapter-commit, or projections retry/replay instead."
+                "webnovel-writer blocked a direct write or bypass command for Story System/read-model files. "
+                "Use the webnovel runtime commands instead (v7 书仓写链：webnovel.py v7-write settle) so "
+                "commit/projection invariants stay consistent."
             )
         return 0
 

@@ -165,6 +165,44 @@ def _check_marketplace(root: Path, plugin_version: str, issues: list[dict[str, s
         )
 
 
+def _check_marketplace_dual_location(root: Path, issues: list[dict[str, str]]) -> None:
+    """marketplace.json 双位置（仓库根 + .claude-plugin/）一致性校验。
+
+    AGENTS.md 约定两份并存；装机读取按「根优先」（见 :func:`_find_marketplace`），
+    但两份一旦漂移，「读哪份」就决定了对外的承诺面——实测 homepage 曾一份指本仓
+    （lgq-opc）、一份指分叉前的上游（lingfengQAQ），而四校验照样全绿（2026-09-14
+    夜审 I-2）。这里在**两份都存在**时做 JSON 相等比对，不等即 error。
+
+    只在「两份都在盘」时断言：只有一份时保持既有「根优先 / 兼容」读取语义不变，
+    也避免插件根（安装包）场景下误报。
+    """
+    repo_root = _repo_root(root)
+    present = [repo_root / relative for relative in MARKETPLACE_RELATIVE_PATHS if (repo_root / relative).is_file()]
+    if len(present) < 2:
+        return
+    payloads: list[tuple[Path, dict[str, Any]]] = []
+    for path in present:
+        payload, error = _load_json(path)
+        if error:
+            # 单份 JSON 自身的缺失/损坏由 _check_marketplace 报，这里只做相等比对。
+            return
+        payloads.append((path, payload))
+    primary_path, primary = payloads[0]
+    for path, payload in payloads[1:]:
+        if payload != primary:
+            issues.append(
+                _issue(
+                    "marketplace.dual_location",
+                    message=(
+                        "marketplace.json 双位置内容不一致："
+                        f"{primary_path.relative_to(repo_root)} != {path.relative_to(repo_root)}"
+                    ),
+                    path=str(path),
+                    repair="两份 marketplace.json 必须逐字等价（含 homepage 等承诺面字段）；改后重跑本校验。",
+                )
+            )
+
+
 def _check_readme_version(root: Path, plugin_version: str, issues: list[dict[str, str]]) -> None:
     if _is_plugin_root(root):
         candidates = [_repo_root(root) / "README.md", root / "README.md"]
@@ -259,6 +297,7 @@ def validate_package(root: str | Path | None = None, *, strict: bool = False) ->
     issues: list[dict[str, str]] = []
     _, plugin_version = _check_manifest(repo_root, issues)
     _check_marketplace(repo_root, plugin_version, issues)
+    _check_marketplace_dual_location(repo_root, issues)
     _check_readme_version(repo_root, plugin_version, issues)
     _check_frontmatter(repo_root, issues)
     _check_optional_assets(repo_root, issues)

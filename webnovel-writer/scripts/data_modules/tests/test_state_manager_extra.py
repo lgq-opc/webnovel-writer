@@ -652,7 +652,7 @@ def test_process_chapter_cli_fails_when_sqlite_sync_fails(temp_project, monkeypa
     out = json.loads(capsys.readouterr().out)
     assert out["status"] == "error"
     assert out["error"]["code"] == "SQLITE_SYNC_FAILED"
-    assert "webnovel.py projections retry --chapter 7" in out["error"]["suggestion"]
+    assert "webnovel.py state process-chapter --chapter 7" in out["error"]["suggestion"]
 
 
 def test_state_manager_cli_rejects_json_file_outside_resolved_book_root(tmp_path, monkeypatch):
