@@ -10,7 +10,7 @@
 
 ```
 L7  作者主权层    author-sync / journal / freeze / impact / regen 画廊 / author_model·style_profile
-L6  会话编排层    ZCode 插件壳：skills×8 / agents×4 / hooks×4 / MCP(14 只读) / /webnovel:* 命令(13)
+L6  会话编排层    ZCode 插件壳：skills×8 / agents×4 / hooks×4 / MCP(12 只读) / /webnovel:* 命令(13)
 L5  工作流层      v7 决策卡-机检-settle 链（**新书写章唯一路径**）/ v6 写章六步链（**frozen-legacy**，仅维护）/ plan 规划链 / review 审查链
 L4  领域服务层    统一 CLI webnovel.py（治理 / 索引投影 / 记忆 RAG / 战力素材 / 度量报告）
 L3  确定性内核    git 事务 / 时间线推演 / 伏笔逾期 / 锚点校验 / 字数占位符 / prose_check（无 LLM）
@@ -56,8 +56,8 @@ v7 要点（详见 v7-write-path）：上下文包 20k 字符预算按节配额�
 - **Skills ×8**：`webnovel-init` / `plan` / `write` / `review` / `query` / `learn` / `dashboard` / `doctor`
 - **Agents ×4**：`context-agent`（写前任务书）/ `data-agent`（commit artifacts 提取）/ `reviewer`（质量审查）/ `deconstruction-agent`（参考书拆解）
 - **斜杠命令 ×13**：dashboard / doctor / forge / init / learn / materials / plan / power / query / review / status / style / write（薄壳，挂到 skills 或 CLI）
-- **MCP server ×14 只读工具**（`mcp/server.py`，纯标准库 stdio JSON-RPC；实参拒绝前导 `-`，list 形式拼 `subprocess.run`，无 shell）：
-  `where` / `project_status` / `doctor` / `setting_read` / `timeline_check` / `meter` / `rag_search` / `knowledge` / `context` / `materials_status` / `materials_assemble` / `power_check` / `foreshadow_scan` / `reader_signals`
+- **MCP server ×12 只读工具**（`mcp/server.py`，纯标准库 stdio JSON-RPC；实参拒绝前导 `-`，list 形式拼 `subprocess.run`，无 shell）：
+  `where` / `project_status` / `doctor` / `setting_read` / `timeline_check` / `meter` / `knowledge` / `materials_status` / `materials_assemble` / `power_check` / `foreshadow_scan` / `reader_signals`（D-2 乙 2026-09-13 撤出 `rag_search`、`context`）
 - **Hooks ×4**：SessionStart / UserPromptSubmit / PreToolUse / Stop（`${ZCODE_PLUGIN_ROOT}` 装载；SessionStart 会写 `.webnovel/` journal）
 - **Dashboard**：预打包 `dist/` 只读面板（CORS 白名单 / 只读连库，见 `test_dashboard_security.py`）
 

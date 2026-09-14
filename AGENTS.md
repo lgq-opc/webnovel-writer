@@ -38,7 +38,7 @@ webnovel-writer/              ← 外层仓库根（marketplace.json 双位置�
     ├── agents/               ← 4 个子代理
     ├── commands/webnovel/    ← 13 个 /webnovel:* 斜杠命令（薄壳）
     ├── hooks/                ← 4 个 hook 脚本 + hooks.json（${ZCODE_PLUGIN_ROOT}；SessionStart 会写 .webnovel/ journal）
-    ├── mcp/                  ← webnovel MCP server（stdio 只读查询 ×14）+ tests
+    ├── mcp/                  ← webnovel MCP server（stdio 只读查询 ×12）+ tests
     ├── scripts/              ← 统一 CLI webnovel.py + data_modules
     └── references/ templates/ dashboard/ evals/
 ```
