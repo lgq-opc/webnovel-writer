@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from .continuity_check import load_known_names, parse_anchor_day
+from .continuity_shared import load_known_names, parse_anchor_day
 from .outline_paths import extract_chapter_heading, resolve_detailed_outline
 from .power_anchor import anchor_path, load_anchor
 from .promise_ledger import load_entries
