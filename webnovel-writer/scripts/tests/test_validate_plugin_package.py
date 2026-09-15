@@ -223,3 +223,31 @@ def test_validate_plugin_package_dual_marketplace_root_copy_broken_json(tmp_path
 
     assert report["ok"] is False
     assert tmp_path / "marketplace.json" in _marketplace_issue_paths(report, "marketplace.json")
+
+
+def test_validate_plugin_package_single_copy_root_only_keeps_compat(tmp_path):
+    """CC 复评 R-2（取「改修文案」支）：仓库根单份（仅 marketplace.json，与「第二份缺失」
+    同形状）保持既有兼容放行，且不得出现与闸门放行行为相反的门禁文案。"""
+    _write_minimal_package(tmp_path, manifest_dir=".zcode-plugin", marketplace_relative="marketplace.json")
+
+    report = validate_package(tmp_path)
+
+    assert report["ok"] is True
+    assert report["error_count"] == 0
+    assert not any("两份必须存在" in (item.get("repair") or "") for item in report["issues"]), report["issues"]
+
+
+def test_validate_plugin_package_broken_copy_repair_scoped_to_existing(tmp_path):
+    """R-2：双位置 repair 文案只对「两份都已存在」提等价要求，不再宣称「两份必须存在」——
+    否则与单份兼容放行（:182）脱钩，正是本项缺陷的形状。"""
+    _write_minimal_package(tmp_path)
+    _mirror_marketplace_to_repo_root(tmp_path)
+    broken = tmp_path / ".claude-plugin" / "marketplace.json"
+    broken.write_text("{ not json", encoding="utf-8")
+
+    report = validate_package(tmp_path)
+
+    repairs = [item.get("repair", "") for item in report["issues"] if item["code"] == "marketplace.json"]
+    assert repairs, report["issues"]
+    assert all("两份必须存在" not in repair for repair in repairs), repairs
+    assert any("已存在" in repair for repair in repairs), repairs

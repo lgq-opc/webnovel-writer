@@ -1,11 +1,25 @@
 ﻿"""Tests for guard_runtime_write redirect regex fix (P0-5)."""
+import json
 import pytest
+import subprocess
 import sys
 import os
 
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'hooks'))
 from guard_runtime_write import _looks_like_direct_projection_write
+
+GUARD_SCRIPT = Path(__file__).resolve().parents[2] / 'hooks' / 'guard_runtime_write.py'
+
+
+def _run_guard_hook(command: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [sys.executable, str(GUARD_SCRIPT)],
+        input=json.dumps({'tool_name': 'Bash', 'tool_input': {'command': command}}),
+        capture_output=True,
+        text=True,
+        encoding='utf-8',
+    )
 
 
 class TestRedirectDetection:
@@ -89,6 +103,55 @@ class TestRuntimeWhitelistAlignment:
         assert _looks_like_direct_projection_write(
             "python -X utf8 other_tool.py .webnovel/memory_scratchpad.json"
         ) is True
+
+    # CC 复评 R-1：sanctioned 段只给「自己那段」当通行券，不得连带放行同行的破坏性段。
+    def test_compound_and_with_destructive_suffix_is_blocked(self):
+        cmd = "python webnovel.py --project-root . v7-write settle && rm -f .webnovel/index.db"
+        assert _looks_like_direct_projection_write(cmd) is True
+
+    def test_compound_semicolon_with_destructive_suffix_is_blocked(self):
+        cmd = "python webnovel.py --project-root . v7-write settle ; rm -f .webnovel/index.db"
+        assert _looks_like_direct_projection_write(cmd) is True
+
+    def test_compound_pipe_with_destructive_suffix_is_blocked(self):
+        cmd = "python webnovel.py --project-root . v7-write settle | tee .webnovel/index.db"
+        assert _looks_like_direct_projection_write(cmd) is True
+
+    def test_compound_or_with_destructive_suffix_is_blocked(self):
+        cmd = "python webnovel.py --project-root . v7-write settle || rm -f .webnovel/index.db"
+        assert _looks_like_direct_projection_write(cmd) is True
+
+    def test_compound_spoofed_sanctioned_prefix_still_blocked(self):
+        # 子串伪造（复评表 G）落在独立段里：伪造段放行，破坏段照拦。
+        cmd = 'echo "webnovel.py v7-write settle" && rm -f .webnovel/index.db'
+        assert _looks_like_direct_projection_write(cmd) is True
+
+    def test_compound_readonly_suffix_still_allowed(self):
+        # 只读后缀不是破坏性形状：段切分不得误伤（既有 SANCTIONED_SETTLE 语义）。
+        cmd = "python webnovel.py --project-root . v7-write settle --chapter 1 && ls -l .webnovel/index.db"
+        assert _looks_like_direct_projection_write(cmd) is False
+
+
+class TestRuntimeCompoundCommandEndToEnd:
+    """CC 复评 R-1 端到端：拉起真实 hook 子进程，确认 rc 与判定一致。
+
+    落在本文件（任务书 §1 清单内）而非 test_hooks.py（§1 未列，§6「不碰其它文件」）。
+    """
+
+    def test_sanctioned_settle_with_destructive_suffix_blocked(self):
+        proc = _run_guard_hook(
+            "python -X utf8 webnovel.py --project-root . v7-write settle --chapter 7 "
+            "--summary ok && rm -f .webnovel/index.db"
+        )
+        assert proc.returncode == 2
+        assert "permissionDecision" in proc.stderr
+
+    def test_sanctioned_settle_with_readonly_suffix_allowed(self):
+        proc = _run_guard_hook(
+            "python -X utf8 webnovel.py --project-root . v7-write settle --chapter 7 "
+            "--summary ok && ls -l .webnovel/index.db"
+        )
+        assert proc.returncode == 0
 
 
 
