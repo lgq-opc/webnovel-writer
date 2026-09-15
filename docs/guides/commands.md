@@ -265,7 +265,6 @@ python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJEC
 | `run-ledger get-subagent-runs [--stage <stage>] [--chapter N]` | 查询作者报告使用的 Agent 运行记录 |
 | `run-ledger write-resume --chapter N` | 根据可信断点输出续跑建议，不自动覆盖文件 |
 | `run-log --event <name>` | 写入脱敏日志，供不可恢复故障排查 |
-| `memory-contract` | 记忆合同管理 |
 | `review-pipeline --chapter N --review-results <file>` | 审查流水线 |
 
 示例：
