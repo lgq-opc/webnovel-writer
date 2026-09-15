@@ -8,7 +8,7 @@
 
 <a href="https://trendshift.io/repositories/22487" target="_blank"><img src="https://trendshift.io/api/badge/repositories/22487" alt="lingfengQAQ%2Fwebnovel-writer | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
-一个跑在 ZCode 上的长篇网文创作插件（v8.0.0「作者主权+300章连贯」：六域书仓治理 + MCP 治理查询 + /webnovel:* 命令）。从初始化设定、规划卷纲，到写章、审查、沉淀记忆、查询状态，再到一个只读的可视化面板——整条创作流程都给你串好了。
+一个跑在 ZCode 上的长篇网文创作插件（v8.1.0「作者主权+300章连贯」：六域书仓治理 + MCP 治理查询 + /webnovel:* 命令）。从初始化设定、规划卷纲，到写章、审查、沉淀记忆、查询状态，再到一个只读的可视化面板——整条创作流程都给你串好了。
 
 它想解决的其实就一件事：**让 AI 写到几百章，依然记得住设定、接得住伏笔、守得住大纲。**
 
@@ -20,7 +20,7 @@
 >
 > | 分支 | 版本 | 状态 |
 > |---|---|---|
-> | `v8-author` | v8.0.0 · ZCode 插件（MCP 12 只读工具 + 13 条 `/webnovel:*` 命令 + 六域书仓治理） | **当前主线**，本 README 描述的即此版本 |
+> | `v8-author` | v8.1.0 · ZCode 插件（MCP 12 只读工具 + 13 条 `/webnovel:*` 命令 + 六域书仓治理） | **当前主线**，本 README 描述的即此版本 |
 > | `tmp/zcode` | v7.1.0 · ZCode 原生化 | 已并入 v8-author，保留作档案 |
 > | `v7-tmp` | v7.0.0 · Story-Repo 书仓迁移 | 已并入 v8-author，保留作档案 |
 > | `master` | v6.x · Claude Code 插件基线 | 只修致命 bug，Claude Code 用户可用 |
@@ -257,11 +257,7 @@ python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJEC
 | `preflight` | 校验插件路径、项目根、Story System 健康状态 |
 | `project-status` | 输出机器可读短状态、phase 和下一步 |
 | `doctor` | 阶段感知项目体检，给出影响和修复建议 |
-| `write-gate` | 写前、提交前、提交后三个自然边界校验 |
-| `projections` | 基于已有 commit 补跑或重放投影 |
 | `story-system` | 生成合同种子和 runtime contracts |
-| `chapter-commit` | 提交章节事实并驱动投影 |
-| `story-events` | 查询章节事件或检查事件链健康 |
 | `memory` | 查看、查询、导出和回填长期记忆 |
 | `rag` | 管理向量索引和检索状态 |
 | `status` | 输出项目健康报告 |
