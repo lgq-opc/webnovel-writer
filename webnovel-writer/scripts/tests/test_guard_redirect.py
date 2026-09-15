@@ -19,7 +19,7 @@ class TestRedirectDetection:
         assert _looks_like_direct_projection_write(cmd) is True
 
     def test_runtime_safe_command_allowed(self):
-        cmd = 'python webnovel.py --project-root /tmp chapter-commit --chapter 1'
+        cmd = 'python webnovel.py --project-root /tmp v7-write settle --chapter 1 --summary ok'
         assert _looks_like_direct_projection_write(cmd) is False
 
     def test_unrelated_command_allowed(self):
@@ -58,6 +58,37 @@ class TestBypassCommandCoverage:
 
     def test_read_only_grep_on_protected_still_allowed(self):
         assert _looks_like_direct_projection_write("grep foo .webnovel/index.db") is False
+
+
+class TestRuntimeWhitelistAlignment:
+    """CC 评审 A-1：运行白名单与 deny 文案同源——在役 v7 写链不得被自家闸拦下，
+    已撤的 v6 命令名也不再是通行券。"""
+
+    # deny 文案点名的命令；同一行还带受保护后缀（.webnovel/index.db）与 python token
+    SANCTIONED_SETTLE = (
+        'python -X utf8 webnovel.py --project-root . v7-write settle --chapter 7 '
+        '--draft "工作区/草稿-0007.md" --json "工作区/决策-7.json" --summary "落定第七章" '
+        "&& ls -l .webnovel/index.db"
+    )
+
+    def test_sanctioned_settle_with_protected_suffix_not_blocked(self):
+        assert _looks_like_direct_projection_write(self.SANCTIONED_SETTLE) is False
+
+    def test_retired_v6_command_name_no_longer_a_pass(self):
+        # 改前实测 rc=0：撤出的命令名曾把 `&& rm -f .webnovel/index.db` 一并放行。
+        cmd = "python webnovel.py --project-root . chapter-commit && rm -f .webnovel/index.db"
+        assert _looks_like_direct_projection_write(cmd) is True
+
+    def test_direct_python_write_still_blocked(self):
+        assert _looks_like_direct_projection_write("python fix_index.py .webnovel/index.db") is True
+
+    def test_shell_overwrite_still_blocked(self):
+        assert _looks_like_direct_projection_write("rm -f .webnovel/index.db") is True
+
+    def test_python_without_webnovel_entry_still_blocked(self):
+        assert _looks_like_direct_projection_write(
+            "python -X utf8 other_tool.py .webnovel/memory_scratchpad.json"
+        ) is True
 
 
 

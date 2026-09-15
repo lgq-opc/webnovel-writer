@@ -174,7 +174,8 @@ def _check_marketplace_dual_location(root: Path, issues: list[dict[str, str]]) -
     夜审 I-2）。这里在**两份都存在**时做 JSON 相等比对，不等即 error。
 
     只在「两份都在盘」时断言：只有一份时保持既有「根优先 / 兼容」读取语义不变，
-    也避免插件根（安装包）场景下误报。
+    也避免插件根（安装包）场景下误报。坏 JSON / BOM 按位置逐份报错，不整函数退出
+    ——否则「第二份坏了」会被静默放过（CC 评审 A-2）。
     """
     repo_root = _repo_root(root)
     present = [repo_root / relative for relative in MARKETPLACE_RELATIVE_PATHS if (repo_root / relative).is_file()]
@@ -184,9 +185,22 @@ def _check_marketplace_dual_location(root: Path, issues: list[dict[str, str]]) -
     for path in present:
         payload, error = _load_json(path)
         if error:
-            # 单份 JSON 自身的缺失/损坏由 _check_marketplace 报，这里只做相等比对。
-            return
+            # 逐位置报告，不整函数退出：`_check_marketplace` 只读「根优先」那一份，第二份
+            # （.claude-plugin/）坏了它根本看不见；这里若 return，就等于「最该守护的场景」
+            # 退化为静默全绿（CC 评审 A-2）。severity 与单份同源：插件根安装包可忽略该项。
+            issues.append(
+                _issue(
+                    "marketplace.json",
+                    message=error,
+                    severity="warning" if _is_plugin_root(root) else "error",
+                    path=str(path),
+                    repair="修复该位置 marketplace.json：两份必须存在、合法且逐字等价。",
+                )
+            )
+            continue
         payloads.append((path, payload))
+    if len(payloads) < 2:
+        return
     primary_path, primary = payloads[0]
     for path, payload in payloads[1:]:
         if payload != primary:

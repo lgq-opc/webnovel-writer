@@ -151,3 +151,75 @@ def test_validate_plugin_package_prefers_zcode_plugin_manifest(tmp_path):
 
     assert report["ok"] is True
     assert report["error_count"] == 0
+
+
+def _mirror_marketplace_to_repo_root(root: Path) -> None:
+    """把 .claude-plugin/marketplace.json 原样复制到仓库根（双位置等价态）。"""
+    source = root / ".claude-plugin" / "marketplace.json"
+    (root / "marketplace.json").write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+
+
+def _marketplace_issue_paths(report: dict, code: str) -> list[Path]:
+    return [Path(item["path"]) for item in report["issues"] if item["code"] == code]
+
+
+def test_validate_plugin_package_dual_marketplace_equal_passes(tmp_path):
+    _write_minimal_package(tmp_path)
+    _mirror_marketplace_to_repo_root(tmp_path)
+
+    report = validate_package(tmp_path)
+
+    assert report["ok"] is True
+    assert report["error_count"] == 0
+
+
+def test_validate_plugin_package_dual_marketplace_drift_detected(tmp_path):
+    _write_minimal_package(tmp_path)
+    _mirror_marketplace_to_repo_root(tmp_path)
+    payload = json.loads((tmp_path / "marketplace.json").read_text(encoding="utf-8"))
+    payload["plugins"][0]["homepage"] = "https://example.invalid/drift"
+    _write_json(tmp_path / "marketplace.json", payload)
+
+    report = validate_package(tmp_path)
+
+    assert report["ok"] is False
+    assert any(item["code"] == "marketplace.dual_location" for item in report["issues"])
+
+
+def test_validate_plugin_package_dual_marketplace_second_copy_broken_json(tmp_path):
+    # CC 评审 A-2：第二份（.claude-plugin/）坏 JSON 必须点名报错，不得静默全绿。
+    _write_minimal_package(tmp_path)
+    _mirror_marketplace_to_repo_root(tmp_path)
+    broken = tmp_path / ".claude-plugin" / "marketplace.json"
+    broken.write_text("{ this is not json", encoding="utf-8")
+
+    report = validate_package(tmp_path)
+
+    assert report["ok"] is False
+    issues = [item for item in report["issues"] if item["code"] == "marketplace.json"]
+    assert broken in [Path(item["path"]) for item in issues], report["issues"]
+    assert any(item["message"].startswith("invalid_json") for item in issues)
+
+
+def test_validate_plugin_package_dual_marketplace_second_copy_bom(tmp_path):
+    _write_minimal_package(tmp_path)
+    _mirror_marketplace_to_repo_root(tmp_path)
+    bom = tmp_path / ".claude-plugin" / "marketplace.json"
+    bom.write_text(bom.read_text(encoding="utf-8"), encoding="utf-8-sig")
+
+    report = validate_package(tmp_path)
+
+    assert report["ok"] is False
+    assert bom in _marketplace_issue_paths(report, "marketplace.json")
+
+
+def test_validate_plugin_package_dual_marketplace_root_copy_broken_json(tmp_path):
+    # 根那份坏了：单份检查会报，双位置检查也不得把整体错误吞掉。
+    _write_minimal_package(tmp_path)
+    _mirror_marketplace_to_repo_root(tmp_path)
+    (tmp_path / "marketplace.json").write_text("{ broken", encoding="utf-8")
+
+    report = validate_package(tmp_path)
+
+    assert report["ok"] is False
+    assert tmp_path / "marketplace.json" in _marketplace_issue_paths(report, "marketplace.json")
