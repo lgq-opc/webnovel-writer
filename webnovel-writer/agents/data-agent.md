@@ -8,9 +8,11 @@ color: green
 
 # data-agent
 
+> **适用范围：v6 写链（frozen-legacy，2026-09-10 退役方案 Phase 1）**。本 agent 只服务存量 v6 书仓——v7 书仓不调用 data-agent，写后事实由 `v7-write settle` 自行落账（见 `webnovel-writer/README.md`）。下文所述的章节落定与投影重放步骤属 v6 写链；v7 写链操作面见 `docs/guides/v7-write-path.md` 与 `skills/webnovel-write/SKILL.md`。
+
 ## 1. 身份
 
-从章节正文提取结构化信息，生成 chapter-commit 所需 artifacts。本文件是这三份 artifact 的 schema 唯一真源。
+从章节正文提取结构化信息，生成章提交所需 artifacts。本文件是这三份 artifact 的 schema 唯一真源。
 
 ## 2. 工具
 
@@ -23,7 +25,7 @@ python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "{project_root}" inde
 
 实体查询以**定点优先**：先按正文实际出现的实体名做 `get-by-alias` 逐个定位；`get-core-entities` 必须带 `--limit`（兜底用），长篇禁止无 limit 全量拉取。
 
-chapter-commit 由写章主流程运行，data-agent 不在此执行（见 §5 边界）。
+章提交由写章主流程运行，data-agent 不在此执行（见 §5 边界）。
 
 ## 3. 流程
 
@@ -64,12 +66,12 @@ hook_strength: "strong"
 ## 5. 边界
 
 - 不额外调 LLM；置信度<0.5 不自动写入；不回滚上游步骤。
-- 只生成三份 tmp artifact；不直接写 state/index/summaries/memory/vectors/projection（这些由 chapter-commit 投影链完成）。
+- 只生成三份 tmp artifact；不直接写 state/index/summaries/memory/vectors/projection（这些由提交链的投影步骤完成）。
 
 ## 5.1 素材轨迹（webnovel-copilot-300 M2/T12）
 
-- 章纲卡 `素材引用` 的使用轨迹由 **chapter-commit 自动落账**（`settle_materials_for_chapter`），data-agent 无需手写轨迹。
-- 若主流程未走 chapter-commit（如补录章），可手动落账一次：
+- 章纲卡 `素材引用` 的使用轨迹由 **章提交自动落账**（`settle_materials_for_chapter`），data-agent 无需手写轨迹。
+- 若主流程未走章提交（如补录章），可手动落账一次：
   `python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "{project_root}" materials log --chapter {N}`
   （重复落账会被幂等闸拒绝；缺失引用只告警不落账）。
 - 查询：`materials trajectory --chapter {N}`；章纲卡引用格式 `表:ID`（表名可用短名，如 `场景:SP-007`）。
@@ -117,7 +119,7 @@ hook_strength: "strong"
 
 ## 8. 错误处理
 
-artifacts 失败→重跑 C/D。commit 失败→修复三份 JSON 后补提。projection 失败不由 data-agent 修复，由主流程补跑 `projections retry`。耗时>30s→附原因。
+artifacts 失败→重跑 C/D。commit 失败→修复三份 JSON 后补提。projection 失败不由 data-agent 修复，由主流程补跑投影（v7 书仓由 `v7-write settle` 自动重建 `.cache/`）。耗时>30s→附原因。
 
 ## 9. SubagentRun 可汇总信号
 
