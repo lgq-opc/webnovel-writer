@@ -152,34 +152,38 @@ python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJEC
 
 长流程执行中只显示少量过程提示，说明当前阶段和会产生什么。自动补跑投影、重新 emit 缺失合同这类幂等操作不会打断作者，但会出现在最终报告里。重复执行同一条主命令时，系统会优先检查可信断点；首版断点续跑重点覆盖 `/webnovel-write`，尽量从失败点继续，而不是重写已可信完成的正文、审查、提交或备份。
 
-## Story System 主链
+## 写章主链（v7 书仓）
+
+> **v6 写链已冻结（frozen-legacy，2026-09-10 退役方案 Phase 1）**：旧 `.story-system` 主链（生成合同种子 → 提交章节 → `preflight`）只用于理解**存量 v6 书项目**；v6 的章节提交 / 写章关卡 / 投影重放 / 事件查询命令已随写链一并撤出 CLI（走它们会 `rc=2 invalid choice`）。**新书写章一律走 v7 写链**，完整流程与决策 JSON 字段见 [`v7-write-path.md`](./v7-write-path.md)。
 
 推荐按以下顺序执行：
 
-1. 生成合同
+1. 生成决策卡与上下文包（起草只以上下文包为依据）
 
 ```bash
-python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJECT_ROOT>" story-system "玄幻退婚流" --chapter 12 --persist --emit-runtime-contracts --format both
+python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJECT_ROOT>" v7-write decision --json "<PROJECT_ROOT>/工作区/决策-12.json"
+python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJECT_ROOT>" v7-write pack --chapter 12 --json "<PROJECT_ROOT>/工作区/决策-12.json"
 ```
 
-2. 提交章节
+2. 起草正文到 `工作区/草稿-0012.md`，机检字数 / 占位符 / 标题 / 承诺 / 钩子
 
 ```bash
-python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJECT_ROOT>" chapter-commit \
-  --chapter 12 \
-  --review-result ".webnovel/tmp/review_results.json" \
-  --fulfillment-result ".webnovel/tmp/fulfillment_result.json" \
-  --disambiguation-result ".webnovel/tmp/disambiguation_result.json" \
-  --extraction-result ".webnovel/tmp/extraction_result.json"
+python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJECT_ROOT>" v7-write check --chapter 12 --draft "<PROJECT_ROOT>/工作区/草稿-0012.md" --json "<PROJECT_ROOT>/工作区/决策-12.json"
 ```
 
-3. 检查主链健康
+3. 审查（`reviewer` 直写 `.webnovel/tmp/review_results.json`）与文笔检测（`prose-check`）通过后落定
+
+```bash
+python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJECT_ROOT>" v7-write settle --chapter 12 --draft "<PROJECT_ROOT>/工作区/草稿-0012.md" --json "<PROJECT_ROOT>/工作区/决策-12.json" --summary "<≤200 字章摘要>"
+```
+
+4. 检查主链健康
 
 ```bash
 python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJECT_ROOT>" preflight --format json
 ```
 
-其中 `.story-system/` 是主链真源，`.webnovel/*` 是投影/read-model。
+v7 书仓的真源是六域目录（`book.yaml` + `定稿/` 等），`.cache/` 是可随时重建的 read-model；`.story-system/` 主链与 `.webnovel/*` 投影/read-model 属**存量 v6 书仓**口径。
 
 ### 常用工具子命令
 
@@ -189,8 +193,7 @@ python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJEC
 | `preflight` | 校验 CLI 环境、脚本路径和项目根是否可用 |
 | `project-status` | 输出机器可读短状态（phase、目标章节、下一步），不占用旧 `status` |
 | `doctor` | 阶段感知项目体检（目录、文件、DB、RAG、依赖、Dashboard） |
-| `write-gate` | 写章自然边界校验（`prewrite` / `precommit` / `postcommit`） |
-| `projections` | 从已有 commit 补跑或重放 projection |
+| `v7-write` | v7 书仓写链（`decision` / `pack` / `check` / `settle`） |
 | `user-report` | 渲染作者友好的最终报告，可输出 text/json |
 | `run-ledger` | 记录写章步骤状态，或生成 `/webnovel-write` 断点续跑建议 |
 | `run-log` | 写入脱敏运行日志 `.webnovel/logs/run_last.log` |
@@ -203,6 +206,8 @@ python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJEC
 python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJECT_ROOT>" run-ledger write-resume --chapter 12 --format text
 python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJECT_ROOT>" run-log --event write_failed --payload-json "{\"chapter\":12,\"reason\":\"projection timeout\"}"
 ```
+
+> **v6 写链已冻结**：v6 的写章关卡与投影补跑命令已随写链撤出 CLI；v7 书仓的 read-model 是 `.cache/`，`v7-write settle` 后自动重建，需要手动重建时用 `python "${SCRIPTS_DIR}/v7_cache.py" rebuild --repo "<v7仓>"`。
 
 ### 数据模块子命令
 
@@ -244,40 +249,37 @@ python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJEC
 python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJECT_ROOT>" memory query --category character_state --subject xiaoyan
 ```
 
-### Story System 子命令
+### 写链子命令
 
 | 子命令 | 说明 |
 |--------|------|
-| `story-system "<题材>" --persist` | 写入合同种子（`MASTER_SETTING.json` 等） |
-| `story-system "<题材>" --emit-runtime-contracts --chapter N` | 生成运行时合同 + 写前校验 |
-| `chapter-commit --chapter N` | 提交章节 commit（可附带 review/fulfillment/disambiguation/extraction 结果） |
-| `write-gate --chapter N --stage prewrite` | 写前检查项目阶段、Story System 合同和占位符 |
-| `write-gate --chapter N --stage precommit` | 提交前检查正文和四类 commit artifacts |
-| `write-gate --chapter N --stage postcommit` | 提交后检查 commit 与 projection 状态 |
-| `projections retry --chapter N` | 基于已有 commit 补跑单章 projection |
-| `projections replay --from-chapter A --to-chapter B` | 按章节范围重放 projection |
+| `story-system "<题材>" --persist` | 写入合同种子（`MASTER_SETTING.json` 等；**v6 书仓**） |
+| `story-system "<题材>" --emit-runtime-contracts --chapter N` | 生成运行时合同 + 写前校验（**v6 书仓**） |
+| `v7-write decision --json <决策.json>` | 生成决策卡（v7 写链第 1 步） |
+| `v7-write pack --chapter N --json <决策.json>` | 生成上下文包（起草只以此为依据） |
+| `v7-write check --chapter N --draft <草稿> --json <决策.json>` | 机检：字数 / 占位符 / 标题 / 承诺 / 钩子 |
+| `v7-write settle --chapter N --draft <草稿> --json <决策.json> --summary "<摘要>"` | 原子落定（正文 + 章摘要 + 名册新实体）并刷新缓存 |
 | `user-report --stage write --chapter N` | 汇总本次写章产物、问题和下一步建议 |
 | `run-ledger record-write-step --chapter N` | 记录写章关键步骤的状态、输入输出、问题和耗时 |
 | `run-ledger record-subagent --run-id <id> --name <agent> --status <status>` | 持久化一次 Agent 的状态、问题、自动处理、耗时和输出 |
 | `run-ledger get-subagent-runs [--stage <stage>] [--chapter N]` | 查询作者报告使用的 Agent 运行记录 |
 | `run-ledger write-resume --chapter N` | 根据可信断点输出续跑建议，不自动覆盖文件 |
 | `run-log --event <name>` | 写入脱敏日志，供不可恢复故障排查 |
-| `story-events --chapter N` | 查询指定章节事件 |
-| `story-events --health` | 事件链健康检查 |
 | `memory-contract` | 记忆合同管理 |
 | `review-pipeline --chapter N --review-results <file>` | 审查流水线 |
 
 示例：
 
 ```bash
-python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJECT_ROOT>" story-system "玄幻退婚流" --persist
-python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJECT_ROOT>" chapter-commit --chapter 12 --review-result .webnovel/tmp/review.json
-python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJECT_ROOT>" story-events --health
+python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJECT_ROOT>" v7-write decision --json "<PROJECT_ROOT>/工作区/决策-12.json"
+python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJECT_ROOT>" v7-write pack --chapter 12 --json "<PROJECT_ROOT>/工作区/决策-12.json"
+python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJECT_ROOT>" v7-write settle --chapter 12 --draft "<PROJECT_ROOT>/工作区/草稿-0012.md" --json "<PROJECT_ROOT>/工作区/决策-12.json" --summary "<≤200 字章摘要>"
 ```
 
 产物：
 
-- `story-system --persist` → `.story-system/MASTER_SETTING.json`
-- `--emit-runtime-contracts` → `volumes/*.json` 与 `reviews/*.review.json`
-- `chapter-commit` → `commits/*.commit.json`
-- `story-events` → 读取 `events/*.events.json` 或 `index.db.story_events`
+- `v7-write decision` → `工作区/决策-12.json`
+- `v7-write pack` → `工作区/上下文包-0012.md`
+- `v7-write settle` → `定稿/正文/0012-标题.md` + 章摘要 + 名册新实体（随后自动重建 `.cache/`）
+- `story-system --persist` → `.story-system/MASTER_SETTING.json`（v6 书仓）
+- `story-system --emit-runtime-contracts` → `volumes/*.json` 与 `reviews/*.review.json`（v6 书仓）

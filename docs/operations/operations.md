@@ -98,17 +98,17 @@ python -X utf8 "${CLAUDE_PLUGIN_ROOT}/scripts/webnovel.py" --project-root "${WOR
 
 若 `story_runtime.mainline_ready=false`，说明当前项目仍在 legacy fallback 或 commit 主链不完整。
 
-### 写章关卡
+### 写章关卡（v7 书仓）
 
 ```bash
-python -X utf8 "${CLAUDE_PLUGIN_ROOT}/scripts/webnovel.py" --project-root "${PROJECT_ROOT}" write-gate --chapter 12 --stage prewrite --format text
-python -X utf8 "${CLAUDE_PLUGIN_ROOT}/scripts/webnovel.py" --project-root "${PROJECT_ROOT}" write-gate --chapter 12 --stage precommit --format text
-python -X utf8 "${CLAUDE_PLUGIN_ROOT}/scripts/webnovel.py" --project-root "${PROJECT_ROOT}" write-gate --chapter 12 --stage postcommit --format text
+python -X utf8 "${CLAUDE_PLUGIN_ROOT}/scripts/webnovel.py" --project-root "${PROJECT_ROOT}" v7-write check --chapter 12 --draft "${PROJECT_ROOT}/工作区/草稿-0012.md" --json "${PROJECT_ROOT}/工作区/决策-12.json"
+python -X utf8 "${CLAUDE_PLUGIN_ROOT}/scripts/webnovel.py" --project-root "${PROJECT_ROOT}" v7-write settle --chapter 12 --draft "${PROJECT_ROOT}/工作区/草稿-0012.md" --json "${PROJECT_ROOT}/工作区/决策-12.json" --summary "<≤200 字章摘要>"
 ```
 
-- `prewrite`：检查项目阶段、runtime contract、占位符和写前必要文件。
-- `precommit`：检查正文和 review / fulfillment / disambiguation / extraction 四类提交产物。
-- `postcommit`：检查 commit 和 projection 状态。
+- `check`：机检字数 / 占位符 / 标题 / 承诺 / 钩子；退出码 2 = 拒绝进入落定。
+- `settle`：三门禁（审查 `.webnovel/tmp/review_results.json` / 文笔 `prose-check` / 素材引用）→ 原子 git commit（正文 + 章摘要 + 名册新实体）→ 刷新 `.cache/` 缓存。
+
+> **v6 写链已冻结（frozen-legacy，2026-09-10 退役方案 Phase 1）**：存量 v6 书项目的写章关卡与章节提交步骤已随写链撤出 CLI，不再提供。v7 写链完整说明见 [`../guides/v7-write-path.md`](../guides/v7-write-path.md)。
 
 ### 索引重建
 
@@ -133,14 +133,14 @@ python "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" rag index-c
 python "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" rag stats
 ```
 
-### 投影补跑
+### 缓存重建（v7 书仓）
 
 ```bash
-python -X utf8 "${CLAUDE_PLUGIN_ROOT}/scripts/webnovel.py" --project-root "${PROJECT_ROOT}" projections retry --chapter 12 --format text
-python -X utf8 "${CLAUDE_PLUGIN_ROOT}/scripts/webnovel.py" --project-root "${PROJECT_ROOT}" projections replay --from-chapter 1 --to-chapter 12 --format text
+python "${SCRIPTS_DIR}/v7_cache.py" rebuild --repo "${PROJECT_ROOT}"
+python "${SCRIPTS_DIR}/v7_cache.py" verify  --repo "${PROJECT_ROOT}"
 ```
 
-投影补跑只从已有 `.story-system/commits/*.commit.json` 读取事实，并重新生成 `.webnovel/state.json`、`index.db`、`summaries/`、`memory_scratchpad.json`、`vectors.db` 等 read-model。每次执行会追加 `.webnovel/projection_log.jsonl`。
+`.cache/` 是 v7 唯一的持久派生物（实体 / 章摘要 / 追读力查询面），可随时整目录删除后重建；`v7-write settle` 成功后会自动 rebuild（best-effort，失败不影响已完成的 settle）。存量 v6 书仓的 `.webnovel/*` 投影/read-model 由已冻结的投影链维护，投影重放命令已随写链撤出 CLI。
 
 ### 作者友好报告与恢复
 
@@ -198,18 +198,18 @@ WEBNOVEL_DISABLE_RUNTIME_GUARD_HOOK=1
 ### 健康检查
 
 ```bash
-python -X utf8 "${CLAUDE_PLUGIN_ROOT}/scripts/webnovel.py" --project-root "${PROJECT_ROOT}" story-events --health
+python -X utf8 "${CLAUDE_PLUGIN_ROOT}/scripts/webnovel.py" --project-root "${PROJECT_ROOT}" preflight --format json
+python -X utf8 "${CLAUDE_PLUGIN_ROOT}/scripts/webnovel.py" --project-root "${PROJECT_ROOT}" doctor --format text
 ```
 
-返回字段：`sqlite_rows` / `event_files` / `ok`
+`preflight` 返回 `story_runtime` 主链健康，`doctor` 给阶段感知的目录 / 文件 / DB / RAG / 依赖体检。
 
 重点关注：
 
-- `.story-system/commits/chapter_XXX.commit.json` 是否存在且为 accepted
-- `projection_status` 是否全部为 `done` / `skipped`
-- `.story-system/events/` 是否可读
-- `index.db` 中 `story_events` 表是否可查
-- `override_contracts` 是否能统计 `amend_proposal`
+- v7 书仓：`book.yaml` 存在、`.cache/` 可重建（`v7_cache.py verify --repo "${PROJECT_ROOT}"`）
+- v6 书仓：`.story-system/commits/chapter_XXX.commit.json` 是否存在且为 accepted、`projection_status` 是否全部为 `done` / `skipped`
+
+> 存量 v6 书仓的事件链健康检查命令已随 v6 写链冻结撤出 CLI；本节字段仅作历史排查参考。
 
 ### 备份
 
