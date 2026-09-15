@@ -21,13 +21,6 @@ PROTECTED_SUFFIXES = (
     ".webnovel/memory_scratchpad.json",
     ".webnovel/projection_log.jsonl",
 )
-ALLOWED_RUNTIME_MARKERS = (
-    "webnovel.py",
-    "chapter-commit",
-    "write-gate",
-    "projections retry",
-    "projections replay",
-)
 
 
 def _truthy(value: str | None) -> bool:
@@ -93,11 +86,20 @@ def _is_protected_path(path: str) -> bool:
     return any(suffix in normalized for suffix in PROTECTED_SUFFIXES)
 
 
+# v7 写链是唯一在役的运行时写通道；v6 的 `chapter-commit` / `projections retry|replay`
+# 已随 v6 写链退役从 CLI 撤出（走它们 rc=2 invalid choice，见
+# data_modules/project_status.py:57）。deny 文案与白名单同源取自下面两个常量：只改一侧
+# 就会重现「文案推荐、闸门拦截」的脱钩（CC 评审 A-1）。
+RUNTIME_ENTRY_MARKER = "webnovel.py"
+RUNTIME_SAFE_MARKERS = ("v7-write",)
+RUNTIME_WRITE_HINT = f"{RUNTIME_ENTRY_MARKER} v7-write settle"
+
+
 def _command_is_runtime_safe(command: str) -> bool:
     lowered = command.lower()
-    return all(marker in lowered for marker in ("webnovel.py",)) and any(
-        marker in lowered for marker in ("chapter-commit", "projections retry", "projections replay")
-    )
+    if RUNTIME_ENTRY_MARKER not in lowered:
+        return False
+    return any(marker in lowered for marker in RUNTIME_SAFE_MARKERS)
 
 
 def _looks_like_direct_projection_write(command: str) -> bool:
@@ -131,7 +133,9 @@ def main() -> int:
     if tool.lower() == "bash" or command:
         if _looks_like_direct_projection_write(command):
             return _deny(
-                "webnovel-writer blocked a direct write or bypass command for Story System/read-model files. Use webnovel.py write-gate, chapter-commit, or projections retry/replay instead."
+                "webnovel-writer blocked a direct write or bypass command for Story System/read-model files. "
+                f"Use the webnovel runtime commands instead (v7 书仓写链：{RUNTIME_WRITE_HINT}) so "
+                "commit/projection invariants stay consistent."
             )
         return 0
 

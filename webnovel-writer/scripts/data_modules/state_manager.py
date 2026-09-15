@@ -1482,7 +1482,7 @@ def main():
             emit_error(
                 "SQLITE_SYNC_FAILED",
                 "章节状态已写入 state.json，但 SQLite 同步失败",
-                suggestion=f"请运行 webnovel.py projections retry --chapter {args.chapter} 补偿投影",
+                suggestion=f"请排查 SQLite 可用性后重跑本章处理以重新同步（webnovel.py state process-chapter --chapter {args.chapter}）",
                 chapter=args.chapter,
             )
             raise SystemExit(1)

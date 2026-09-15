@@ -82,12 +82,15 @@ def test_guard_still_blocks_index_db_write():
     assert proc.returncode == 2
 
 
-def test_guard_allows_runtime_projection_command():
+def test_guard_allows_runtime_v7_write_command():
+    # CC 评审 A-1：受保护后缀 + python token 的同一形状，只要命令体是在役 v7 写链就不拦。
     proc = _run_guard(
         {
             "tool_name": "Bash",
             "tool_input": {
-                "command": 'python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" projections retry --chapter 3'
+                "command": 'python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" '
+                "v7-write settle --chapter 3 --draft drafts/draft-0003.md --json drafts/decision-3.json "
+                "--summary ok && ls -l .webnovel/index.db"
             },
         }
     )

@@ -165,6 +165,58 @@ def _check_marketplace(root: Path, plugin_version: str, issues: list[dict[str, s
         )
 
 
+def _check_marketplace_dual_location(root: Path, issues: list[dict[str, str]]) -> None:
+    """marketplace.json 双位置（仓库根 + .claude-plugin/）一致性校验。
+
+    AGENTS.md 约定两份并存；装机读取按「根优先」（见 :func:`_find_marketplace`），
+    但两份一旦漂移，「读哪份」就决定了对外的承诺面——实测 homepage 曾一份指本仓
+    （lgq-opc）、一份指分叉前的上游（lingfengQAQ），而四校验照样全绿（2026-09-14
+    夜审 I-2）。这里在**两份都存在**时做 JSON 相等比对，不等即 error。
+
+    只在「两份都在盘」时断言：只有一份时保持既有「根优先 / 兼容」读取语义不变，
+    也避免插件根（安装包）场景下误报。坏 JSON / BOM 按位置逐份报错，不整函数退出
+    ——否则「第二份坏了」会被静默放过（CC 评审 A-2）。
+    """
+    repo_root = _repo_root(root)
+    present = [repo_root / relative for relative in MARKETPLACE_RELATIVE_PATHS if (repo_root / relative).is_file()]
+    if len(present) < 2:
+        return
+    payloads: list[tuple[Path, dict[str, Any]]] = []
+    for path in present:
+        payload, error = _load_json(path)
+        if error:
+            # 逐位置报告，不整函数退出：`_check_marketplace` 只读「根优先」那一份，第二份
+            # （.claude-plugin/）坏了它根本看不见；这里若 return，就等于「最该守护的场景」
+            # 退化为静默全绿（CC 评审 A-2）。severity 与单份同源：插件根安装包可忽略该项。
+            issues.append(
+                _issue(
+                    "marketplace.json",
+                    message=error,
+                    severity="warning" if _is_plugin_root(root) else "error",
+                    path=str(path),
+                    repair="修复该位置 marketplace.json：两份必须存在、合法且逐字等价。",
+                )
+            )
+            continue
+        payloads.append((path, payload))
+    if len(payloads) < 2:
+        return
+    primary_path, primary = payloads[0]
+    for path, payload in payloads[1:]:
+        if payload != primary:
+            issues.append(
+                _issue(
+                    "marketplace.dual_location",
+                    message=(
+                        "marketplace.json 双位置内容不一致："
+                        f"{primary_path.relative_to(repo_root)} != {path.relative_to(repo_root)}"
+                    ),
+                    path=str(path),
+                    repair="两份 marketplace.json 必须逐字等价（含 homepage 等承诺面字段）；改后重跑本校验。",
+                )
+            )
+
+
 def _check_readme_version(root: Path, plugin_version: str, issues: list[dict[str, str]]) -> None:
     if _is_plugin_root(root):
         candidates = [_repo_root(root) / "README.md", root / "README.md"]
@@ -259,6 +311,7 @@ def validate_package(root: str | Path | None = None, *, strict: bool = False) ->
     issues: list[dict[str, str]] = []
     _, plugin_version = _check_manifest(repo_root, issues)
     _check_marketplace(repo_root, plugin_version, issues)
+    _check_marketplace_dual_location(repo_root, issues)
     _check_readme_version(repo_root, plugin_version, issues)
     _check_frontmatter(repo_root, issues)
     _check_optional_assets(repo_root, issues)
