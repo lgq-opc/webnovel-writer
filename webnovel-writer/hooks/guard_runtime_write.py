@@ -102,23 +102,33 @@ def _command_is_runtime_safe(command: str) -> bool:
     return any(marker in lowered for marker in RUNTIME_SAFE_MARKERS)
 
 
-def _looks_like_direct_projection_write(command: str) -> bool:
-    lowered = command.lower().replace("\\", "/")
-    if _command_is_runtime_safe(lowered):
+# 复合命令（`&&` / `||` / `;` / `|`）按段切分后逐段判定（CC 复评 R-1）：白名单只豁免
+# sanctioned 段自身，不能让 `… v7-write settle && rm -f .webnovel/index.db` 的破坏性
+# 后缀段搭车放行（改前命中白名单即整条 `return False`，拦截集因此在白名单换代后收缩）。
+_COMMAND_SEPARATOR_RE = re.compile(r"&&|\|\||[;|]")
+_PROTECTED_WRITE_RE = re.compile(
+    r"(?:^|\s)("
+    r">>|>|out-file|set-content|add-content|copy-item|move-item|remove-item|"
+    r"del|rm|rmdir|python|python3|cp|mv|tee|dd|sed\s+-\S*i|git\s+checkout"
+    r")(?=\s|$)"
+)
+
+
+def _segment_looks_like_direct_projection_write(segment: str) -> bool:
+    if _command_is_runtime_safe(segment):
         return False
-    protected_hit = any(suffix in lowered for suffix in PROTECTED_SUFFIXES)
     # 增量审阅 P3-17：补齐 cp/mv/rm/tee/sed -i/dd/git checkout 等绕过写入通道
-    if protected_hit and re.search(
-        r"(?:^|\s)("
-        r">>|>|out-file|set-content|add-content|copy-item|move-item|remove-item|"
-        r"del|rm|rmdir|python|python3|cp|mv|tee|dd|sed\s+-\S*i|git\s+checkout"
-        r")(?=\s|$)",
-        lowered,
-    ):
+    if any(suffix in segment for suffix in PROTECTED_SUFFIXES) and _PROTECTED_WRITE_RE.search(segment):
         return True
-    if "chapter_commit.py" in lowered and "webnovel.py" not in lowered:
+    if "chapter_commit.py" in segment and "webnovel.py" not in segment:
         return True
     return False
+
+
+def _looks_like_direct_projection_write(command: str) -> bool:
+    lowered = command.lower().replace("\\", "/")
+    segments = _COMMAND_SEPARATOR_RE.split(lowered)
+    return any(_segment_looks_like_direct_projection_write(segment) for segment in segments)
 
 
 def main() -> int:

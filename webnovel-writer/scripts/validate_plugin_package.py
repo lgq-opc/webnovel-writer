@@ -176,6 +176,11 @@ def _check_marketplace_dual_location(root: Path, issues: list[dict[str, str]]) -
     只在「两份都在盘」时断言：只有一份时保持既有「根优先 / 兼容」读取语义不变，
     也避免插件根（安装包）场景下误报。坏 JSON / BOM 按位置逐份报错，不整函数退出
     ——否则「第二份坏了」会被静默放过（CC 评审 A-2）。
+
+    文案与闸门同源（CC 复评 R-2）：单份是真兼容场景、不报错，故这里的 repair 只对
+    「两份都已存在」提等价要求；写成「两份必须存在」会与上面的放行行为脱钩。
+    注：把「第二份缺失」改成 error 会连带废掉既有 `ZCode 原生布局（仅仓库根
+    marketplace.json）` 场景（与 D5 同形状），故不取该支。
     """
     repo_root = _repo_root(root)
     present = [repo_root / relative for relative in MARKETPLACE_RELATIVE_PATHS if (repo_root / relative).is_file()]
@@ -194,7 +199,7 @@ def _check_marketplace_dual_location(root: Path, issues: list[dict[str, str]]) -
                     message=error,
                     severity="warning" if _is_plugin_root(root) else "error",
                     path=str(path),
-                    repair="修复该位置 marketplace.json：两份必须存在、合法且逐字等价。",
+                    repair="修复该位置 marketplace.json：两份都已存在时必须合法且逐字等价。",
                 )
             )
             continue
