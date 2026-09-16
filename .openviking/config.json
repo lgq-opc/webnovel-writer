@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "peer": { "id": "webnovel-writer" },
+  "recall": { "peer_scope": "all" }
+}
