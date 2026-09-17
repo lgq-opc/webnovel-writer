@@ -585,6 +585,9 @@ def test_context_agent_uses_v7_pack_and_six_domains():
     assert "定稿/" in text
     assert "memory-contract" not in text
     assert "chapter-commit" not in text
+    # §3.1 第 4 条：降级路径改指 pack 后，不得再教模型走 v6 装配链
+    assert "extract-context" not in text
+    assert "load-context" not in text
 
 
 def test_context_agent_loads_fixed_guides_and_outputs_writer_brief():

@@ -229,7 +229,7 @@ python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJEC
 | `update-state` | 手动更新状态 |
 | `backup` | 备份管理 |
 | `archive` | 归档管理 |
-| `extract-context` | 提取章节上下文（`--chapter N --format json`） |
+| `extract-context` | **frozen-legacy**（仅存量 v6 仓）。v7 写前上下文用 `v7-write pack` |
 
 ### 长期记忆子命令
 

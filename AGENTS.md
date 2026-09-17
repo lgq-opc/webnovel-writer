@@ -57,7 +57,7 @@ webnovel-writer/              ← 外层仓库根（marketplace.json 双位置�
 - 远程：git@github.com:lgq-opc/webnovel-writer.git
 - CI：`.github/workflows/plugin-tests.yml`（push master/v8-author 与 PR 按 scripts/mcp/dashboard 路径触发全量 pytest + 四校验脚本；依赖按 `requirements.lock` 锁定）
 - ZCode 装机：marketplace `webnovel-writer-marketplace` → 本仓库根（directory 源）
-- 当前待办入口：~~`docs/plans/2026-09-10-v6线退役方案.md`~~ **该方案已于 2026-09-18 按六条裁决收官**（权威口径见方案 **§3.1**：dashboard 对 v7 冻结下线 / RAG 正式下线 / `knowledge` 名册级定为正式 / context 链现在冻结、目标退役 / doctor 的 v6 体检保留 / Phase 2 冻结收口）。同日 `d075fdf` 的「选项 A 四项一律不接不删不改造」简写已作废。§3.1 第 ① 条对外口径已落地。剩余：D-4 装机验证（`t-20260913-012e`）、两份 0915 设计返工（`t-20260913-b673` / `t-20260913-25f8`）、技能改指 `extract-context` → `v7-write pack`。以下三份**已清空或降为历史**：`docs/TODO-from-v8-author-review.md`（2026-09-12 实测 24 项全 `[x]`）、`docs/zcode/v8-gap-review-3rounds/README.md`（P1-1~P4-3 全 ✅，2026-09-04 收官）、`docs/plans/2026-08-25-status-and-pending-work.md`（superseded）。现状截面见 `docs/reports/2026-09-12-需求与设计对账.md`
+- 当前待办入口：~~`docs/plans/2026-09-10-v6线退役方案.md`~~ **该方案已于 2026-09-18 按六条裁决收官**（权威口径见方案 **§3.1**：dashboard 对 v7 冻结下线 / RAG 正式下线 / `knowledge` 名册级定为正式 / context 链现在冻结、目标退役 / doctor 的 v6 体检保留 / Phase 2 冻结收口）。同日 `d075fdf` 的「选项 A 四项一律不接不删不改造」简写已作废。§3.1 第 ① 条对外口径、第 ② 条技能改指 `extract-context` → `v7-write pack` 均已落地。剩余：D-4 装机验证（`t-20260913-012e`）、两份 0915 设计返工（`t-20260913-b673` / `t-20260913-25f8`）、context 链级联删除（改指完成后另开）、D-5（R16/R17/R18）。以下三份**已清空或降为历史**：`docs/TODO-from-v8-author-review.md`（2026-09-12 实测 24 项全 `[x]`）、`docs/zcode/v8-gap-review-3rounds/README.md`（P1-1~P4-3 全 ✅，2026-09-04 收官）、`docs/plans/2026-08-25-status-and-pending-work.md`（superseded）。现状截面见 `docs/reports/2026-09-12-需求与设计对账.md`
 
 ## OpenCode 工作区规则：任务状态必须与代码同步
 

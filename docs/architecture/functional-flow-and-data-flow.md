@@ -86,7 +86,7 @@ graph TB
 | 环境定位 | `where` / `use` / `preflight [--all]` / `project-status` | 指针+只读体检 |
 | 初始化 | `webnovel.py init`（40+ 采集项）+ `story-system`（种子合同） | 建目录/合同 |
 | 规划 | `timeline-check` / `master-outline-sync` / `update-state` / `story-system --emit-runtime-contracts` | 大纲+state |
-| 上下文 | `context` / `extract-context` / `memory-contract load-context·query-*` / `setting-read` | 只读 |
+| 上下文 | `v7-write pack` + `setting-read`（现行）；`context` / `extract-context` 为 frozen-legacy | 只读 |
 | 检索 | `knowledge query-entity-state·query-relationships` / `index ·` 30+ 子命令 / `rag` | 只读 index.db |
 | 写章 | `write-gate --stage {prewrite,precommit,postcommit}` | 门禁快照 |
 | 提交 | `chapter-commit`（四 artifact）/ `projections retry·replay` | commits+投影 |
@@ -184,7 +184,9 @@ flowchart LR
 
 旁路写链（不走 commit）：`webnovel.py state process-chapter` → `StateManager.process_chapter_result` → FileLock + 锁内重读合并写 state.json → 增量同步 index.db（失败保留 pending 待重试）。
 
-### 4.2 读路径：上下文组装
+### 4.2 读路径：上下文组装（v6 frozen-legacy）
+
+> 2026-09-18 §3.1 第 4 条：在役写链已改指 `v7-write pack`（见 §4.3）。下图是冻结的 v6 装配链，不再作为写前入口。
 
 ```mermaid
 flowchart LR

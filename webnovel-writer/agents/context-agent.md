@@ -51,9 +51,9 @@ python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "{project_root}" inde
 
 ## 3. 执行流程
 
-1. `load-context --chapter {NNNN}` 取基础包；`Read` 章纲原文（load-context 的 outline 可能截断）。
-2. 确定卷号：优先 runtime contracts / latest commit；必要时兼容读取 `state.json` 投影。
-3. 按需深查：配角 → `query-entity`；规则 → `query-rules`；时间跨度 → `get-timeline` 或读时间线文件。时间规则：跨夜须过渡、倒计时不跳跃、不回跳。
+1. 主流程已跑 `v7-write pack`（见 §2）。`Read` `工作区/上下文包-{NNNN}.md` 取基础包；再 `Read` 章纲原文（包内章纲可能截断）。
+2. 确定卷号：优先上下文包与 `大纲/`（卷纲 / 章纲路径）；不要把 `.webnovel/state.json` 当写前真源。
+3. 按需深查：配角 → `knowledge query-entity-state`（名册级）或 Read `定稿/正文/`；规则 → `setting-read`；时间跨度 → 读 `大纲/` 时间线。时间规则：跨夜须过渡、倒计时不跳跃、不回跳。
    - **人物资产（M5/T26，R7）**：多角色同场对话或新角色命名时，Read `${SCRIPTS_DIR}/../references/shared/naming-and-voice-gaps.md`（对话声线/命名缺陷正反例），用于防止多角色同腔与命名同质化。
    - **视角资产（M5/T27，R11）**：多视角群像章组装时，Read `${SCRIPTS_DIR}/../references/shared/pov-management.md`（单章视角纪律/多 POV 切换规则/越界自检），任务书必须写明本章视角约束。
    - **承诺账本联动（M6/T28，A3）**：组装任务书前先取「本章应推进项」：
@@ -79,10 +79,10 @@ python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "{project_root}" inde
 ## 5. 输入
 
 ```json
-{"chapter": 100, "project_root": "D:/wk/斗破苍穹", "storage_path": ".webnovel/", "state_file": ".webnovel/state.json"}
+{"chapter": 100, "project_root": "D:/wk/斗破苍穹"}
 ```
 
-`state.json` 仅作兼容 / read-model 读取；写前合同以 `.story-system/`（`story_contracts`）为准。
+写前真源是六域（见 §2），不是 `.story-system/` 或 `state.json`。
 
 ## 6. 边界与校验
 
@@ -104,9 +104,9 @@ python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "{project_root}" inde
 
 不要把 `SubagentRun` JSON 写入任务书，也不要额外落盘。主流程会根据本 agent 的返回内容记录：
 
-- `status`：五段任务书完整为 `completed`；使用降级读取但仍可写为 `partial`；无法支撑起草为 `failed`。
-- `problems`：上下文不足、contracts 缺失、伏笔数据缺失、任务书不完整、耗时异常。
-- `auto_handled`：legacy fallback、`extract-context` 降级读取、跳过非阻断结构化节点。
+- `status`：五段任务书完整为 `completed`；`pack` 缺节后经六域补读仍可写为 `partial`；无法支撑起草为 `failed`。
+- `problems`：上下文不足、决策卡缺失、伏笔数据缺失、任务书不完整、耗时异常。
+- `auto_handled`：`pack` 缺节（对应域为空）、六域补读、跳过非阻断结构化节点。
 - `needs_user_action`：上下文严重不足或需要人工补录关键设定时为 true。
 - `duration_ms`：由主流程计时记录。
 - `outputs`：写作任务书。
@@ -115,8 +115,8 @@ python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "{project_root}" inde
 
 | 场景 | 处理 |
 |------|------|
-| load-context 返回空 | 降级为 `extract-context --chapter {NNNN} --format json` |
-| contracts 缺失 | 标明 legacy fallback |
+| 上下文包缺失或为空 | 按 §2 再跑一次 `v7-write pack`；仍空则 Read 六域（章纲 / 名册 / 上章正文）。不足则 blocker |
+| 决策卡缺失 | 回到写技能步骤 1 补 `v7-write decision` |
 | chapter_meta 缺失 | 跳过"接住上章" |
 | 伏笔数据缺失 | 标注"需人工补录"，不静默跳过 |
 | 章纲无结构化节点 | 跳过情节结构，不阻断 |
