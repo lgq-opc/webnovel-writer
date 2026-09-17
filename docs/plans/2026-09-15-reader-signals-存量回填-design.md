@@ -2,7 +2,8 @@
 
 > 派单：Hermes 编排台设计单①（改派 ZCode / GLM-5.3-Flash）｜2026-09-15
 > 基线：`v8-author` @ `578b4bf`（现场 `git log --oneline -1` 核对；任务书起草时的 `676fc5c` 已过期）
-> 分支：`pilot/reader-backfill`（worktree `…\webnovel-writer.pilot-reader-backfill`）
+> 分支：`pilot/reader-backfill`（设计文档提交 `359383d`，已合入 `v8-author` @ `bce58ea`）
+> **0915 评审必改已返工**（2026-09-18；编排台评审 §1.5：① 提交已由 `359383d` 满足；② 命令 A 路径写法见 §2.2）
 > 性质：**只出设计，不改代码、不跑真实回填**；不确定项见 §6 未决问题
 > 输入：`docs/plans/2026-09-13-reader-signals-v7-plan.md`、`…-v7-spec.md`、
 > `webnovel-writer/scripts/data_modules/reader_signal_builder.py`、
@@ -43,8 +44,15 @@ reader_signals 已在 v7 写链接通（2026-09-13 spec/plan 落地）：钩子�
 
 ### 2.2 清点命令 A：正文钩子字段现状（自包含，只读）
 
+> **路径写法（0915 评审必改 2）**：给**原生 Windows Python** 的 `BOOK` 必须用 `C:/...`。
+> 原文曾写 `BOOK=/c/lgq/...`（MSYS 路径）。Git Bash 的 `grep` 吃 `/c/` 没问题（命令 B 仍可），
+> 但 `py -3.13` / 系统 `python` 把 `/c/...` 当成相对路径，`glob` 空转后**正常退出**，输出静默变成
+> `0/0/0/0`。0915 评审在同一台机器上对照：`BOOK=/c/...` → `0/0/0/0`；`BOOK=C:/...` →
+> `42/0/0/42` + `.cache` 0 行（即下方「实测输出」）。脚本末尾 `assert total > 0` 防呆，避免
+> 实施者把空转当成「无事可做」。
+
 ```bash
-BOOK=/c/lgq/ai-workspace/.tmp/wn-verify-810/fantasy01-pov
+BOOK=C:/lgq/ai-workspace/.tmp/wn-verify-810/fantasy01-pov
 python -X utf8 - "$BOOK" <<'PY'
 import sys
 from pathlib import Path
@@ -63,6 +71,10 @@ for p in sorted(body_dir.glob("*.md")):
     rows.append((p.name, has_type, has_strength))
 
 total = len(rows)
+assert total > 0, (
+    f"定稿/正文为空或路径无效: {body_dir} "
+    "（Windows 原生 Python 不要用 /c/... MSYS 路径，改用 C:/...）"
+)
 full = sum(1 for _, t, s in rows if t and s)
 half = sum(1 for _, t, s in rows if t != s)
 none = sum(1 for _, t, s in rows if not t and not s)
@@ -95,7 +107,7 @@ PY
 ### 2.3 清点命令 B：回填数据源分布（卷纲详细大纲的钩子行）
 
 ```bash
-BOOK=/c/lgq/ai-workspace/.tmp/wn-verify-810/fantasy01-pov
+BOOK=C:/lgq/ai-workspace/.tmp/wn-verify-810/fantasy01-pov
 F="$BOOK/大纲/卷纲/第01卷-详细大纲.md"
 grep -c "^## 第[0-9]" "$F"        # 章小节数
 grep -c "^- 钩子：" "$F"           # 钩子行数
@@ -169,17 +181,21 @@ python v7_write.py backfill-hook --repo <v7仓> --chapter 41 --hook-type 悬念�
 # 批量模式可加：--report <path.json>（逐章结果落盘）；--no-commit（非 git 仓兜底）
 ```
 
-语义：`--from-outline` 从 `大纲/卷纲/第NN卷-详细大纲.md` 的 `^- 钩子：(<类型>钩)——` 行抽取类型
-（说明文字不进 front matter，只进状态文件的 `source` 字段供审计）；`--chapter` 显式模式跳过大纲，
-以参数值为准。两个模式共用同一落盘函数。
+语义：`--from-outline` 从 `大纲/卷纲/第NN卷-详细大纲.md` 按 `## 第N章` 分段，只在**该段内**抽
+`^- 钩子：` 行（类型词形 `^- 钩子：(<类型>钩)——`；说明文字不进 front matter，只进状态文件的
+`source` 字段供审计）。`--chapters 1-42` 的映射口径是**现存** `定稿/正文/NNNN-*.md`：范围内
+缺文件的章记该章 `failed`，不按卷纲小节数硬凑。`--chapter` 显式模式跳过大纲，以参数值为准。
+两个模式共用同一落盘函数。
 
 ### b. 幂等与断点续跑
 
 - **幂等主键＝front matter 已有 `钩子类型:`**（与 `_iter_reading_power` 的入表条件同一条判据，K-6）。
   已有 → 该章 `skipped`，永不二次插入；重复执行整批，结果收敛（第二次全 skipped、0 commit）。
 - **断点双账本**：
-  1. 状态文件 `.webnovel/tmp/backfill-hook-state.json`（该目录在书仓 `.gitignore` 内、已有
-     `chapter_meter.json` 活标记先例），逐章记录 `{chapter, status: done|skipped|failed,
+  1. 状态文件 `.webnovel/tmp/backfill-hook-state.json`（该目录在书仓 `.gitignore` 内；
+     **机制先例**在 `chapter_meter.py:9-10,22`——`meter start` 写入 / `stop` 移除活标记。
+     0915 评审核对样本现场 `.webnovel/tmp/` 当时只有 `review_results.json`，**无** `chapter_meter.json`），
+     逐章记录 `{chapter, status: done|skipped|failed,
      hook_type, hook_strength, source, commit_sha, reason}`；重跑先读它，`done/skipped` 直接跳过。
   2. git 历史：每章独立 commit（`backfill: 第0041章 钩子回填（悬念钩/strong）`）。
      状态文件丢失（tmp 清理）时，`git log --grep=^backfill:` 可重建断点视图。
@@ -254,6 +270,7 @@ body 逐字节不变 / 单章失败不阻断 / 状态文件断点续跑 / 非词
 
 ## 7. 任务书 §4 对照
 
-- [x] 分支 `pilot/reader-backfill` 存在，含 1 个提交（本设计文档）
+- [x] 分支 `pilot/reader-backfill` 存在，含 1 个提交（本设计文档，`359383d`）
 - [x] 设计文档含：现状勘察（可复跑命令 A/B + 原始输出，§2）、回填方案 a–e（§4）、未决问题清单（§6）
 - [x] 不改任何生产代码；`git status` 除本设计文档外干净
+- [x] 0915 评审必改：① 提交已满足；② 命令 A 改原生 `C:/...` 路径并加 `assert total > 0`（2026-09-18 返工）

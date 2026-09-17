@@ -1,6 +1,6 @@
 # R13 排序能力是否搬进 v7 pack（设计单）
 
-> 状态：[x] 设计交付（试点分支 `pilot/r13-pack`，2026-09-15；**不 push、不合入**，删除/搬迁的执行均不在本单范围）
+> 状态：[x] 设计交付（试点分支 `pilot/r13-pack` @ `5fe1026`，2026-09-15）＋ **0915 评审必改已返工**（2026-09-18；编排台评审 §2.5 三条行号勘误）
 > 派单方：Hermes 编排台（改派 ZCode / GLM-5.3-Flash）｜ 来源：todohub `t-20260913-b673`
 > 基线：任务书起草时写 `v8-author @ 676fc5c`；**现场核对 HEAD = `578b4bf`**（其后又合入 pilot/dataagent-fix、pilot/memcontract 两单，不影响本单对象模块）
 > 结论预告：**推荐案 B「冻结、随 context_manager 链处置」，不建议现在搬**——链的去留已由 2026-09-18 退役方案 §3.1 第 4 条裁定（现在冻结，目标退役，本轮不删）。理由与其余未决见 §5/§6。
@@ -10,7 +10,7 @@
 R13/W8/F-13 同源：排序信号弱且「奖励冗长」。2026-09-12 已实现（提交 `01fe438`），改动分落两处：
 
 - **改动 1**：`context_ranker.py` 的 `_length_score`（len/1200，奖励长摘要）替换为 `_density_score`（关键词组命中数 × 长度 log 稀释，`context_ranker.py:272-292`；关键词组表 `:27-34`）；
-- **改动 2**：`memory/orchestrator.py` 的 `_filter_relevant` 由整串子串包含改为「实体别名展开 + 词元重合度」（`memory/orchestrator.py:122-168`）。
+- **改动 2**：`memory/orchestrator.py` 的 `_filter_relevant`（定义 `:103`）由整串子串包含改为「实体别名展开 + 词元重合度」（匹配子方法 `:122-168`）。
 
 两处**互不 import**。改动 2 不在「搬 pack」的讨论范围（它属 memory/ 包，且该包归退役方案 §1.5 C 类「待判定」）；本单只裁决改动 1 所在的 `context_ranker` 模块。
 
@@ -31,13 +31,14 @@ R13/W8/F-13 同源：排序信号弱且「奖励冗长」。2026-09-12 已实现
 ### 2.2 上游链（谁触发 rank_pack）
 
 ```
-webnovel.py CLI「context」子命令（webnovel.py:1327 定义，:1502 转发 _run_data_module("context_manager")）
-  └─→ extract_chapter_context.py:295-301（build_chapter_context_payload 内实例化 ContextManager）
+data_modules/webnovel.py CLI「context」子命令（data_modules/webnovel.py:1327 定义，:1502 转发 _run_data_module("context_manager")）
+  └─→ extract_chapter_context.py:294-301（_load_contract_context 内实例化 ContextManager；
+        build_chapter_context_payload 在 :327，本身不含直接实例化）
         └─→ context_manager.build_context()（context_manager.py:108-120）
-              ├─→ _build_pack()（:210 起，v6 state.json/SQLite 数据面装配）
+              ├─→ _build_pack()（:208 起，v6 state.json/SQLite 数据面装配）
               ├─→ ContextRanker.rank_pack()（:120，排序+预算截断）   ← R13 改动 1 的作用点
               └─→ [可选] MemoryOrchestrator（:211-221，context_use_memory_orchestrator
-                    默认 False＝config.py:341；R13 改动 2 在其 _filter_relevant）
+                    默认 False＝config.py:341；R13 改动 2 在 _filter_relevant:103）
 ```
 
 即整条链是 **v6 装配链**：入口是 v6 CLI `context` / `extract-context`，数据面是 v6 的 state.json + SQLite 投影。
@@ -88,9 +89,9 @@ $ PYTHONUTF8=1 py -3.13 -X utf8 -m pytest data_modules/tests/test_context_ranker
 
 | 机制 | 落点 | 行为 |
 |---|---|---|
-| 固定近因窗 | `v7_write.py:341-345` | 摘要只取**前 3 章**、每章截 500 字符、按章号升序——不看内容重要性 |
-| 决策卡驱动 | `v7_write.py:347-350` | `entities` 完全跟随决策卡实体表顺序，`find_entity`（v7_cache）查名册补齐——无排序 |
-| 静态配额裁剪 | `v7_write.py:29-56, 384-397` | 每节配额 `V7_SECTION_QUOTAS`（`apply_quota` 截断，`context_budget.py:130`）→ 超总预算按 `V7_DROP_ORDER` **整段丢弃**（PROTECTED 四节只截不丢）→ 尾部硬截。丢弃粒度是「整个 section」，不是「section 内低分条目」 |
+| 固定近因窗 | `v7_write.py:325-330` | 摘要只取**前 3 章**、每章截 500 字符、按章号升序——不看内容重要性（`:341-345` 是 `prev_chapter_tail`，不是本机制） |
+| 决策卡驱动 | `v7_write.py:332-336` | `entities` 完全跟随决策卡实体表顺序，`find_entity`（v7_cache）查名册补齐——无排序（`:347-350` 是 `book_meta`） |
+| 静态配额裁剪 | `v7_write.py:29-56, 387-408` | 每节配额 `V7_SECTION_QUOTAS`（`apply_quota` 截断，`context_budget.py:130`）→ 超总预算按 `V7_DROP_ORDER` **整段丢弃**（PROTECTED 四节只截不丢）→ 尾部硬截。丢弃粒度是「整个 section」，不是「section 内低分条目」 |
 
 与 ranker 的能力逐项对照：
 
