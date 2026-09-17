@@ -15,7 +15,6 @@ from typing import Optional
 
 from runtime_compat import normalize_windows_path
 
-from .context_weights import TEMPLATE_WEIGHTS_DYNAMIC_DEFAULT
 
 def _get_user_claude_root() -> Path:
     # 双宿主：ZCODE_* 优先，CLAUDE_* 回退；默认 ZCode 目录有配置时优先。
@@ -84,16 +83,6 @@ def _load_project_dotenv(project_root: Path) -> None:
         return
 
 _load_dotenv()
-
-
-def _default_context_template_weights_dynamic() -> dict[str, dict[str, dict[str, float]]]:
-    return {
-        stage: {
-            template: dict(weights)
-            for template, weights in templates.items()
-        }
-        for stage, templates in TEMPLATE_WEIGHTS_DYNAMIC_DEFAULT.items()
-    }
 
 
 @dataclass
@@ -255,73 +244,12 @@ class DataModulesConfig:
     max_disambiguation_pending: int = 1000
     max_state_changes: int = 2000
 
+    # memory/orchestrator 与 settings_digest 仍读取这两项；其余 context_* 旋钮
+    # 只服务已删的 context_manager 链，2026-09-18 随孤儿清理去掉。
     context_recent_summaries_window: int = 3
-    context_recent_meta_window: int = 3
-    context_alerts_slice: int = 10
-    # M5/T22（R1/W1）：上一章原文尾段字数（语气/钩子连续性第一手依据）
-    context_prev_chapter_tail_chars: int = 1600
-    context_load_total_budget: int = field(
-        default_factory=lambda: int(os.getenv("WEBNOVEL_CONTEXT_LOAD_TOTAL_BUDGET", "20000") or 20000)
-    )
-    context_settings_digest_enabled: bool = True
     context_settings_digest_max_chars: int = 240
     # S18/E4：v7 story-repo 仓库根（双格式期间由 S16 迁移器/作者配置；空 = v7 侧不存在）
     story_repo_root: str = field(default_factory=lambda: os.getenv("STORY_REPO_ROOT", ""))
-    context_max_appearing_characters: int = 10
-    context_max_urgent_foreshadowing: int = 5
-    context_story_skeleton_interval: int = 20
-    context_story_skeleton_max_samples: int = 5
-    context_story_skeleton_snippet_chars: int = 400
-    context_extra_section_budget: int = 800
-    context_reader_signal_enabled: bool = True
-    context_reader_signal_recent_limit: int = 5
-    context_reader_signal_window_chapters: int = 20
-    context_reader_signal_review_window: int = 5
-    context_reader_signal_include_debt: bool = False
-    context_genre_profile_enabled: bool = True
-    context_genre_profile_max_refs: int = 8
-    context_genre_profile_fallback: str = "shuangwen"
-    # P1-4：设定文件注入截断（0 = 不截断）；recent_summaries 默认路径摘要截断
-    context_setting_max_chars: int = 4000
-    context_recent_summary_max_chars: int = 800
-    context_writing_guidance_enabled: bool = True
-    context_writing_guidance_max_items: int = 6
-    context_writing_guidance_low_score_threshold: float = 75.0
-    context_writing_guidance_hook_diversify: bool = True
-    context_methodology_enabled: bool = True
-    context_methodology_genre_whitelist: tuple[str, ...] = ("*",)
-    context_methodology_label: str = "digital-serial-v1"
-    context_writing_checklist_enabled: bool = True
-    context_writing_checklist_min_items: int = 3
-    context_writing_checklist_max_items: int = 6
-    context_writing_checklist_default_weight: float = 1.0
-    context_writing_score_persist_enabled: bool = True
-    context_writing_score_include_reader_trend: bool = True
-    context_writing_score_trend_window: int = 10
-    context_rag_assist_enabled: bool = True
-    context_rag_assist_top_k: int = 4
-    context_rag_assist_min_outline_chars: int = 40
-    context_rag_assist_max_query_chars: int = 120
-    context_dynamic_budget_enabled: bool = True
-    context_dynamic_budget_early_chapter: int = 30
-    context_dynamic_budget_late_chapter: int = 120
-    context_dynamic_budget_early_core_bonus: float = 0.08
-    context_dynamic_budget_early_scene_bonus: float = 0.04
-    context_dynamic_budget_late_global_bonus: float = 0.08
-    context_dynamic_budget_late_scene_penalty: float = 0.06
-    context_template_weights_dynamic: dict[str, dict[str, dict[str, float]]] = field(
-        default_factory=_default_context_template_weights_dynamic
-    )
-    context_genre_profile_support_composite: bool = True
-    context_genre_profile_max_genres: int = 2
-    context_genre_profile_separators: tuple[str, ...] = (
-        "+",
-        "/",
-        "|",
-        ",",
-        "，",
-        "、",
-    )
     memory_orchestrator_max_items: int = 30
     memory_orchestrator_recent_changes_limit: int = 10
     memory_orchestrator_source_window: int = 20

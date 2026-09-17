@@ -43,30 +43,22 @@ def test_load_dotenv(monkeypatch, tmp_path):
     assert os.environ.get("EMBED_BASE_URL") == "https://example.com"
 
 
-def test_config_default_context_template_weights_dynamic_is_available(tmp_path):
+def test_config_keeps_live_context_knobs(tmp_path):
     cfg = DataModulesConfig.from_project_root(tmp_path)
-    dynamic = cfg.context_template_weights_dynamic
-
-    assert isinstance(dynamic, dict)
-    assert "early" in dynamic
-    assert "mid" in dynamic
-    assert "late" in dynamic
-    assert "plot" in dynamic["early"]
+    assert cfg.context_recent_summaries_window == 3
+    assert cfg.context_settings_digest_max_chars == 240
 
 
-def test_config_dynamic_template_weights_are_independent_instances(tmp_path):
-    cfg1 = DataModulesConfig.from_project_root(tmp_path)
-    cfg2 = DataModulesConfig.from_project_root(tmp_path)
-
-    cfg1.context_template_weights_dynamic["early"]["plot"]["core"] = 0.77
-
-    assert cfg2.context_template_weights_dynamic["early"]["plot"]["core"] != 0.77
-
-
-def test_context_load_total_budget_env_override(monkeypatch, tmp_path):
-    """S23：v6 侧总预算支持 per-book env 覆盖（项目 .env / 环境变量，同 STORY_REPO_ROOT 先例）。"""
-    monkeypatch.delenv("WEBNOVEL_CONTEXT_LOAD_TOTAL_BUDGET", raising=False)
-    assert DataModulesConfig.from_project_root(tmp_path).context_load_total_budget == 20000
-
-    monkeypatch.setenv("WEBNOVEL_CONTEXT_LOAD_TOTAL_BUDGET", "12345")
-    assert DataModulesConfig.from_project_root(tmp_path).context_load_total_budget == 12345
+def test_config_drops_retired_context_manager_knobs(tmp_path):
+    """context_manager 链删除后，其专用旋钮不得再出现在配置面上。"""
+    cfg = DataModulesConfig.from_project_root(tmp_path)
+    for name in (
+        "context_load_total_budget",
+        "context_template_weights_dynamic",
+        "context_methodology_enabled",
+        "context_writing_guidance_enabled",
+        "context_rag_assist_enabled",
+        "context_genre_profile_enabled",
+        "context_prev_chapter_tail_chars",
+    ):
+        assert not hasattr(cfg, name), name

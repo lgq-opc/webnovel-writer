@@ -292,6 +292,10 @@ KNOWN_DELETED_FILES = [
     "extract_chapter_context.py",
     "context_manager.py",
     "context_ranker.py",
+    "genre_profile_builder.py",
+    "writing_guidance_builder.py",
+    "genre_aliases.py",
+    "context_weights.py",
 ]
 
 _KNOWN_CLI_EXCEPTIONS = {}
