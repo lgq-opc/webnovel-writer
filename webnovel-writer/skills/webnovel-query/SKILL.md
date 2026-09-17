@@ -36,9 +36,9 @@ export PROJECT_ROOT="$(python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-roo
 | 综合 / 复杂 | 跨多类型、需要时间线 + 长期记忆联合 | `v7-write pack --chapter {N}`（产出上下文包） |
 | 静态设定 | 角色卡 / 力量体系 / 世界观 / 势力 / 标签格式 | `Grep` + `Read` `设定/` |
 
-> **v7 的能力边界（勿臆造）**：v7 写链**不产**实体逐章状态与实体关系。`knowledge query-entity-state`
-> 在 v7 仓只答名册级（正名/别名/首现章），返回体的 `not_covered` 会写明这一点；
-> **没有** `knowledge query-relationships` 的 v7 等价物——关系要自己从 `定稿/正文/` 与 `大纲/条目/` 判读。
+> **v7 的 `knowledge` 是正式行为，不是临时缺口**（2026-09-18 裁决）：只答名册级（正名/别名/首现章）。
+> v7 写链**不产**实体逐章状态与关系，返回体的 `not_covered` 会写明。设定全文走 `setting-read` / 六域文件。
+> **没有** `knowledge query-relationships` 的 v7 等价物——关系从 `定稿/正文/` 与 `大纲/条目/` 判读。
 
 ## 引用加载策略
 

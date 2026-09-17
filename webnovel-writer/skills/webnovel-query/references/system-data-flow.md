@@ -67,12 +67,12 @@ purpose: 项目初始化和状态查询时加载，理解数据结构
 | 工具 / 命令 | 取数来源 | v7 上的边界 |
 |---|---|---|
 | `setting-read --name X` | `设定/`（旧仓 `设定集/` 兜底） | — |
-| `knowledge query-entity-state` | `.cache` 的 `entities`（名册级：正名/别名/首现章） | **不产**实体逐章状态与实体关系；返回体 `not_covered` 会写明 |
+| `knowledge query-entity-state` | `.cache` 的 `entities`（名册级：正名/别名/首现章） | **正式行为**（2026-09-18）：不产逐章状态与关系；`not_covered` 会写明 |
 | `foreshadow-scan` / `promise-ledger` | `大纲/条目/` + 账本 | 伏笔/悬念/承诺的现行入口 |
 | `index get-reader-signals` | `.cache` 的 `chapter_reading_power` | `review_trend` **恒为空**（v7 无生产者） |
 | `meter report` | 宿主用量库（非书仓数据） | — |
 | `v7-write pack` | 六域聚合 | 综合/跨类型查询的唯一入口 |
-| `rag` / `context` / `status` | — | **v7 明示不支持**（数据源在 v6 域）；各自返回替代指引 |
+| `rag` / `context` / `status` | — | **v7 明示不支持**（RAG 已于 2026-09-18 正式下线；context 请用 `v7-write pack`） |
 
 静态设定（角色卡 / 力量体系 / 世界观 / 标签格式）直接用 `Grep` 定位行号再 `Read` 取片段。
 

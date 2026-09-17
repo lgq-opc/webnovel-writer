@@ -25,8 +25,8 @@
 | `/webnovel-review` | 多维度审查章节并把指标落库 |
 | `/webnovel-query` | 查询设定、角色、伏笔、运行时信息（只读） |
 | `/webnovel-learn` | 把有效写法沉淀进项目长期记忆 |
-| `/webnovel-dashboard` | 启动只读可视化面板 |
-| `/webnovel-doctor` | 体检项目文件、数据库、RAG、依赖和 Dashboard 产物 |
+| `/webnovel-dashboard` | 启动只读可视化面板（**仅存量 v6 仓**；纯 v7 明示不支持） |
+| `/webnovel-doctor` | 体检项目文件、数据库、依赖和 Dashboard 产物（v6 仓另含 RAG 向量库检查） |
 
 ### 4 个 Agent
 
@@ -61,7 +61,7 @@ Python 依赖：
 python -m pip install -r scripts/requirements.txt
 ```
 
-RAG 检索需在书项目根目录配置 `.env`（缺失时自动退回 BM25 关键词检索）。详见 [RAG 与配置](../docs/guides/rag-and-config.md)。
+RAG 已于 2026-09-18 对 v7 **正式下线**（无向量库）。存量 v6 仓的检索链冻结，配置见 [RAG 与配置](../docs/guides/rag-and-config.md)；纯 v7 请用 `v7-write pack` / `setting-read`。
 
 ## 最小验证
 

@@ -1,6 +1,6 @@
 ---
 name: webnovel-dashboard
-description: 启动只读小说管理面板，查看项目状态、实体图谱与章节内容。
+description: 启动只读小说管理面板（仅存量 v6 仓；纯 v7 明示不支持）。
 allowed-tools: Bash Read
 ---
 
@@ -8,9 +8,10 @@ allowed-tools: Bash Read
 
 ## 目标
 
-- 在本地启动只读 Web 面板，查看创作进度、设定词典、关系图谱、章节内容与追读力数据。
+- **仅存量 v6 仓**：在本地启动只读 Web 面板，查看创作进度、设定词典、关系图谱、章节内容与追读力数据。
 - 暴露 Story Runtime 主链状态：`/api/story-runtime/health`、latest commit、fallback 情况。
 - 可监听 `.webnovel/` 变化，但不修改任何项目文件。
+- **纯 v7 书仓明示不支持**（2026-09-18 裁决）：本面板读 v6 投影（`.webnovel/state.json` / `index.db`），不接 `.cache`、不另建 v7 读侧。v7 请用 `doctor` / `project-status` / `setting-read`，或直接打开 `定稿/` `大纲/` `设定/`。
 
 ## 执行流程
 
@@ -36,6 +37,10 @@ echo "项目路径: ${PROJECT_ROOT}"
 ```
 
 `PROJECT_ROOT` 必须解析成功。
+
+### Step 2.5：纯 v7 仓不要启动
+
+若书仓有 `book.yaml` 且没有 `.webnovel/state.json`，这是纯 v7 仓。**向作者说明 Dashboard 不支持纯 v7，然后退出**，不要进入 Step 4。启动脚本本身也会拒绝，本步是为了先用自然语言交代替代入口。
 
 ### Step 3：校验前端产物与依赖
 
@@ -70,17 +75,19 @@ python -X utf8 -m dashboard.server --project-root "${PROJECT_ROOT}"
 
 ## 成功标准
 
-- Dashboard 进程已启动并输出可访问 URL；页面显示项目数据（章节列表、实体图谱等）。
+- **v6 仓**：Dashboard 进程已启动并输出可访问 URL；页面显示项目数据（章节列表、实体图谱等）。
+- **纯 v7 仓**：未启动进程，已向作者说明不支持及替代入口（doctor / 六域文件）。这是预期行为，不是故障。
 
 ## 失败恢复
 
 | 故障 | 恢复方式 |
 |------|---------|
+| 报「不支持纯 v7 书仓」 | 预期。改用 `doctor` / `project-status` / `setting-read` 或打开六域目录 |
 | 启动报缺依赖 | 手动 `pip install -r "${DASHBOARD_DIR}/requirements.txt"`，检查 Python 版本与网络 |
 | 前端 `dist/` 缺失 | 确认插件完整安装，dist 应随插件打包 |
-| 项目根解析失败 | 检查 `.webnovel/state.json` 是否存在，确认 `WORKSPACE_ROOT` 正确 |
+| 项目根解析失败 | 检查 `book.yaml`（v7）或 `.webnovel/state.json`（v6）是否存在，确认 `WORKSPACE_ROOT` 正确 |
 | 端口占用 | 用 `--port <其他端口>` 或关闭占用进程 |
-| 页面空白/数据缺失 | 确认 `.webnovel/` 下有 state.json、index.db 等数据文件 |
+| 页面空白/数据缺失（v6） | 确认 `.webnovel/` 下有 state.json、index.db 等数据文件 |
 
 ## 安全边界
 

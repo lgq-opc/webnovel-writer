@@ -13,6 +13,29 @@ import webbrowser
 from pathlib import Path
 
 
+_V7_UNSUPPORTED_MSG = (
+    "Dashboard 不支持纯 v7 书仓。本面板读的是 v6 投影（.webnovel/state.json 与 index.db），"
+    "v7 没有这些文件。请用 doctor / project-status / setting-read，或直接打开 定稿/ 大纲/ 设定/。"
+    "存量 v6 仓仍可启动。"
+)
+
+
+def refuse_v7_dashboard(project_root: Path) -> str | None:
+    """纯 v7 书仓返回拒绝理由；v6 仓返回 None。
+
+    2026-09-18 退役方案 §3.1 第 1 条：dashboard 对纯 v7 明示不支持，不接 .cache、不另建读侧。
+    """
+    scripts_dir = Path(__file__).resolve().parents[1] / "scripts"
+    scripts_entry = str(scripts_dir)
+    if scripts_entry not in sys.path:
+        sys.path.insert(0, scripts_entry)
+    from data_modules.domain_contract import resolve_write_mode
+
+    if resolve_write_mode(project_root) == "v7":
+        return _V7_UNSUPPORTED_MSG
+    return None
+
+
 def _resolve_project_root(cli_root: str | None) -> Path:
     """按优先级解析 PROJECT_ROOT：CLI > 环境变量 > .claude 指针 > CWD。"""
     if cli_root:
@@ -61,6 +84,10 @@ def main():
         )
 
     project_root = _resolve_project_root(args.project_root)
+    blocked = refuse_v7_dashboard(project_root)
+    if blocked:
+        print(f"ERROR: {blocked}", file=sys.stderr)
+        sys.exit(1)
     print(f"项目路径: {project_root}")
 
     # 延迟导入，以便先处理路径

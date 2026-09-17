@@ -1,5 +1,5 @@
 ---
-description: 启动只读小说管理面板
+description: 启动只读小说管理面板（仅存量 v6 仓；纯 v7 明示不支持）
 allowed-tools: Skill
 ---
 

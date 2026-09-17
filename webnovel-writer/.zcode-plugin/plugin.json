@@ -1,7 +1,7 @@
 {
   "name": "webnovel-writer",
   "version": "8.1.0",
-  "description": "长篇网文创作系统（skills + agents + data chain + RAG），ZCode 原生插件：自带只读 MCP 查询服务与 /webnovel:* 斜杠命令",
+  "description": "长篇网文创作系统（skills + agents + 六域书仓 + MCP 只读查询），ZCode 原生插件：自带只读 MCP 查询服务与 /webnovel:* 斜杠命令",
   "author": {
     "name": "lingfengQAQ"
   },
@@ -13,8 +13,7 @@
     "zcode",
     "skills",
     "agents",
-    "mcp",
-    "rag"
+    "mcp"
   ],
   "skills": "skills",
   "hooks": "hooks",

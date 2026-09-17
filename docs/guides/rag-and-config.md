@@ -1,5 +1,7 @@
 # RAG 与配置说明
 
+> **2026-09-18：RAG 对 v7 正式下线。** 本页只适用于存量 **v6** 书仓（有 `.webnovel/state.json`）的冻结检索链。纯 v7 仓没有向量库；`webnovel.py rag …` 返回 `unsupported`。写前上下文请用 `v7-write pack`，设定请用 `setting-read` 或直接读六域文件。
+
 ## RAG 检索流程
 
 系统在写作时自动从历史章节中检索相关内容，辅助保持一致性。

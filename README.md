@@ -66,8 +66,8 @@ Webnovel Writer 用业余时间维护。如果它帮你省下了梳理设定、�
 | 质量审查 | `/webnovel:review` | 从爽点、一致性、节奏、OOC、连贯性、文笔（prose_check）等六维审查章节 |
 | 状态查询 | `/webnovel:query` | 查询角色、伏笔、节奏、实体关系和运行时信息（只读） |
 | 项目学习 | `/webnovel:learn` | 把这本书里好用的写法记下来，存进项目长期记忆 |
-| 可视化面板 | `/webnovel:dashboard` | 只读浏览项目状态、实体图谱、章节内容、追读力与治理六视图 |
-| 项目体检 | `/webnovel:doctor` | 阶段感知检查目录、文件、数据库、RAG、依赖和 Dashboard 产物 |
+| 可视化面板 | `/webnovel:dashboard` | 只读浏览项目状态、实体图谱、章节内容、追读力与治理六视图（**仅存量 v6 仓**；纯 v7 明示不支持） |
+| 项目体检 | `/webnovel:doctor` | 阶段感知检查目录、文件、数据库、依赖和 Dashboard 产物（v6 仓另含 RAG 向量库检查） |
 | 短状态 | `/webnovel:status` | 书项目阶段、断点、计量一行看 |
 | 素材工作台 | `/webnovel:materials` | 素材十表状态 / 装配预览 / 入库三通道 / 卷审 |
 | 设定工坊 | `/webnovel:forge` | 境界 / 功法 / 法宝 / 命名四生成器，提案模式（AI 只提议、作者只确认） |
@@ -76,7 +76,7 @@ Webnovel Writer 用业余时间维护。如果它帮你省下了梳理设定、�
 
 会话内还自动挂载 `webnovel` MCP 服务（12 个只读工具：where / project_status / doctor / setting_read / timeline_check / meter / knowledge / materials_status / materials_assemble / power_check / foreshadow_scan / reader_signals），供 AI 结构化查询，不暴露写路径。
 
-> **v7 书仓的工具面差异**：`rag_search` 与 `context` 已撤出工具面（D-2 乙，2026-09-13）——前者数据源是 v6 的 `vectors.db`，v7 侧无向量库且补生产等于新建 embedding 子系统；后者已被 `v7-write pack`（上下文包）取代，留着是冗余。`knowledge` 保留但按书仓形态分流：v6 仓答「指定章节的实体状态/关系」，v7 仓答**名册级**信息（正名/别名/首现章）并显式声明未覆盖逐章状态与关系（v7 写链不产这两类数据）。
+> **v7 书仓的工具面差异**：`rag_search` 已撤出 MCP 且 RAG **正式下线**（2026-09-18）——v7 无向量库，`webnovel.py rag` 返回 `unsupported`。`context` 已撤出，写前上下文用 `v7-write pack`。`knowledge` 按书仓形态分流是**正式行为**：v6 仓答指定章节的实体状态/关系，v7 仓只答名册级（正名/别名/首现章）并声明未覆盖逐章状态。`/webnovel:dashboard` 对纯 v7 明示不支持。
 
 ## 系统长什么样
 
