@@ -103,7 +103,7 @@
 
 12 个工具全部是 CLI 子命令的薄壳转发，不暴露写路径：`webnovel_where` / `webnovel_project_status` / `webnovel_doctor` / `webnovel_setting_read` / `webnovel_timeline_check` / `webnovel_meter` / `webnovel_knowledge` / `webnovel_materials_status` / `webnovel_materials_assemble` / `webnovel_power_check` / `webnovel_foreshadow_scan`（强制 `--no-apply`）/ `webnovel_reader_signals`。书项目根来自 userConfig `bookProjectRoot`（注入 `WEBNOVEL_BOOK_ROOT`），留空走探测链。
 
-**工具面收缩（D-2 乙，2026-09-13）**：`webnovel_rag_search` 与 `webnovel_context` 已撤出。前者数据源是 v6 的 `vectors.db`，v7 侧无向量库、补生产等于新建 embedding 子系统；后者已被 `v7-write pack`（上下文包，`工作区/上下文包-NNNN.md`）取代。`webnovel_knowledge` 保留并**按书仓形态分流**：v6 仓答指定章节的实体状态/关系，v7 仓答名册级信息（正名/别名/首现章）并在返回体里显式声明 `not_covered`（v7 写链不产逐章状态与关系）。底层 CLI 的 `rag` / `context` 子命令仍在（v6 仓可用），只是不再有 MCP 壳。
+**工具面收缩（D-2 乙，2026-09-13）**：`webnovel_rag_search` 与 `webnovel_context` 已撤出。前者数据源是 v6 的 `vectors.db`，v7 侧无向量库、补生产等于新建 embedding 子系统；后者已被 `v7-write pack`（上下文包，`工作区/上下文包-NNNN.md`）取代。`webnovel_knowledge` 保留并**按书仓形态分流**：v6 仓答指定章节的实体状态/关系，v7 仓答名册级信息（正名/别名/首现章）并在返回体里显式声明 `not_covered`（v7 写链不产逐章状态与关系）。底层 CLI 的 `rag` 子命令仍在（v6 仓可用，纯 v7 走 `_V7_UNSUPPORTED`）；`context` CLI 已于 2026-09-18 随 context_manager 链删除，写前用 `v7-write pack`。
 
 ## 统一 CLI（命令行使用）
 
@@ -217,7 +217,7 @@ python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJEC
 | `state` | 状态管理 |
 | `rag` | RAG 向量索引（`index-chapter`、`stats` 等） |
 | `entity` | 实体链接 |
-| `context` | 上下文管理 |
+| `context` | **已退役**（2026-09-18）。写前上下文用 `v7-write pack` |
 | `style` | 风格采样 |
 | `migrate` | state.json → SQLite 迁移 |
 
@@ -229,7 +229,7 @@ python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJEC
 | `update-state` | 手动更新状态 |
 | `backup` | 备份管理 |
 | `archive` | 归档管理 |
-| `extract-context` | **frozen-legacy**（仅存量 v6 仓）。v7 写前上下文用 `v7-write pack` |
+| `extract-context` | **已退役**（2026-09-18，随 context_manager 链删除）。写前上下文用 `v7-write pack` |
 
 ### 长期记忆子命令
 

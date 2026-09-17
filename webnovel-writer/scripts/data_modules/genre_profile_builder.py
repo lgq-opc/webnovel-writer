@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Genre profile parsing helpers for ContextManager.
+Genre profile parsing helpers.
 """
 
 from __future__ import annotations

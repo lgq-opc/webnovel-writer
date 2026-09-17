@@ -9,7 +9,7 @@
 | `csv/` | 结构化知识条目（9 张表） | `reference_search.py` BM25 检索 |
 | `csv/README.md` | CSV schema 规范与录入规则 | 人工参考 |
 | `csv/genre-canonical.md` | 题材权威枚举（canonical + platform_tag 映射） | 人工参考 + 代码常量对照 |
-| `genre-profiles.md` | 题材 profile（fallback，高频题材已迁入 Story Contracts） | `ContextManager` 直接读取 |
+| `genre-profiles.md` | 题材 profile（fallback，高频题材已迁入 Story Contracts） | `genre_profile_builder` 读取（v6 ContextManager 链已删） |
 | `reading-power-taxonomy.md` | 追读力分类学 | skills 直接读取 |
 | `review-schema.md` | 审查输出格式定义 | `webnovel-review` 读取 |
 | `index/` | 元数据索引（loading-map、gap-register） | 人工参考 |

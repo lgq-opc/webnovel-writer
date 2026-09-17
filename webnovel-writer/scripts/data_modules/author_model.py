@@ -11,7 +11,7 @@
   `作者/author_model-建议.md`（含证据），**作者确认后才 apply**。
 - `apply_suggestion`：确认后的建议追加进 author_model.md（带「已确认」标记）
   并回写跨书偏好统计（双层回写）。
-- `load_author_model_section`：context 装配注入形态（context_manager 消费）。
+- `load_author_model_section`：v7 pack / 作者模型查询的注入形态。
 
 红线：learn 不改 author_model.md；单章级高频信号只做统计不进 LLM（token 纪律）。
 """

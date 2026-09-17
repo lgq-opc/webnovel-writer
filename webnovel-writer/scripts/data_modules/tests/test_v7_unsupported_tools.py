@@ -9,6 +9,7 @@ v7 侧无替代（rag 无向量库、knowledge 无实体状态产物）或只有
 
 处置（D-2 乙 第一批）：返回 `{"status": "unsupported", "reason", "hint"}` 且退出码 0
 ——这是**预期的明确行为，不是故障**（冒烟脚本据此判 PASS 而非 BIZ，CI 基线才干净）。
+2026-09-18：`context` CLI 已随 context_manager 链删除，本文件不再覆盖该命令。
 """
 
 import json
@@ -44,7 +45,6 @@ def _run(monkeypatch, argv_tail, capsys):
 
 _STILL_UNSUPPORTED = [
     ["rag", "search", "--query", "x"],
-    ["context", "--chapter", "1"],
     # t-20260913-4a4d：status 由 status_reporter.py 实现，硬编码 state.json / 正文/。
     # 在 v7 仓上原本只打印「状态文件不存在」并退出 1（误导）；`project-status` 不受影响。
     ["status", "--focus", "urgency"],

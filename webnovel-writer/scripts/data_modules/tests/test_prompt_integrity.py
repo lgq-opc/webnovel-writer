@@ -77,7 +77,15 @@ def test_registered_cli_subcommands_extracted_from_source():
     assert len(REGISTERED_CLI_SUBCOMMANDS) > 40, "提取结果过小，疑似正则失效"
     for live in ("v7-write", "knowledge", "foreshadow-scan", "book-init"):
         assert live in REGISTERED_CLI_SUBCOMMANDS, f"活命令 {live} 未被提取到"
-    for removed in ("memory-contract", "chapter-commit", "projections", "story-events", "write-gate"):
+    for removed in (
+        "memory-contract",
+        "chapter-commit",
+        "projections",
+        "story-events",
+        "write-gate",
+        "extract-context",
+        "context",
+    ):
         assert removed not in REGISTERED_CLI_SUBCOMMANDS, f"已删命令 {removed} 不得在注册表内"
 
 
@@ -281,6 +289,9 @@ KNOWN_DELETED_FILES = [
     "webnovel-resume",
     "golden_three_checker.py",
     "snapshot_manager.py",
+    "extract_chapter_context.py",
+    "context_manager.py",
+    "context_ranker.py",
 ]
 
 _KNOWN_CLI_EXCEPTIONS = {}

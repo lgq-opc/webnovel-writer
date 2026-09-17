@@ -137,33 +137,3 @@ class TestSettleHook:
         assert report["recorded"] == 0, "被否决的章不进高分样本"
         assert StyleSampler(cfg).get_best_samples(limit=5) == []
 
-
-class TestContextInjection:
-    def test_build_context_includes_style_anchor_and_author_model(self, cfg, tmp_path: Path):
-        from data_modules.author_model import apply_suggestion, learn_from_journal
-        from data_modules.context_manager import ContextManager
-        from data_modules.style_domain import record_style_samples
-
-        record_style_samples(
-            tmp_path, chapter=37, content=SAMPLE_SCENE["content"], review_score=90, scenes=[SAMPLE_SCENE]
-        )
-        (tmp_path / "作者").mkdir(exist_ok=True)
-        (tmp_path / "作者" / "author_model.md").write_text("# 作者模型\n- 冲突前置\n", encoding="utf-8")
-        (tmp_path / "作者" / "跨书偏好.yaml").write_text(
-            "节奏:\n  冲突前置: true\n审稿习惯:\n  接受AI建议率: 0.6\n", encoding="utf-8"
-        )
-
-        payload = ContextManager(cfg).build_context(chapter=1)
-
-        assert payload["style_anchor"]["章"] == 37
-        assert "语气节奏参照" in payload["style_anchor"]["说明"]
-        assert "冲突前置" in payload["author_model"]["模型要点"]
-        assert "接受AI建议率" in payload["author_model"]["跨书偏好"]
-
-    def test_sections_absent_clean_when_no_data(self, cfg):
-        from data_modules.context_manager import ContextManager
-
-        payload = ContextManager(cfg).build_context(chapter=1)
-
-        assert not payload.get("style_anchor"), "无高分样本时 style_anchor 为空"
-        assert not any((payload.get("author_model") or {}).values()), "无模型文件时 author_model 内容为空"

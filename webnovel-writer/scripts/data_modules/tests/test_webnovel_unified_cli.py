@@ -97,94 +97,6 @@ def test_init_does_not_resolve_existing_project_root(monkeypatch):
     assert called["argv"] == ["proj-dir", "测试书", "修仙"]
 
 
-def test_extract_context_forwards_with_resolved_project_root(monkeypatch, tmp_path):
-    module = _load_webnovel_module()
-
-    book_root = (tmp_path / "book").resolve()
-    called = {}
-
-    def _fake_resolve(explicit_project_root=None):
-        return book_root
-
-    def _fake_run_script(script_name, argv):
-        called["script_name"] = script_name
-        called["argv"] = list(argv)
-        return 0
-
-    monkeypatch.setattr(module, "_resolve_root", _fake_resolve)
-    monkeypatch.setattr(module, "_run_script", _fake_run_script)
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        [
-            "webnovel",
-            "--project-root",
-            str(tmp_path),
-            "extract-context",
-            "--chapter",
-            "12",
-            "--format",
-            "json",
-        ],
-    )
-
-    with pytest.raises(SystemExit) as exc:
-        module.main()
-
-    assert int(exc.value.code or 0) == 0
-    assert called["script_name"] == "extract_chapter_context.py"
-    assert called["argv"] == [
-        "--project-root",
-        str(book_root),
-        "--chapter",
-        "12",
-        "--format",
-        "json",
-    ]
-
-
-def test_extract_context_default_format_is_json(monkeypatch, tmp_path):
-    """增量审阅 P1-3：不带 --format 调用 extract-context 必须可用且转发 json。
-
-    底层 extract_chapter_context.py 只接受 json（text 渲染归 context-agent），
-    包装层声明 default="text" 会让默认路径 exit 2。
-    """
-    module = _load_webnovel_module()
-
-    book_root = (tmp_path / "book").resolve()
-    called = {}
-
-    def _fake_resolve(explicit_project_root=None):
-        return book_root
-
-    def _fake_run_script(script_name, argv):
-        called["script_name"] = script_name
-        called["argv"] = list(argv)
-        return 0
-
-    monkeypatch.setattr(module, "_resolve_root", _fake_resolve)
-    monkeypatch.setattr(module, "_run_script", _fake_run_script)
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        ["webnovel", "--project-root", str(tmp_path), "extract-context", "--chapter", "12"],
-    )
-
-    with pytest.raises(SystemExit) as exc:
-        module.main()
-
-    assert int(exc.value.code or 0) == 0
-    assert called["script_name"] == "extract_chapter_context.py"
-    assert called["argv"] == [
-        "--project-root",
-        str(book_root),
-        "--chapter",
-        "12",
-        "--format",
-        "json",
-    ]
-
-
 def test_backup_forwards_resolved_book_root_from_parent_workspace(monkeypatch, tmp_path):
     module = _load_webnovel_module()
 
@@ -1011,7 +923,6 @@ def test_webnovel_skill_flow_runs_story_contract_context_and_review_pipeline_wit
 
     script_to_module = {
         "story_system.py": "story_system",
-        "extract_chapter_context.py": "extract_chapter_context",
         "review_pipeline.py": "review_pipeline",
     }
 
@@ -1061,32 +972,6 @@ def test_webnovel_skill_flow_runs_story_contract_context_and_review_pipeline_wit
     assert (story_root / "MASTER_SETTING.json").is_file()
     assert (story_root / "volumes" / "volume_001.json").is_file()
     assert (story_root / "reviews" / "chapter_003.review.json").is_file()
-
-    assert (
-        _run_webnovel(
-            [
-                "--project-root",
-                str(project_root),
-                "extract-context",
-                "--chapter",
-                "3",
-                "--format",
-                "json",
-            ]
-        )
-        == 0
-    )
-    context_payload = json.loads(capsys.readouterr().out)
-    assert (
-        context_payload["story_contract"]["review_contract"]["meta"]["contract_type"]
-        == "REVIEW_CONTRACT"
-    )
-    assert context_payload["prewrite_validation"]["blocking"] is False
-    assert context_payload["rag_assist"]["invoked"] is True
-    assert context_payload["rag_assist"]["hits"]
-    assert calls["embed_batch"] >= 1
-    assert calls["embed"] >= 1
-    assert calls["rerank"] >= 1
 
     review_results_path = project_root / ".webnovel" / "tmp" / "review_results.json"
     review_results_path.parent.mkdir(parents=True, exist_ok=True)

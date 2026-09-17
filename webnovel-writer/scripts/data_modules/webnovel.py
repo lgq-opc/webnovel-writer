@@ -14,7 +14,7 @@ webnovel 统一入口（面向 skills / agents 的稳定 CLI）
   python "<SCRIPTS_DIR>/webnovel.py" use "<PROJECT_ROOT>"
   python "<SCRIPTS_DIR>/webnovel.py" --project-root "<PROJECT_ROOT>" index stats
   python "<SCRIPTS_DIR>/webnovel.py" --project-root "<PROJECT_ROOT>" state process-chapter --chapter 100 --data @payload.json
-  python "<SCRIPTS_DIR>/webnovel.py" --project-root "<PROJECT_ROOT>" extract-context --chapter 100 --format json
+  python "<SCRIPTS_DIR>/webnovel.py" --project-root "<PROJECT_ROOT>" v7-write pack --chapter 100 --json 决策.json
 
 也支持（不推荐，容易踩 PYTHONPATH/cd/参数顺序坑）：
   python -m data_modules.webnovel where
@@ -79,7 +79,6 @@ PASSTHROUGH_TOOLS = {
     "rag",
     "style",
     "entity",
-    "context",
     "memory",
     "migrate",
     "status",
@@ -181,17 +180,12 @@ def _resolve_root_lenient(raw: Optional[str]) -> Path:
 # 数据源在 v6 系统域（.webnovel/），v7 侧无替代或只有形态不同的等价物。
 # 2026-09-13 收缩：`knowledge` 移出本表——它改由 `_knowledge_v7` 提供名册级查询
 # （见下方分支），不再是「整条不支持」。留在这里的是**真缺失**：
-# `rag`（v7 无向量库，补生产＝新建 embedding 子系统）与 `context`
-# （v7 有更好的等价物 `v7-write pack`，此命令在 v7 仓已是冗余入口）。
+# `rag`（v7 无向量库，补生产＝新建 embedding 子系统）。
+# 2026-09-18：`context` CLI 已随 context_manager 链级联删除，写前用 `v7-write pack`。
 _V7_UNSUPPORTED: dict[str, tuple[str, str]] = {
     "rag": (
         "语义检索",
         "v7 侧无向量库；可读 `定稿/记忆/章摘要/NNNN.md`（前情摘要）或直接读 `定稿/正文/`",
-    ),
-    "context": (
-        "写前上下文装配",
-        "v7 请用 `webnovel.py v7-write pack --chapter N --json 决策.json`"
-        "（产出 `工作区/上下文包-NNNN.md`）",
     ),
     # t-20260913-4a4d（2026-09-13 查证后补入）：`status` 由 status_reporter.py 实现，
     # 硬编码 `.webnovel/state.json` 与 `正文/`。在纯 v7 仓上它只打印「状态文件不存在」
@@ -613,12 +607,10 @@ def _build_preflight_report(explicit_project_root: Optional[str]) -> dict:
     plugin_root = scripts_dir.parent
     skill_root = plugin_root / "skills" / "webnovel-write"
     entry_script = scripts_dir / "webnovel.py"
-    extract_script = scripts_dir / "extract_chapter_context.py"
 
     checks: list[dict[str, object]] = [
         {"name": "scripts_dir", "ok": scripts_dir.is_dir(), "path": str(scripts_dir)},
         {"name": "entry_script", "ok": entry_script.is_file(), "path": str(entry_script)},
-        {"name": "extract_context_script", "ok": extract_script.is_file(), "path": str(extract_script)},
         {"name": "skill_root", "ok": skill_root.is_dir(), "path": str(skill_root)},
     ]
 
@@ -999,8 +991,7 @@ _LAST_ARGS = None
 def main() -> None:
     """S10/D3：进程内 stdout 捕获，超过阈值（默认 20k 字符）自动外置化。
 
-    `_run_script` 子进程转发类命令（extract-context / memory-contract /
-    story-system 等）不经此通道——它们的 stdout 由子进程直接写终端；
+    `_run_script` 子进程转发类命令（story-system 等）不经此通道——它们的 stdout 由子进程直接写终端；
     这些入口在 S1-S9 已完成紧凑化。`WEBNOVEL_OUTPUT_EXTERNALIZE=0` 整体关闭。
     """
     import contextlib
@@ -1324,9 +1315,6 @@ def _main_impl() -> None:
     p_entity = sub.add_parser("entity", help="转发到 entity_linker")
     p_entity.add_argument("args", nargs=argparse.REMAINDER)
 
-    p_context = sub.add_parser("context", help="转发到 context_manager")
-    p_context.add_argument("args", nargs=argparse.REMAINDER)
-
     p_memory = sub.add_parser("memory", help="转发到 memory.store")
     p_memory.add_argument("args", nargs=argparse.REMAINDER)
 
@@ -1351,11 +1339,6 @@ def _main_impl() -> None:
 
     p_book_init = sub.add_parser("book-init", help="v7-native 新书初始化（book.yaml + 六域骨架；不产生 v6 遗留）")
     p_book_init.add_argument("args", nargs=argparse.REMAINDER)
-
-    p_extract_context = sub.add_parser("extract-context", help="转发到 extract_chapter_context.py")
-    p_extract_context.add_argument("--chapter", type=int, required=True, help="目标章节号")
-    p_extract_context.add_argument("--format", choices=["json"], default="json",
-                                   help="输出格式（始终 JSON，text 渲染由 context-agent 负责）")
 
     p_story_system = sub.add_parser("story-system", help="转发到 story_system.py")
     p_story_system.add_argument("args", nargs=argparse.REMAINDER)
@@ -1498,8 +1481,6 @@ def _main_impl() -> None:
         raise SystemExit(_run_data_module("style_sampler", [*forward_args, *rest]))
     if tool == "entity":
         raise SystemExit(_run_data_module("entity_linker", [*forward_args, *rest]))
-    if tool == "context":
-        raise SystemExit(_run_data_module("context_manager", [*forward_args, *rest]))
     if tool == "memory":
         raise SystemExit(_run_data_module("memory.store", [*forward_args, *rest]))
     if tool == "migrate":
@@ -1513,9 +1494,6 @@ def _main_impl() -> None:
         raise SystemExit(_run_script("backup_manager.py", [*forward_args, *rest]))
     if tool == "archive":
         raise SystemExit(_run_script("archive_manager.py", [*forward_args, *rest]))
-    if tool == "extract-context":
-        return_args = [*forward_args, "--chapter", str(args.chapter), "--format", str(args.format)]
-        raise SystemExit(_run_script("extract_chapter_context.py", return_args))
     if tool == "story-system":
         raise SystemExit(_run_script("story_system.py", [*forward_args, *rest]))
     if tool == "review-pipeline":

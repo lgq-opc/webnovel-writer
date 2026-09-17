@@ -273,19 +273,6 @@ class DataModulesConfig:
     context_story_skeleton_max_samples: int = 5
     context_story_skeleton_snippet_chars: int = 400
     context_extra_section_budget: int = 800
-    context_ranker_enabled: bool = True
-    context_ranker_recency_weight: float = 0.7
-    context_ranker_frequency_weight: float = 0.3
-    context_ranker_hook_bonus: float = 0.2
-    context_ranker_alert_critical_keywords: tuple[str, ...] = (
-        "冲突",
-        "矛盾",
-        "critical",
-        "break",
-        "违规",
-        "断裂",
-    )
-    context_ranker_debug: bool = False
     context_reader_signal_enabled: bool = True
     context_reader_signal_recent_limit: int = 5
     context_reader_signal_window_chapters: int = 20
@@ -294,9 +281,6 @@ class DataModulesConfig:
     context_genre_profile_enabled: bool = True
     context_genre_profile_max_refs: int = 8
     context_genre_profile_fallback: str = "shuangwen"
-    context_compact_text_enabled: bool = True
-    context_compact_min_budget: int = 120
-    context_compact_head_ratio: float = 0.65
     # P1-4：设定文件注入截断（0 = 不截断）；recent_summaries 默认路径摘要截断
     context_setting_max_chars: int = 4000
     context_recent_summary_max_chars: int = 800
@@ -338,7 +322,6 @@ class DataModulesConfig:
         "，",
         "、",
     )
-    context_use_memory_orchestrator: bool = False
     memory_orchestrator_max_items: int = 30
     memory_orchestrator_recent_changes_limit: int = 10
     memory_orchestrator_source_window: int = 20

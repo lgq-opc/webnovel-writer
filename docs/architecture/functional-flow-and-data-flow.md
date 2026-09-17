@@ -19,7 +19,7 @@ graph TB
     end
 
     subgraph SVC["服务层 scripts/data_modules/"]
-        CTX["上下文组装<br/>ContextManager · Ranker · Budget · settings_digest"]
+        CTX["上下文组装<br/>v7-write pack（现行）· context_budget<br/>v6 ContextManager/Ranker 已于 2026-09-18 删除"]
         SSE["StorySystemEngine + 合同树<br/>CSV 题材路由 → MASTER/volume/chapter/review 合同"]
         GATES["写闸 write_gates ×3<br/>prewrite · precommit · postcommit<br/>+ dual_format_guard（v6/v7 唯一写入路径）"]
         COMMIT["ChapterCommitService<br/>四 artifact → accepted commit（事实源）"]
@@ -86,7 +86,7 @@ graph TB
 | 环境定位 | `where` / `use` / `preflight [--all]` / `project-status` | 指针+只读体检 |
 | 初始化 | `webnovel.py init`（40+ 采集项）+ `story-system`（种子合同） | 建目录/合同 |
 | 规划 | `timeline-check` / `master-outline-sync` / `update-state` / `story-system --emit-runtime-contracts` | 大纲+state |
-| 上下文 | `v7-write pack` + `setting-read`（现行）；`context` / `extract-context` 为 frozen-legacy | 只读 |
+| 上下文 | `v7-write pack` + `setting-read`（现行）；`context` / `extract-context` 已于 2026-09-18 级联删除 | 只读 |
 | 检索 | `knowledge query-entity-state·query-relationships` / `index ·` 30+ 子命令 / `rag` | 只读 index.db |
 | 写章 | `write-gate --stage {prewrite,precommit,postcommit}` | 门禁快照 |
 | 提交 | `chapter-commit`（四 artifact）/ `projections retry·replay` | commits+投影 |
@@ -184,9 +184,9 @@ flowchart LR
 
 旁路写链（不走 commit）：`webnovel.py state process-chapter` → `StateManager.process_chapter_result` → FileLock + 锁内重读合并写 state.json → 增量同步 index.db（失败保留 pending 待重试）。
 
-### 4.2 读路径：上下文组装（v6 frozen-legacy）
+### 4.2 读路径：上下文组装（v6，2026-09-18 已级联删除）
 
-> 2026-09-18 §3.1 第 4 条：在役写链已改指 `v7-write pack`（见 §4.3）。下图是冻结的 v6 装配链，不再作为写前入口。
+> 2026-09-18 §3.1 第 4 条：在役写链改指 `v7-write pack`（见 §4.3）后，已删除 `context` / `extract-context` CLI 与 `context_manager` / `context_ranker` / `extract_chapter_context.py`。下图是删除前的 v6 装配链，仅作考古。
 
 ```mermaid
 flowchart LR

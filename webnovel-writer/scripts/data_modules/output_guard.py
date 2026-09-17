@@ -6,8 +6,7 @@
 全文落盘 `<root>/.webnovel/tmp/cli_out/<tool>.txt`（同名覆盖，路径可预测），
 对话只留摘要存根（前 600 字符预览 + 引用路径）。
 
-豁免：`_run_script` 子进程转发类命令（extract-context / memory-contract /
-story-system 等）不经此通道——它们在 S1-S9 已是紧凑输出；环境变量
+豁免：`_run_script` 子进程转发类命令（story-system 等）不经此通道——它们在 S1-S9 已是紧凑输出；环境变量
 `WEBNOVEL_OUTPUT_EXTERNALIZE=0` 可整体关闭，`WEBNOVEL_OUTPUT_EXTERNALIZE_CHARS`
 可调阈值（默认 20000 字符）。
 """

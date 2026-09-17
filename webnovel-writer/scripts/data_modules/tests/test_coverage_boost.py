@@ -416,18 +416,6 @@ def test_webnovel_passthrough_entity(monkeypatch, tmp_path):
     assert called["mod"] == "entity_linker"
 
 
-def test_webnovel_passthrough_context(monkeypatch, tmp_path):
-    module = _load_webnovel_module()
-    called = {}
-    monkeypatch.setattr(module, "_resolve_root", lambda _=None: tmp_path)
-    monkeypatch.setattr(module, "_run_data_module", lambda m, a: (called.update(mod=m), 0)[1])
-    monkeypatch.setattr(sys, "argv", ["webnovel", "context", "build"])
-    with pytest.raises(SystemExit) as exc:
-        module.main()
-    assert int(exc.value.code or 0) == 0
-    assert called["mod"] == "context_manager"
-
-
 def test_webnovel_passthrough_migrate(monkeypatch, tmp_path):
     module = _load_webnovel_module()
     called = {}

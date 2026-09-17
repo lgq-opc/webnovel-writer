@@ -15,7 +15,6 @@ if _scripts_dir not in sys.path:
     sys.path.insert(0, _scripts_dir)
 
 from data_modules.config import DataModulesConfig  # noqa: E402
-from data_modules.context_manager import ContextManager  # noqa: E402
 from data_modules.settings_digest import (  # noqa: E402
     build_digest,
     get_setting_digest,
@@ -107,34 +106,6 @@ class TestGetSettingDigest:
         _write_setting(tmp_path, "力量体系-详版", SAMPLE_MD)
 
         assert "天裂" in get_setting_digest(cfg, "力量体系")
-
-
-class TestLoadSettingIntegration:
-    def test_load_setting_returns_digest_when_enabled(self, tmp_path):
-        cfg = _cfg(tmp_path)
-        _write_setting(tmp_path, "世界观", SAMPLE_MD + "尾" * 2000)
-        manager = ContextManager(cfg)
-
-        text = manager._load_setting("世界观")
-
-        assert len(text) <= 240  # L0 摘要，而非 4000 字截头
-        assert "天裂" in text
-
-    def test_load_setting_disabled_falls_back_to_full(self, tmp_path):
-        cfg = _cfg(tmp_path)
-        cfg.context_settings_digest_enabled = False
-        _write_setting(tmp_path, "世界观", SAMPLE_MD + "尾" * 2000)
-        manager = ContextManager(cfg)
-
-        text = manager._load_setting("世界观")
-
-        assert "天裂" in text and "尾尾尾" in text  # 旧路径：全文（≤4000 截头）
-
-    def test_load_setting_missing_reports_not_found(self, tmp_path):
-        cfg = _cfg(tmp_path)
-        manager = ContextManager(cfg)
-
-        assert manager._load_setting("不存在") == "[不存在设定未找到]"
 
 
 class TestSettingReadCli:

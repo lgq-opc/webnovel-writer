@@ -3,7 +3,7 @@
 > 状态：[x] 设计交付（试点分支 `pilot/r13-pack` @ `5fe1026`，2026-09-15）＋ **0915 评审必改已返工**（2026-09-18；编排台评审 §2.5 三条行号勘误）
 > 派单方：Hermes 编排台（改派 ZCode / GLM-5.3-Flash）｜ 来源：todohub `t-20260913-b673`
 > 基线：任务书起草时写 `v8-author @ 676fc5c`；**现场核对 HEAD = `578b4bf`**（其后又合入 pilot/dataagent-fix、pilot/memcontract 两单，不影响本单对象模块）
-> 结论预告：**推荐案 B「冻结、随 context_manager 链处置」，不建议现在搬**——链的去留已由 2026-09-18 退役方案 §3.1 第 4 条裁定（现在冻结，目标退役，本轮不删）。理由与其余未决见 §5/§6。
+> 结论预告：**推荐案 B「冻结、随 context_manager 链处置」，不搬进 pack**。链的去留已由 2026-09-18 退役方案 §3.1 第 4 条裁定；同日技能改指 `v7-write pack` 后已级联删除 `context_ranker` / `context_manager` / `extract-context`。理由与其余未决见 §5/§6。
 
 ## 1｜R13 是什么、落在哪里
 
@@ -138,7 +138,7 @@ $ PYTHONUTF8=1 py -3.13 -X utf8 -m pytest data_modules/tests/test_context_ranker
 
 **未决问题（本单不代拍板）：**
 
-1. ~~**Phase 3 读侧重建时 `extract-context`/`context` CLI 与 context_manager→ranker 链的整体去留**~~ → ✅ **2026-09-18 已裁**（退役方案 §3.1 第 4 条）：现在冻结，目标退役，本轮不删；技能/代理改指 `v7-write pack` 后再级联删除。
+1. ~~**Phase 3 读侧重建时 `extract-context`/`context` CLI 与 context_manager→ranker 链的整体去留**~~ → ✅ **2026-09-18 已裁并执行**：技能改指 `v7-write pack` 后级联删除 `context` / `extract-context` CLI 与 `context_manager` / `context_ranker` / `extract_chapter_context.py`。
 2. **若未来 v7 pack 需要「超窗摘要择优」（窗 >3 章）**，是否立项独立特性「v7 pack 条目级排序」（可从本档 §4 能力对照表和案 A 接口清单起步）——当前 3 章窗下无此刚需，不建议预投入。
 3. ~~**memory/ 包归属**~~ → ✅ **2026-09-18 已裁**（§3.1 第 2 / 第 4 条）：随 context 链冻结，不单独补生产。
 4. ~~**退役方案 §1.5 A 表 `:49` 行的表述勘误**~~ → ✅ **2026-09-18 已改**：该行改为「唯一生产引用者为 context_manager（同 A 类，级联处置）」。

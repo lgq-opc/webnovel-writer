@@ -271,7 +271,6 @@ def main() -> int:
         ("setting-read", ["setting-read", "--name", "世界观"]),
         ("timeline-check", ["timeline-check", "--volume", "1", "--format", "json"]),
         ("knowledge", ["knowledge", "query-entity-state", "--entity", "主角", "--at-chapter", "1"]),
-        ("context", ["context", "--chapter", "1"]),
         ("meter", ["meter", "report"]),
         ("materials", ["materials", "list", "--format", "json"]),
         ("power-check", ["power", "check", "--format", "json"]),
