@@ -30,7 +30,7 @@
 
 | 状态 | 文档 | 说明 |
 |---|---|---|
-| 🟡 **进行中** | [`plans/2026-09-10-v6线退役方案.md`](./plans/2026-09-10-v6线退役方案.md) | `[~]` Phase 1 完成、Phase 2 增量 1-3 完成；**剩余项见其 §1.5 与 §3**（Phase 3 待 Human 决策） |
+| ⬜ **已裁决收官** | [`plans/2026-09-10-v6线退役方案.md`](./plans/2026-09-10-v6线退役方案.md) | `[x]` 2026-09-18 六条见其 **§3.1**（取代同日「选项 A」简写）；Phase 1 完成、Phase 2 增量 1-4 以冻结收口 |
 | ⬜ 已清空 | [`TODO-from-v8-author-review.md`](./TODO-from-v8-author-review.md) | 2026-09-10 复审遗留的 P1-P3 / N 系列 / F 系列 —— **2026-09-12 实测 24 项全 `[x]`**，已非待办 |
 | ⬜ 历史（已完成） | [`zcode/v8-gap-review-3rounds/README.md`](./zcode/v8-gap-review-3rounds/README.md) | v8.0.0 后 41 项缺口 + 4 阶段 **13 任务全部 ✅**（2026-09-04 收官） |
 | ⬜ 历史 | [`plans/2026-08-25-status-and-pending-work.md`](./plans/2026-08-25-status-and-pending-work.md) | `[superseded]` v6.3.0 时期的状态清单 |
@@ -53,7 +53,7 @@
 - [`reports/`](./reports/)：S 系列专项复盘（预算配额、设定卡验证、v7 垂直切片、配额时机）与 2026-09-02 全面审阅 / 增量审阅
 - [`reports/2026-09-11-待办全景梳理.md`](./reports/2026-09-11-待办全景梳理.md)：待办入口归属判定与三类收尾（现状诊断截面）
 - [`reports/2026-09-12-需求与设计对账.md`](./reports/2026-09-12-需求与设计对账.md)：四套方案集 × 实现的逐条对账（P/T/D/F 编号，供逐条过审）
-- [`decisions/`](./decisions/)：ADR（多宿主适配立项）
+- [`decisions/`](./decisions/)：ADR（[多宿主适配立项](./decisions/2026-09-02-多宿主适配立项决策.md)、[v6 退役 Phase 3 读侧归属](./decisions/2026-09-18-v6退役Phase3读侧归属.md)）
 - [`tasks/architecture-audit-fix-ledger.md`](./tasks/architecture-audit-fix-ledger.md)：架构审计修复台账
 - 根下 [`full-project-analysis-2026-08-24.md`](./full-project-analysis-2026-08-24.md) / [`full-project-analysis-v2-2026-08-24.md`](./full-project-analysis-v2-2026-08-24.md) / [`code-review-2026-08-24.md`](./code-review-2026-08-24.md)：2026-08-24 三份分析（历史）
 

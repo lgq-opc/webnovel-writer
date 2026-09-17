@@ -52,12 +52,12 @@ webnovel-writer/              ← 外层仓库根（marketplace.json 双位置�
 - MCP 工具面 14 → 12（D-2 乙，2026-09-13）：撤出 `rag_search`（v7 无向量库）与 `context`（已被 `v7-write pack` 取代）；`knowledge` 保留但按书仓形态分流（v7 只答名册级）。
 - 领先 master 的提交数**不在此处写死**（N-3：这是个滚动快照，写下的数字第二天就过期）——需要时现算：
   `git log --oneline origin/master..HEAD | wc -l`
-- **v6 写链已冻结（frozen-legacy，2026-09-10 退役方案 Phase 1）**：仅维护、不再演进。**新书写章一律走 v7 写链**（`v7-write decision/pack/check/settle`，见 `skills/webnovel-write/SKILL.md`）。**新书用 `book-init` 直接建 v7 书仓**（`python -X utf8 webnovel-writer/scripts/webnovel.py book-init <目录> <书名> --genre <题材>`，播种 book.yaml + 六域骨架，无 v6 遗留）；既有 v6 书项目先迁移：`python -X utf8 webnovel-writer/scripts/migrate_v6_to_v7.py --project-root <v6根> --output <新 v7 书仓>`。v6 代码与测试**保留但不再新增**，物理删除见 `docs/plans/2026-09-10-v6线退役方案.md` Phase 2。
+- **v6 写链已冻结（frozen-legacy，2026-09-10 退役方案 Phase 1）**：仅维护、不再演进。**新书写章一律走 v7 写链**（`v7-write decision/pack/check/settle`，见 `skills/webnovel-write/SKILL.md`）。**新书用 `book-init` 直接建 v7 书仓**（`python -X utf8 webnovel-writer/scripts/webnovel.py book-init <目录> <书名> --genre <题材>`，播种 book.yaml + 六域骨架，无 v6 遗留）；既有 v6 书项目先迁移：`python -X utf8 webnovel-writer/scripts/migrate_v6_to_v7.py --project-root <v6根> --output <新 v7 书仓>`。v6 代码与测试**保留但不再新增**；Phase 2 已于 2026-09-18 按「冻结而非删除」收口，见 `docs/plans/2026-09-10-v6线退役方案.md` §3.1。
 - 上游：lingfengQAQ/webnovel-writer（v6.2.1 起分叉；上游 v7/v8 路线与本仓无关）
 - 远程：git@github.com:lgq-opc/webnovel-writer.git
 - CI：`.github/workflows/plugin-tests.yml`（push master/v8-author 与 PR 按 scripts/mcp/dashboard 路径触发全量 pytest + 四校验脚本；依赖按 `requirements.lock` 锁定）
 - ZCode 装机：marketplace `webnovel-writer-marketplace` → 本仓库根（directory 源）
-- 当前待办入口：~~`docs/plans/2026-09-10-v6线退役方案.md`~~ **该方案已于 2026-09-18 裁决收官**（Human 拍板选项 A 软退役：v6 机器整体冻结为 legacy、读侧四项不接不删不改造；详见方案头部「Phase 3 已裁决」注记）。至此**无在册主线待办**；剩余在册零散待办见 todo-hub（t-012e 装机验收 / t-b673、t-25f8 两设计单返工 / t-5a1a 已由 Human 裁决维持现状，待关单）。以下三份**已清空或降为历史**：`docs/TODO-from-v8-author-review.md`（2026-09-12 实测 24 项全 `[x]`）、`docs/zcode/v8-gap-review-3rounds/README.md`（P1-1~P4-3 全 ✅，2026-09-04 收官）、`docs/plans/2026-08-25-status-and-pending-work.md`（superseded）。现状截面见 `docs/reports/2026-09-12-需求与设计对账.md`
+- 当前待办入口：~~`docs/plans/2026-09-10-v6线退役方案.md`~~ **该方案已于 2026-09-18 按六条裁决收官**（权威口径见方案 **§3.1**：dashboard 对 v7 冻结下线 / RAG 正式下线 / `knowledge` 名册级定为正式 / context 链现在冻结、目标退役 / doctor 的 v6 体检保留 / Phase 2 冻结收口）。同日 `d075fdf` 的「选项 A 四项一律不接不删不改造」简写已作废。剩余不在该方案主线内：D-4 装机验证（`t-20260913-012e`）、两份 0915 设计返工（`t-20260913-b673` / `t-20260913-25f8`）、以及 §3.1 列出的对外口径与技能改指。以下三份**已清空或降为历史**：`docs/TODO-from-v8-author-review.md`（2026-09-12 实测 24 项全 `[x]`）、`docs/zcode/v8-gap-review-3rounds/README.md`（P1-1~P4-3 全 ✅，2026-09-04 收官）、`docs/plans/2026-08-25-status-and-pending-work.md`（superseded）。现状截面见 `docs/reports/2026-09-12-需求与设计对账.md`
 
 ## OpenCode 工作区规则：任务状态必须与代码同步
 
