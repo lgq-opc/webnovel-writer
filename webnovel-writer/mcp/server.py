@@ -198,7 +198,7 @@ TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "webnovel_project_status",
-        "description": "机器可读的项目短状态（阶段、断点、计量）。",
+        "description": "机器可读的项目短状态（阶段、断点、计量、近10次审查趋势）。",
         "inputSchema": _schema(
             {"chapter": {"type": "integer", "description": "目标章节号"}},
         ),

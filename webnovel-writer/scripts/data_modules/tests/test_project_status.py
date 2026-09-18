@@ -34,6 +34,9 @@ def test_project_status_json_shape(tmp_path):
     assert report["phase"] == "chapter_contract_ready"
     assert report["target_chapter"] == 1
     assert report["next_action"] == "run /webnovel-write 1"
+    assert report["quality_trend"]["available"] is False
+    assert report["quality_trend"]["reason"] == "no_index_db"
+    assert not (tmp_path / ".webnovel" / "index.db").exists()
 
 
 def test_project_status_summary_is_short_and_machine_source_is_json(tmp_path):
@@ -44,7 +47,9 @@ def test_project_status_summary_is_short_and_machine_source_is_json(tmp_path):
     payload = json.loads(format_project_status(report, "json"))
 
     assert "phase: init_ready" in summary
+    assert "quality_trend: unavailable (no_index_db)" in summary
     assert payload["schema_version"] == SCHEMA_VERSION
+    assert payload["quality_trend"]["available"] is False
 
 
 def test_project_status_handles_no_project():
@@ -52,3 +57,28 @@ def test_project_status_handles_no_project():
 
     assert report["phase"] == "no_project"
     assert report["blocking"]
+    assert report["quality_trend"]["available"] is False
+    assert report["quality_trend"]["reason"] == "no_project"
+
+
+def test_project_status_quality_trend_line_when_metrics_exist(tmp_path):
+    from data_modules.config import DataModulesConfig
+    from data_modules.index_manager import IndexManager, ReviewMetrics
+
+    _make_init_ready(tmp_path)
+    manager = IndexManager(DataModulesConfig.from_project_root(tmp_path))
+    manager.save_review_metrics(
+        ReviewMetrics(start_chapter=1, end_chapter=1, overall_score=80.0)
+    )
+    manager.save_review_metrics(
+        ReviewMetrics(start_chapter=2, end_chapter=2, overall_score=70.0)
+    )
+
+    report = build_project_status(tmp_path)
+    trend = report["quality_trend"]
+    summary = format_project_status(report, "summary")
+
+    assert trend["available"] is True
+    assert trend["count"] == 2
+    assert trend["latest_score"] == 70.0
+    assert "quality_trend: 近2次审查均分" in summary

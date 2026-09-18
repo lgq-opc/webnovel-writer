@@ -326,6 +326,8 @@ def test_project_status_cli_outputs_json_without_reusing_status(monkeypatch, tmp
     assert report["schema_version"] == "webnovel-project-status/v1"
     assert report["project"] == "测试书"
     assert report["phase"] == "init_ready"
+    assert report["quality_trend"]["available"] is False
+    assert report["quality_trend"]["reason"] == "no_index_db"
 
 
 def test_user_report_cli_outputs_json(monkeypatch, tmp_path, capsys):
@@ -624,8 +626,31 @@ def test_quality_trend_report_writes_to_book_root_when_input_is_workspace_root(t
     assert not (workspace_root / ".webnovel" / "index.db").exists()
 
 
+def test_quality_trend_cli_forwards_to_script(monkeypatch, tmp_path):
+    module = _load_webnovel_module()
+    project_root = tmp_path / "book"
+    _make_cli_init_ready_project(project_root)
+    called = {}
 
+    def fake_run_script(script_name, argv):
+        called["script_name"] = script_name
+        called["argv"] = list(argv)
+        return 0
 
+    monkeypatch.setattr(module, "_run_script", fake_run_script)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["webnovel", "--project-root", str(project_root), "quality-trend", "--limit", "10"],
+    )
+
+    with pytest.raises(SystemExit) as exc:
+        module.main()
+
+    assert int(exc.value.code or 0) == 0
+    assert called["script_name"] == "quality_trend_report.py"
+    assert "--limit" in called["argv"]
+    assert "10" in called["argv"]
 
 
 def test_review_pipeline_builds_artifacts(tmp_path):

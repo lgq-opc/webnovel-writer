@@ -19,7 +19,7 @@
 | W7 | R12 | T27 | `3dde421` | ✅ |
 | W8 | R13 | **本次补做** | `01fe438` | ✅ |
 | W9 | R11+R14 | T27 | `3dde421` | ✅ |
-| W10 | R15+R16+R17+R18 | T27（**仅 R15**） | `3dde421` | ⚠️ **部分** |
+| W10 | R15+R16+R17+R18 | T27（R15）+ D-5（2026-09-18） | `3dde421` | ✅ **R15 已做；R16 superseded；R17 入口已接；R18 死旋钮已删** |
 
 **合计 9/10 完成。**
 
@@ -27,7 +27,7 @@
 
 ⚠️ **W6 不能照本节原施工指引执行**：`### W6` 的「预计触碰」把落点写成 `scripts/project_memory.py`，而该文件**已被 `511531e`（v6 退役 Phase 2 增量 1）删除**；`evidence_excerpt` / `metrics_snapshot` 全仓零命中。补做需**先定新落点与数据 schema**（学习闭环现挂 `author_model.py`，语义是"作者模型"而非"写作 pattern 库"）。
 
-⚠️ **W10 的 R16 / R17 / R18 未定论**（methodology 节拍接卷纲 / trend 报告接入入口 / 死旋钮清理），**勿当作已完成**。
+⚠️ **W10 的 R16 / R17 / R18 已于 2026-09-18 收口**（R16 superseded；R17 `project-status`/`quality-trend` 已接；R18 死旋钮已删）。
 
 > **本次回填的性质**：`08:4` 的「吸收并取代质量审阅 W1-W10」应读作**「吸收了其中 9 条」**。详细对账、证据与未核项见 [`../../reports/2026-09-12-需求与设计对账.md`](../../reports/2026-09-12-需求与设计对账.md) §2.2.1–2.2.3。
 
@@ -130,6 +130,7 @@ author_model 正常产出（含「已确认」标记）。
 - 改动：引用接线对账脚本并入发版校验；methodology 节拍接卷纲；trend 报告接入 `/webnovel:status`；死旋钮实现或删除（倾向实现场景类型感知组装）。
 - 验收：对账脚本报出并清零既有 22 项漂移；策略卡与卷纲一致；`/webnovel:status` 含趋势行。
 - 预计触碰：新校验脚本、`writing_guidance_builder.py`、`commands/webnovel/status.md`、`context_weights.py`。
+- **收口（2026-09-18）**：R15 已由 T27 落地。R16 superseded（`writing_guidance_builder` 已删）。R17：`project-status` / `quality-trend` / review 落库后刷新。R18：死旋钮已删，不重建场景类型感知组装。
 
 ## 排期建议与风险
 

@@ -88,6 +88,7 @@ PASSTHROUGH_TOOLS = {
     "init",
     "book-init",
     "story-system",
+    "quality-trend",
 }
 
 
@@ -1325,6 +1326,9 @@ def _main_impl() -> None:
     p_status = sub.add_parser("status", help="转发到 status_reporter.py")
     p_status.add_argument("args", nargs=argparse.REMAINDER)
 
+    p_quality_trend = sub.add_parser("quality-trend", help="生成离线质量趋势报告（index.db.review_metrics）")
+    p_quality_trend.add_argument("args", nargs=argparse.REMAINDER)
+
     p_update_state = sub.add_parser("update-state", help="转发到 update_state.py")
     p_update_state.add_argument("args", nargs=argparse.REMAINDER)
 
@@ -1488,6 +1492,8 @@ def _main_impl() -> None:
 
     if tool == "status":
         raise SystemExit(_run_script("status_reporter.py", [*forward_args, *rest]))
+    if tool == "quality-trend":
+        raise SystemExit(_run_script("quality_trend_report.py", [*forward_args, *rest]))
     if tool == "update-state":
         raise SystemExit(_run_script("update_state.py", [*forward_args, *rest]))
     if tool == "backup":

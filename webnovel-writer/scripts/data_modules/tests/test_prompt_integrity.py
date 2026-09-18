@@ -420,6 +420,7 @@ def test_review_skill_final_report_covers_metrics_and_blocking_decision():
         ".webnovel/tmp/review_results.json",
         ".webnovel/tmp/review_metrics.json",
         "review_metrics",
+        ".webnovel/reports/quality-trend.md",
         "阻断问题数量",
         "用户裁决状态",
         "如果无阻断，明确可以继续写作",

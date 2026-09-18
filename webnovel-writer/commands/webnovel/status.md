@@ -1,5 +1,5 @@
 ---
-description: 书项目短状态（阶段、断点、计量）
+description: 书项目短状态（阶段、断点、计量、近10次审查趋势）
 allowed-tools: Bash
 ---
 
@@ -13,4 +13,4 @@ allowed-tools: Bash
 python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" project-status --format json
 ```
 
-对输出做一句话解读：当前阶段、最近断点、计量是否闭合。不要修改任何文件。
+对输出做一句话解读：当前阶段、最近断点、计量是否闭合，以及 `quality_trend`（有审查记录时给出近 10 次均分；没有则说明不可用）。不要修改任何文件。

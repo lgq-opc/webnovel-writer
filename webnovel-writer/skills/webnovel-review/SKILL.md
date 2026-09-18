@@ -105,6 +105,14 @@ python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" rev
 
 `review-pipeline --save-metrics` 同时完成报告生成、`review_metrics.json` 输出、`review_metrics` 表写入。阻断判断以 review_results 中的 `blocking=true` 为准。
 
+落库后刷新近 10 次审查趋势（作者无需再手动跑脚本）：
+
+```bash
+python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" quality-trend --limit 10
+```
+
+完整报告默认写到 `.webnovel/reports/quality-trend.md`。`/webnovel:status`（`project-status`）也会带一行 `quality_trend`。
+
 ### Step 7：写入兼容审查记录
 
 ```bash
@@ -176,6 +184,7 @@ python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" use
 - `.webnovel/tmp/review_results.json`。
 - `.webnovel/tmp/review_metrics.json`。
 - `review_metrics` 是否落库。
+- `.webnovel/reports/quality-trend.md`（近 10 次趋势）。
 - 阻断问题数量。
 - 用户裁决状态。
 - 如果无阻断，明确可以继续写作。

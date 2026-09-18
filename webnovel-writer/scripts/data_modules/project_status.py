@@ -65,6 +65,19 @@ def next_action_for_phase(snapshot: ProjectPhaseSnapshot) -> str:
     return "run webnovel.py doctor --format text"
 
 
+def _quality_trend_snapshot(root: Path | None) -> dict[str, Any]:
+    """R17：短状态附带近 10 次审查趋势。无 index.db 时不可用，且不得建库。"""
+    empty = {"available": False, "reason": "no_project", "window": 10, "line": ""}
+    if root is None:
+        return empty
+    try:
+        from quality_trend_report import summarize_quality_trend
+
+        return summarize_quality_trend(root, last_n=10)
+    except Exception:
+        return {"available": False, "reason": "trend_unavailable", "window": 10, "line": ""}
+
+
 def build_project_status(project_root: str | Path | None, chapter: int | None = None) -> dict[str, Any]:
     snapshot = resolve_project_phase(project_root, chapter=chapter)
     root = Path(snapshot.project_root) if snapshot.project_root else None
@@ -78,6 +91,7 @@ def build_project_status(project_root: str | Path | None, chapter: int | None = 
         "blocking": list(snapshot.blocking),
         "warnings": list(snapshot.warnings),
         "next_action": next_action_for_phase(snapshot),
+        "quality_trend": _quality_trend_snapshot(root),
         "evidence": snapshot.to_dict(),
     }
 
@@ -96,6 +110,12 @@ def format_project_status(report: dict[str, Any], output_format: str = "summary"
         f"target_chapter: {report.get('target_chapter')}",
         f"next_action: {report.get('next_action')}",
     ]
+    trend = report.get("quality_trend") or {}
+    if trend.get("available") and trend.get("line"):
+        lines.append(f"quality_trend: {trend['line']}")
+    else:
+        reason = trend.get("reason") or "unknown"
+        lines.append(f"quality_trend: unavailable ({reason})")
     blocking = report.get("blocking") or []
     warnings = report.get("warnings") or []
     if blocking:

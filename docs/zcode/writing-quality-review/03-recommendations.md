@@ -111,16 +111,19 @@
 **方案**：`build_methodology_strategy_card` 的 stage 判定改为读当前卷纲节拍（章纲 chapter_directive 的节拍字段，缺失回退现有 %5）。
 **落点**：`DM/writing_guidance_builder.py:121-127`。
 **验收**：有节拍标注的章策略卡与卷纲一致。
+**收口（2026-09-18）**：**superseded**。落点 `writing_guidance_builder.py` 已随 v6 写链退役删除；不把 v6 策略卡迁进 v7 pack。
 
 ### R17 quality_trend_report 接入入口（对应 F-21）
 **方案**：`/webnovel-review` 完成后自动跑一次 trend 摘要附在报告尾部；或 `/webnovel:status` 命令输出近 10 章趋势一行。
 **落点**：`skills/webnovel-review/SKILL.md`、`commands/webnovel/status.md`。
 **验收**：作者无需手动跑脚本即可看到趋势。
+**收口（2026-09-18）**：已做。`/webnovel:status`（`project-status` / MCP `webnovel_project_status`）输出近 10 次 `quality_trend` 一行；CLI `quality-trend`；`/webnovel-review` 在 `--save-metrics` 后刷新 `.webnovel/reports/quality-trend.md`。无 `index.db` 时标注 unavailable，不建库。
 
 ### R18 死旋钮清理（对应 F-22）
 **方案**：二选一——实现 battle/emotion 模板与 early/late 阶段的真实差异化（上下文 section 大小/取舍随场景变化），或删除这些权重与配置项（诚实化）。倾向前者：场景类型感知的上下文组装对质量有实际价值（战斗章多给场景写法检索结果、情感章多给情绪节拍参考）。
 **落点**：`DM/context_weights.py`、`DM/context_manager.py:170-175`、`DM/config.py:285-288`。
 **验收**：战斗章与情感章的上下文组成可观测差异，或配置项移除。
+**收口（2026-09-18）**：选诚实化删除。装配器与 `context_weights` 已随 context 链/孤儿清理删除；不重建场景类型感知组装。
 
 ---
 

@@ -191,7 +191,7 @@ v7 书仓的真源是六域目录（`book.yaml` + `定稿/` 等），`.cache/` �
 |--------|------|
 | `where` | 打印当前解析出的项目根目录 |
 | `preflight` | 校验 CLI 环境、脚本路径和项目根是否可用 |
-| `project-status` | 输出机器可读短状态（phase、目标章节、下一步），不占用旧 `status` |
+| `project-status` | 输出机器可读短状态（phase、目标章节、下一步、近 10 次 `quality_trend`），不占用旧 `status` |
 | `doctor` | 阶段感知项目体检（目录、文件、DB、RAG、依赖、Dashboard） |
 | `v7-write` | v7 书仓写链（`decision` / `pack` / `check` / `settle`） |
 | `user-report` | 渲染作者友好的最终报告，可输出 text/json |
@@ -226,6 +226,7 @@ python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJEC
 | 子命令 | 说明 |
 |--------|------|
 | `status` | 宏观创作健康报告（`--focus all` / `--focus urgency`），仍转发到 `status_reporter.py` |
+| `quality-trend` | 离线质量趋势报告（读 `index.db.review_metrics`，默认 `.webnovel/reports/quality-trend.md`） |
 | `update-state` | 手动更新状态 |
 | `backup` | 备份管理 |
 | `archive` | 归档管理 |

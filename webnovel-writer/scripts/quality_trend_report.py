@@ -125,6 +125,49 @@ def _build_risk_flags(
     return flags
 
 
+QUALITY_TREND_WINDOW = 10
+
+
+def summarize_quality_trend(project_root: Path, *, last_n: int = QUALITY_TREND_WINDOW) -> Dict[str, Any]:
+    """给 `/webnovel:status` 用的近 N 次审查趋势（不写文件、不建库）。"""
+    window = max(1, int(last_n))
+    root = Path(project_root)
+    index_db = root / ".webnovel" / "index.db"
+    if not index_db.is_file():
+        return {"available": False, "reason": "no_index_db", "window": window, "line": ""}
+
+    cfg = DataModulesConfig.from_project_root(root)
+    manager = IndexManager(cfg)
+    stats = manager.get_review_trend_stats(last_n=window)
+    count = _to_int(stats.get("count"))
+    if count <= 0:
+        return {"available": False, "reason": "no_review_metrics", "window": window, "line": ""}
+
+    records = manager.get_recent_review_metrics(limit=window)
+    scores = [_to_float(row.get("overall_score")) for row in records if row.get("overall_score") is not None]
+    latest = scores[0] if scores else None
+    oldest = scores[-1] if scores else None
+    delta = 0.0
+    if latest is not None and oldest is not None and len(scores) > 1:
+        delta = round(latest - oldest, 1)
+    overall_avg = _to_float(stats.get("overall_avg"))
+    line = f"近{count}次审查均分 {overall_avg:.1f}"
+    if latest is not None:
+        line += f"，最新 {latest:.1f}"
+    if len(scores) > 1:
+        line += f"（窗口内 {delta:+.1f}）"
+    return {
+        "available": True,
+        "reason": "",
+        "window": window,
+        "count": count,
+        "overall_avg": overall_avg,
+        "latest_score": latest,
+        "delta": delta,
+        "line": line,
+    }
+
+
 def build_quality_report(
     project_root: Path,
     manager: IndexManager,
