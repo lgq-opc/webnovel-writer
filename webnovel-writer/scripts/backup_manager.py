@@ -13,7 +13,8 @@ Git 集成备份管理系统 (Backup Manager with Git)
 4. ✅ 分支管理：天然支持"平行世界"创作
 
 功能：
-1. 自动 Git 提交：每次 /webnovel-write 完成后自动 commit
+1. 自动 Git 提交：v6 写链在 /webnovel-write 完成后自动 commit；v7 书仓**不自动触发**备份，
+   统一入口为 CLI `webnovel.py backup`（book.yaml 在场而无 .git 的仓走本地快照，git 仓走原子提交）
 2. 原子性回滚：git checkout 同时回滚所有文件
 3. 版本历史：git log 查看完整历史
 4. 差异对比：git diff 查看任意两个版本的差异

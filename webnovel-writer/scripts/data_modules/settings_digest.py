@@ -8,6 +8,10 @@ L2：原文按需经 `setting-read` 命令或 Read 展开给 agent。
 
 摘要自动维护：源文件 sha256 与记录不一致即就地重建，无需依赖 init/plan 重跑；
 非 ZCode/无设定文件时返回空串，调用方回退旧路径。
+
+状态注记（2026-09-20 复审定性）：`find_setting_path` 是 setting-read 的兜底路径，持续服役；
+L0 摘要构建链（`digest_dir`/`get_setting_digest`）自 context 链退役（c1f4432）后暂无生产消费者，
+有意保留待 v7 侧接线或后续清理裁决，勿当作活跃链路引用。
 """
 from __future__ import annotations
 
