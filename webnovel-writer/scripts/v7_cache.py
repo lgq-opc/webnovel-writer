@@ -410,6 +410,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    if sys.platform == "win32":
-        sys.stdout.reconfigure(encoding="utf-8")
+    from runtime_compat import enable_windows_utf8_stdio
+    enable_windows_utf8_stdio(skip_in_pytest=True)
     main()

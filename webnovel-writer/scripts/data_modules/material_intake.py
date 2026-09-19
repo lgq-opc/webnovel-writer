@@ -32,6 +32,28 @@ def gallery_dir(project_root: str | Path) -> Path:
     return Path(project_root) / GALLERY_DIR
 
 
+# 画廊批名白名单：只接受 propose_entries 生成的 `{slug}-v{N}.csv` 形态。
+_BATCH_NAME_PATTERN = re.compile(r"^(?:ai|chaishu|gongfang|misc)-v\d+\.csv$")
+
+
+def _resolve_batch_path(project_root: str | Path, batch: str) -> Path | None:
+    """画廊批文件安全解析（P1-3 路径穿越加固，2026-09-20）。
+
+    批名只接受上方白名单形态，且 resolve() 后父目录必须就是画廊目录——
+    `../../`、绝对路径、子目录一律返回 None（对外表现为 batch_missing）。
+    不用 sanitize_filename 做查找名：它会把 `.` 改写成 `_`
+    （ai-v1.csv → ai-v1_csv），误伤合法批名；结构白名单更严且不变形。
+    """
+    name = str(batch or "")
+    if not _BATCH_NAME_PATTERN.fullmatch(name):
+        return None
+    gallery = gallery_dir(project_root).resolve()
+    resolved = (gallery / name).resolve()
+    if resolved.parent != gallery:
+        return None
+    return resolved
+
+
 def _channel_slug(channel: str) -> str:
     if channel == "AI归纳":
         return "ai"
@@ -122,8 +144,8 @@ def adopt_entries(project_root: str | Path, *, batch: str, ids: list[str] | None
     """采纳批次（全部或 ids 子集）入活层；id 已存在则跳过。画廊文件保留（只增不改）。"""
     from .material_store import append_entries
 
-    path = gallery_dir(project_root) / batch
-    if not path.is_file():
+    path = _resolve_batch_path(project_root, batch)
+    if path is None or not path.is_file():
         return {"ok": False, "error": "batch_missing", "batch": batch}
     rows = _read_candidate_rows(path)
     if ids is not None:
@@ -146,10 +168,10 @@ def adopt_entries(project_root: str | Path, *, batch: str, ids: list[str] | None
             project_root,
             [
                 {
-                    "actor": "author",
-                    "action": "adopt",
-                    "domain": "素材",
-                    "path": f"{GALLERY_DIR.as_posix()}/{batch}",
+                "actor": "author",
+                "action": "adopt",
+                "domain": "素材",
+                "path": f"{GALLERY_DIR.as_posix()}/{path.name}",
                     "change_kind": "add",
                     "diff_stat": {"ins": adopted, "del": 0},
                     "summary": f"采纳素材候选 {adopted} 条（{batch}）",
@@ -168,8 +190,8 @@ def adopt_entries(project_root: str | Path, *, batch: str, ids: list[str] | None
 
 def discard_batch(project_root: str | Path, *, batch: str) -> dict[str, Any]:
     """丢弃批次（删画廊文件）。留 journal(discard, domain=素材)。"""
-    path = gallery_dir(project_root) / batch
-    if not path.is_file():
+    path = _resolve_batch_path(project_root, batch)
+    if path is None or not path.is_file():
         return {"ok": False, "error": "batch_missing", "batch": batch}
     path.unlink()
     append_events(
@@ -179,7 +201,7 @@ def discard_batch(project_root: str | Path, *, batch: str) -> dict[str, Any]:
                 "actor": "author",
                 "action": "discard",
                 "domain": "素材",
-                "path": f"{GALLERY_DIR.as_posix()}/{batch}",
+                "path": f"{GALLERY_DIR.as_posix()}/{path.name}",
                 "change_kind": "structure",
                 "diff_stat": {"ins": 0, "del": 0},
                 "summary": f"丢弃素材候选批（{batch}）",

@@ -244,10 +244,10 @@ class DataModulesConfig:
     max_disambiguation_pending: int = 1000
     max_state_changes: int = 2000
 
-    # memory/orchestrator 与 settings_digest 仍读取这两项；其余 context_* 旋钮
-    # 只服务已删的 context_manager 链，2026-09-18 随孤儿清理去掉。
+    # memory/orchestrator 仍读取 context_recent_summaries_window；settings_digest 的
+    # L0 摘要链 2026-09-20 定性后不再消费旋钮（用内置 DEFAULT_DIGEST_MAX_CHARS），
+    # 其余 context_* 旋钮只服务已删的 context_manager 链，2026-09-18 随孤儿清理去掉。
     context_recent_summaries_window: int = 3
-    context_settings_digest_max_chars: int = 240
     # S18/E4：v7 story-repo 仓库根（双格式期间由 S16 迁移器/作者配置；空 = v7 侧不存在）
     story_repo_root: str = field(default_factory=lambda: os.getenv("STORY_REPO_ROOT", ""))
     memory_orchestrator_max_items: int = 30

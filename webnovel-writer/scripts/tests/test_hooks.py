@@ -44,7 +44,7 @@ def test_guard_blocks_direct_commit_file_write():
     )
 
     assert proc.returncode == 2
-    assert "permissionDecision" in proc.stderr
+    assert "permissionDecision" in proc.stdout
 
 
 def test_guard_allows_direct_state_write():

@@ -370,6 +370,26 @@ def _reject_leading_dash(arguments: dict[str, Any]) -> None:
                 raise ValueError(f"argument {key!r} must not start with '-': {item!r}")
 
 
+def _validate_arguments(arguments: dict[str, Any]) -> None:
+    """实参类型加固（P2-14，2026-09-20）：宿主未必按 inputSchema 校验类型。
+
+    - project_root 会被**原样**拼进 argv，必须为字符串或缺省——数字等标量会在
+      subprocess 构造时抛 TypeError，未被捕获即杀死整个 stdio 服务（动态实证）。
+    - 其余实参允许标量（str/int/float/bool/None）与标量数组：builders 内部以
+      str()/int() 归一（schema 亦声明部分参数为 integer）；dict 等非标量一律拒绝。
+    """
+    for key, value in arguments.items():
+        if key == "project_root":
+            if value is not None and not isinstance(value, str):
+                raise ValueError("argument 'project_root' must be a string")
+            continue
+        if value is None or isinstance(value, (str, int, float, bool)):
+            continue
+        if isinstance(value, list) and all(isinstance(item, (str, int, float, bool)) for item in value):
+            continue
+        raise ValueError(f"argument {key!r} must be a scalar or a list of scalars")
+
+
 def call_tool(name: str, arguments: Optional[dict[str, Any]]) -> dict[str, Any]:
     tool = _TOOLS_BY_NAME.get(name)
     if tool is None:
@@ -379,14 +399,22 @@ def call_tool(name: str, arguments: Optional[dict[str, Any]]) -> dict[str, Any]:
         }
     try:
         clean_arguments = dict(arguments or {})
+        _validate_arguments(clean_arguments)
         _reject_leading_dash(clean_arguments)
         cli_args = tool["build"](clean_arguments)
+        # run_webnovel_cli 也必须罩住：构造 argv / 启动子进程阶段的任何残余异常
+        # （如 TypeError、OSError 变体）都不得冒出 handle_request 杀死 stdio 循环。
+        return run_webnovel_cli(cli_args)
     except (KeyError, TypeError, ValueError) as exc:
         return {
             "content": [{"type": "text", "text": f"invalid arguments for {name}: {exc}"}],
             "isError": True,
         }
-    return run_webnovel_cli(cli_args)
+    except Exception as exc:  # noqa: BLE001 —— 服务保活优先于异常细分
+        return {
+            "content": [{"type": "text", "text": f"tool {name} failed: {exc}"}],
+            "isError": True,
+        }
 
 
 # ---------------------------------------------------------------------------

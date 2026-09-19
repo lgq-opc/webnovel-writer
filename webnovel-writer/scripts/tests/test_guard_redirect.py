@@ -144,7 +144,7 @@ class TestRuntimeCompoundCommandEndToEnd:
             "--summary ok && rm -f .webnovel/index.db"
         )
         assert proc.returncode == 2
-        assert "permissionDecision" in proc.stderr
+        assert "permissionDecision" in proc.stdout
 
     def test_sanctioned_settle_with_readonly_suffix_allowed(self):
         proc = _run_guard_hook(

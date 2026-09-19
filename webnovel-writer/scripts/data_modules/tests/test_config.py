@@ -46,7 +46,6 @@ def test_load_dotenv(monkeypatch, tmp_path):
 def test_config_keeps_live_context_knobs(tmp_path):
     cfg = DataModulesConfig.from_project_root(tmp_path)
     assert cfg.context_recent_summaries_window == 3
-    assert cfg.context_settings_digest_max_chars == 240
 
 
 def test_config_drops_retired_context_manager_knobs(tmp_path):

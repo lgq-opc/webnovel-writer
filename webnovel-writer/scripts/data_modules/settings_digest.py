@@ -108,8 +108,7 @@ def get_setting_digest(config: Any, keyword: str, settings_dir: Optional[Path] =
         except (json.JSONDecodeError, OSError):
             pass
 
-    max_chars = int(getattr(config, "context_settings_digest_max_chars", DEFAULT_DIGEST_MAX_CHARS) or DEFAULT_DIGEST_MAX_CHARS)
-    digest = build_digest(text, max_chars=max_chars)
+    digest = build_digest(text, max_chars=DEFAULT_DIGEST_MAX_CHARS)
     record: dict[str, Any] = {
         "keyword": keyword,
         "source_sha256": sha,

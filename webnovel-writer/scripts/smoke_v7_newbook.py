@@ -360,4 +360,6 @@ def _report(results: list[dict[str, Any]], args: argparse.Namespace, root: Path)
 
 
 if __name__ == "__main__":
+    from runtime_compat import enable_windows_utf8_stdio
+    enable_windows_utf8_stdio(skip_in_pytest=True)
     raise SystemExit(main())

@@ -59,6 +59,20 @@ def _fix_sys_argv() -> None:
         pass
 
 
+def _running_as_pytest_process() -> bool:
+    """仅当本进程**本身**就是 pytest 时为真（argv0 判定）。
+
+    不能用 ``"pytest" in sys.modules``：pytest-cov 的子进程支持（COV_CORE_* 环境
+    变量 + site-packages 的 .pth 钩子）会让被测 CLI **子进程**也 import pytest，
+    误判成测试进程而跳过 UTF-8 兜底——tests-windows 金丝雀抓到的正是这一缺口
+    （2026-09-20 定位）：cp1252 locale 下 CLI 子进程打印中文即 UnicodeEncodeError，
+    本机 GBK 能编码中文故长期假绿。也不能用 PYTEST_CURRENT_TEST 环境变量：子进程
+    会继承它。argv0 是唯一不被子进程继承、也不被第三方钩子污染的信号。
+    """
+    argv0 = str(sys.argv[0] or "").lower()
+    return "pytest" in argv0
+
+
 def enable_windows_utf8_stdio(*, skip_in_pytest: bool = False) -> bool:
     """Enable UTF-8 stdio wrappers and fix argv mojibake on Windows.
 
@@ -67,7 +81,7 @@ def enable_windows_utf8_stdio(*, skip_in_pytest: bool = False) -> bool:
     """
     if sys.platform != "win32":
         return False
-    if skip_in_pytest and os.environ.get("PYTEST_CURRENT_TEST"):
+    if skip_in_pytest and _running_as_pytest_process():
         return False
 
     # 修复 sys.argv 中因 PowerShell 传参编码导致的乱码（与 stdio 编码相互独立）

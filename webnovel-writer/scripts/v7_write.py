@@ -147,14 +147,6 @@ def write_decision_card(repo: Path, decision: dict[str, Any]) -> Path:
 # ---------- 上下文包 ----------
 
 
-def _find_setting_path(settings_dir: Path, keyword: str) -> Optional[Path]:
-    exact = settings_dir / f"{keyword}.md"
-    if exact.exists():
-        return exact
-    matches = sorted(settings_dir.glob(f"*{keyword}*.md"))
-    return matches[0] if matches else None
-
-
 def load_context_budget(repo: Path) -> dict[str, Any]:
     """book.yaml `context_budget:` 节解析（S22/S23 按书覆盖）。
 
@@ -1090,4 +1082,6 @@ def main(argv: Optional[list[str]] = None) -> int:
 
 
 if __name__ == "__main__":
+    from runtime_compat import enable_windows_utf8_stdio
+    enable_windows_utf8_stdio(skip_in_pytest=True)
     raise SystemExit(main())

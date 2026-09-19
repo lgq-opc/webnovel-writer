@@ -257,3 +257,48 @@ def test_serve_dispatches_lines():
     assert len(lines) == 2  # ping 响应 + parse error；通知无响应
     assert lines[0]["result"] == {}
     assert lines[1]["error"]["code"] == -32700
+
+
+# ---------------------------------------------------------------------------
+# P2-14 类型加固（2026-09-20）：非字符串实参不得杀死 stdio 服务
+# ---------------------------------------------------------------------------
+
+
+def test_tools_call_rejects_non_string_project_root():
+    """project_root 原样进 argv：int 会被 subprocess 拒绝，须在构造前拦下。"""
+    result = server.call_tool("webnovel_where", {"project_root": 123})
+    assert result["isError"] is True
+    assert "project_root" in result["content"][0]["text"]
+
+
+def test_tools_call_rejects_non_scalar_values():
+    """dict / 嵌套结构一律拒绝。"""
+    result = server.call_tool("webnovel_materials_status", {"table": {"a": 1}})
+    assert result["isError"] is True
+
+
+def test_tools_call_scalar_coercion_still_allowed(monkeypatch):
+    """schema 声明 integer 的参数（builder 内 str()/int() 归一）保持可用。"""
+    captured: dict = {}
+
+    def fake_run(cli_args):
+        captured["args"] = cli_args
+        return {"content": [{"type": "text", "text": "ok"}], "isError": False}
+
+    monkeypatch.setattr(server, "run_webnovel_cli", fake_run)
+    result = server.call_tool("webnovel_setting_read", {"name": "力量体系", "max_chars": 100})
+    assert result["isError"] is False
+    assert "--max-chars" in captured["args"] and "100" in captured["args"]
+
+
+def test_handle_request_survives_malformed_arguments():
+    """tools/call 带坏实参时返回 error result，而非异常冒泡杀进程。"""
+    payload = {
+        "jsonrpc": "2.0",
+        "id": 7,
+        "method": "tools/call",
+        "params": {"name": "webnovel_where", "arguments": {"project_root": 123}},
+    }
+    response = server.handle_request(payload)
+    assert response is not None
+    assert response["result"]["isError"] is True

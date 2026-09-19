@@ -24,12 +24,31 @@ _MASTER_TARGET = Path("大纲") / "总纲.md"
 _CHAPTER_TARGET_DIR = Path("大纲") / "章纲"
 
 
+def _safe_key(key: str) -> str:
+    """章纲 key 安全校验（P2-5 路径穿越加固，2026-09-20）。
+
+    key 只允许作为单层文件名/目录名使用：拒绝空值、路径分隔符、绝对路径、
+    `..` 与 `~` 展开。随后调用方还对落点做 resolve()+relative_to 的双保险。
+    """
+    raw = str(key or "")
+    if (
+        not raw
+        or raw in {".", ".."}
+        or "/" in raw
+        or "\\" in raw
+        or Path(raw).is_absolute()
+        or raw.startswith("~")
+    ):
+        raise ValueError(f"invalid regen key: {key!r}")
+    return raw
+
+
 def _gallery_dir(project_root: str | Path, domain: str, key: str) -> Path:
     root = Path(project_root)
     if domain == "总纲":
         return root / "大纲" / "regen" / "总纲"
     if domain == "章纲":
-        return root / "大纲" / "regen" / "章纲" / key
+        return root / "大纲" / "regen" / "章纲" / _safe_key(key)
     raise ValueError(f"unsupported domain: {domain}")
 
 
@@ -38,7 +57,10 @@ def _target_path(project_root: str | Path, domain: str, key: str) -> Path:
     if domain == "总纲":
         return root / _MASTER_TARGET
     if domain == "章纲":
-        return root / _CHAPTER_TARGET_DIR / f"{key}.md"
+        key = _safe_key(key)
+        target = root / _CHAPTER_TARGET_DIR / f"{key}.md"
+        target.resolve().relative_to(Path(root).resolve())  # 双保险：越界即抛 ValueError
+        return target
     raise ValueError(f"unsupported domain: {domain}")
 
 
@@ -147,22 +169,27 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     root = Path(args.project_root)
-    if args.action == "save":
-        content = Path(args.content_file).read_text(encoding="utf-8") if args.content_file else ""
-        report = save_version(root, domain=args.domain, key=args.key, content=content, force=args.force)
-    elif args.action == "list":
-        report = {"ok": True, "versions": list_versions(root, domain=args.domain, key=args.key)}
-    elif args.action == "diff":
-        report = {"ok": True, "diff": diff_versions(root, domain=args.domain, key=args.key, a=args.version or 0, b=args.against or 0)}
-    elif args.action == "adopt":
-        report = adopt_version(root, domain=args.domain, key=args.key, version=args.version or 0)
-    elif args.action == "discard":
-        report = discard_version(root, domain=args.domain, key=args.key, version=args.version or 0)
-    else:
-        report = {"ok": False, "error": "unknown"}
+    try:
+        if args.action == "save":
+            content = Path(args.content_file).read_text(encoding="utf-8") if args.content_file else ""
+            report = save_version(root, domain=args.domain, key=args.key, content=content, force=args.force)
+        elif args.action == "list":
+            report = {"ok": True, "versions": list_versions(root, domain=args.domain, key=args.key)}
+        elif args.action == "diff":
+            report = {"ok": True, "diff": diff_versions(root, domain=args.domain, key=args.key, a=args.version or 0, b=args.against or 0)}
+        elif args.action == "adopt":
+            report = adopt_version(root, domain=args.domain, key=args.key, version=args.version or 0)
+        elif args.action == "discard":
+            report = discard_version(root, domain=args.domain, key=args.key, version=args.version or 0)
+        else:
+            report = {"ok": False, "error": "unknown"}
+    except ValueError as exc:  # 非法 key（穿越形态）走干净错误出口，不吐 traceback
+        report = {"ok": False, "error": str(exc)}
 
     if args.format == "json":
         print(_json.dumps(report, ensure_ascii=False, indent=2))
+    elif not report.get("ok", True):
+        print(f"ERROR {report.get('error')}")
     else:
         if args.action == "list":
             for v in report["versions"]:
