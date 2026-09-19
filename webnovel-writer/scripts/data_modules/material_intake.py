@@ -129,7 +129,8 @@ def propose_entries(project_root: str | Path, *, channel: str, file: str | Path)
 
 
 def list_candidates(project_root: str | Path) -> list[dict[str, Any]]:
-    """画廊批次清单（按批次序）。glob 与 _resolve_batch_path 白名单同源，消除「列出却拒绝」。"""
+    """画廊批次清单（按批次序）。glob 与 _resolve_batch_path 白名单同源（白名单 ⊆ 列出；
+    异形批名如手工放置的 ai-v1draft.csv 仍可能列出后被拒，处理为 batch_missing）。"""
     gallery = gallery_dir(project_root)
     if not gallery.is_dir():
         return []

@@ -71,7 +71,13 @@ def _running_as_pytest_process() -> bool:
     取 basename 匹配（避免安装目录名含 pytest 时误伤），并兼容老别名 ``py.test``。
     """
     argv0 = Path(str(sys.argv[0] or "")).name.lower()
-    return "pytest" in argv0 or argv0 == "py.test"
+    if "pytest" in argv0 or argv0 == "py.test":
+        return True
+    # `python -m pytest`：argv0 是 pytest 包的 __main__.py（basename 不含 pytest），
+    # 回看全路径的 /pytest/ 目录段——比旧的全路径包含判断误伤面小得多
+    # （第 2 轮审阅 G-2，2026-09-20）。
+    full = str(sys.argv[0] or "").replace(chr(92), "/").lower()
+    return argv0 == "__main__.py" and "/pytest/" in full
 
 
 def enable_windows_utf8_stdio(*, skip_in_pytest: bool = False) -> bool:

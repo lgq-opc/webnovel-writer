@@ -133,7 +133,19 @@ def _looks_like_direct_projection_write(command: str) -> bool:
     return any(_segment_looks_like_direct_projection_write(segment) for segment in segments)
 
 
+def _harden_stdio() -> None:
+    """hook 不走 runtime_compat 包装器：宿主管道为 cp1252 时含中文的 deny 文案
+    会在 print 处 UnicodeEncodeError → rc=1/stdout 空 → 宿主按非阻断处理，拦截
+    fail-open（第 2 轮审阅 G-1，2026-09-20）。统一 reconfigure 为 UTF-8。"""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8")
+        except (AttributeError, OSError):
+            pass
+
+
 def main() -> int:
+    _harden_stdio()
     if _truthy(os.environ.get(DISABLE_ENV)):
         return 0
 
