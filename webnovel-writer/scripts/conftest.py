@@ -23,7 +23,13 @@ _ORIGINAL_TEMPORARY_DIRECTORY = tempfile.TemporaryDirectory
 # 系统临时目录基准：**必须在导入期**取值。_install_safe_tempfile() 一旦跑过，
 # tempfile.tempdir 就被指向我们自己的临时根，那时再调 gettempdir() 只会拿回被
 # 覆盖的值（自指，得到 <root>/wn-pytest 的嵌套）。见 _tmp_root()。
-_ORIGINAL_TEMP_ROOT = Path(tempfile.gettempdir())
+# resolve() 必须做：GH runner 的 %TEMP% 本身是 8.3 短形态（C:\Users\RUNNER~1\...），
+# 短形态一路传进 tmp_path 后，与测试里 resolve() 过的长路径比较全红——
+# tests-windows 2026-09-15 起 6 连红的真因（本机用户名 ≤8 字符无短别名，不可复现）。
+try:
+    _ORIGINAL_TEMP_ROOT = Path(tempfile.gettempdir()).resolve()
+except OSError:
+    _ORIGINAL_TEMP_ROOT = Path(tempfile.gettempdir())
 
 # 测试临时根目录名：固定短名，与控制台/仓库/检出目录名无关，长度可预期。
 _TMP_ROOT_DIRNAME = "wn-pytest"
