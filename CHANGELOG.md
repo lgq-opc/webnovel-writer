@@ -2,6 +2,14 @@
 
 这里记录每个正式版本对作者和维护者的影响。发布说明优先面向中文网文作者：先说写作体验有什么变化，再补维护者关心的技术细节。
 
+## v8.1.1 - v6 退役收官 + 质量收口 + ZCode 装机与 MCP 修复
+
+> 本次发布覆盖上个正式 tag `v8.1.0` 之后的 `v8.1.0..v8.1.1`（v8-author 分支，137 笔）。发布说明详见 `releases/v8.1.1.md`；退役口径见 `docs/plans/2026-09-10-v6线退役方案.md` §3.1，装机重建见 `docs/zcode/zcode-native-adaptation/05-install-reinstall-runbook.md` §6。
+
+**写作体验**：决策卡如实显示推导目标字数且字数契约成为真 section（U-14 消除）；`--no-git` 书仓的 backup/settle 不再违背或抛原始报错；本地备份清单补齐 v7 六域；v7 书仓不再被风格样本库副作用建出 `.webnovel/`；钩子口径归决策卡、`status` 对 v7 仓如实报不支持。v7 书仓零迁移，升级即用。
+
+**维护者**：v6 退役按 §3.1 六条裁决收官（context 链级联删除、孤儿模块清理、continuity_shared 拆分、RAG 下线、dashboard 纯 v7 明示不支持、knowledge 名册级定版）；MCP 工具面 14→12；夜审 + 六 pilot 批次质量收口（guard 复合命令逐段判定等）；ZCode 登记面丢失重建手册（runbook §6）与 MCP 加载根因修复（userConfig 缺 default 即 throw）。
+
 ## v8.1.0 - 写前上下文加厚 + 定稿闸门收紧 + 书仓体检落地
 
 > 本次发布覆盖上个正式 tag `v8.0.0` 之后的 `v8.0.0..v8.1.0`（v8-author 分支）。发布说明详见 `releases/v8.1.0.md`；方案与交接见 `docs/cursor/项目复审/`。

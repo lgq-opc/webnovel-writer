@@ -48,7 +48,7 @@ webnovel-writer/              ← 外层仓库根（marketplace.json 双位置�
 
 ## 当前状态
 
-- 当前版本：v8.1.0（作者主权 + 300 章连贯：六域书仓治理 + MCP 12 只读工具 + 13 条命令；`v8-author` 分支，tag `v8.1.0` 已推送远端）
+- 当前版本：v8.1.1（v6 退役收官 + 质量收口 + ZCode 装机与 MCP 修复；MCP 12 只读工具 + 13 条命令；`v8-author` 分支，tag `v8.1.1` 已推送远端，发布说明 `releases/v8.1.1.md`）
 - MCP 工具面 14 → 12（D-2 乙，2026-09-13）：撤出 `rag_search`（v7 无向量库）与 `context`（已被 `v7-write pack` 取代）；`knowledge` 保留但按书仓形态分流（v7 只答名册级）。
 - 领先 master 的提交数**不在此处写死**（N-3：这是个滚动快照，写下的数字第二天就过期）——需要时现算：
   `git log --oneline origin/master..HEAD | wc -l`
