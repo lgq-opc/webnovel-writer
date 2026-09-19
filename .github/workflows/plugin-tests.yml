@@ -45,6 +45,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-tags: true  # validate_release_notes 的 tag 守卫需要看到 tags
 
       - name: Setup Python
         uses: actions/setup-python@v7
@@ -98,7 +100,23 @@ jobs:
           python -m pip install -r requirements.lock
 
       - name: Run test suite (documented command, no PYTHONUTF8)
-        run: python -X utf8 -m pytest
+        run: python -X utf8 -m pytest --junitxml=win-junit.xml
+
+      # job 日志对匿名 API 不可读（403），失败测试名经 ::error 注解透出，
+      # 可由 check-runs annotations 端点匿名读取（2026-09-20 诊断用，保留长期有效）。
+      - name: Emit failed tests as annotations
+        if: failure()
+        shell: pwsh
+        run: |
+          if (Test-Path win-junit.xml) {
+            [xml]$x = Get-Content win-junit.xml
+            $cases = $x.SelectNodes("//testcase[failure]")
+            foreach ($c in $cases) {
+              $msg = ($c.failure.message -replace "`r?`n", " ")
+              if ($msg.Length -gt 280) { $msg = $msg.Substring(0, 280) }
+              Write-Output ("::error title=FAILED " + $c.name + "::" + $msg)
+            }
+          }
 
       # 同上。这个 job 也跑一遍是刻意的：冒烟测的是路径解析 + 子进程编码这类
       # 平台敏感链路，而 ubuntu 的 locale 是 UTF-8，结构性地看不到这一类缺陷
