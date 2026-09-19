@@ -434,6 +434,10 @@ def handle_request(payload: dict[str, Any]) -> Optional[dict[str, Any]]:
     method = payload.get("method")
     request_id = payload.get("id")
     params = payload.get("params") or {}
+    if not isinstance(params, dict):
+        # 畸形 params（list/标量）不得让 AttributeError 冒出 serve() 杀死 stdio 循环
+        # （第 1 轮审阅 C 项，2026-09-20）
+        return _error(request_id, -32602, "params must be an object")
 
     if request_id is None:
         # notification（如 notifications/initialized）——静默确认即可

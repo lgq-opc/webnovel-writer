@@ -68,9 +68,10 @@ def _running_as_pytest_process() -> bool:
     （2026-09-20 定位）：cp1252 locale 下 CLI 子进程打印中文即 UnicodeEncodeError，
     本机 GBK 能编码中文故长期假绿。也不能用 PYTEST_CURRENT_TEST 环境变量：子进程
     会继承它。argv0 是唯一不被子进程继承、也不被第三方钩子污染的信号。
+    取 basename 匹配（避免安装目录名含 pytest 时误伤），并兼容老别名 ``py.test``。
     """
-    argv0 = str(sys.argv[0] or "").lower()
-    return "pytest" in argv0
+    argv0 = Path(str(sys.argv[0] or "")).name.lower()
+    return "pytest" in argv0 or argv0 == "py.test"
 
 
 def enable_windows_utf8_stdio(*, skip_in_pytest: bool = False) -> bool:

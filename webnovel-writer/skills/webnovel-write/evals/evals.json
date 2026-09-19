@@ -3,16 +3,16 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "使用 /webnovel-write 写第4章。项目在 agents/evals/files/test-project/。",
+      "prompt": "使用 /webnovel-write 写第4章。项目在 evals/agents/files/test-project/。",
       "expected_output": "完成 v7 写链（decision→pack→draft→review→settle）：需要写前 research 时由 context-agent 起草决策 JSON，pack 产出上下文包后起草第4章正文，reviewer 审查，settle 落定到 定稿/正文/",
       "files": [
-        "agents/evals/files/test-project/.webnovel/state.json",
-        "agents/evals/files/test-project/大纲/总纲.md",
-        "agents/evals/files/test-project/大纲/第1卷-详细大纲.md",
-        "agents/evals/files/test-project/大纲/第1卷-时间线.md",
-        "agents/evals/files/test-project/.webnovel/summaries/ch0003.md",
-        "agents/evals/files/test-project/.webnovel/memory_scratchpad.json",
-        "agents/evals/files/test-project/设定集/世界观.md"
+        "evals/agents/files/test-project/.webnovel/state.json",
+        "evals/agents/files/test-project/大纲/总纲.md",
+        "evals/agents/files/test-project/大纲/第1卷-详细大纲.md",
+        "evals/agents/files/test-project/大纲/第1卷-时间线.md",
+        "evals/agents/files/test-project/.webnovel/summaries/ch0003.md",
+        "evals/agents/files/test-project/.webnovel/memory_scratchpad.json",
+        "evals/agents/files/test-project/设定集/世界观.md"
       ],
       "expectations": [
         "定稿文件 定稿/正文/0004-*.md 被 settle 落定且非空",
@@ -29,11 +29,11 @@
     },
     {
       "id": 2,
-      "prompt": "使用 /webnovel-write --fast 写第4章。项目在 agents/evals/files/test-project/。",
+      "prompt": "使用 /webnovel-write --fast 写第4章。项目在 evals/agents/files/test-project/。",
       "expected_output": "fast 模式跳过部分审查维度但仍完成核心流程",
       "files": [
-        "agents/evals/files/test-project/.webnovel/state.json",
-        "agents/evals/files/test-project/大纲/第1卷-详细大纲.md"
+        "evals/agents/files/test-project/.webnovel/state.json",
+        "evals/agents/files/test-project/大纲/第1卷-详细大纲.md"
       ],
       "expectations": [
         "定稿文件被 settle 落定且非空",
@@ -44,11 +44,11 @@
     },
     {
       "id": 3,
-      "prompt": "使用 /webnovel-write 写第4章。项目在 agents/evals/files/test-project/。特别注意 anti-AI：正文不应有密集的'缓缓''淡淡'副词、不应有'首先其次最后'三段式、不应有情绪标签化描写。",
+      "prompt": "使用 /webnovel-write 写第4章。项目在 evals/agents/files/test-project/。特别注意 anti-AI：正文不应有密集的'缓缓''淡淡'副词、不应有'首先其次最后'三段式、不应有情绪标签化描写。",
       "expected_output": "生成的正文 AI 味低，通过 anti-AI 检查",
       "files": [
-        "agents/evals/files/test-project/.webnovel/state.json",
-        "agents/evals/files/test-project/大纲/第1卷-详细大纲.md"
+        "evals/agents/files/test-project/.webnovel/state.json",
+        "evals/agents/files/test-project/大纲/第1卷-详细大纲.md"
       ],
       "expectations": [
         "正文中'缓缓'出现次数不超过 2 次",

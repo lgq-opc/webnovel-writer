@@ -129,14 +129,19 @@ def propose_entries(project_root: str | Path, *, channel: str, file: str | Path)
 
 
 def list_candidates(project_root: str | Path) -> list[dict[str, Any]]:
-    """画廊批次清单（按批次序）。"""
+    """画廊批次清单（按批次序）。glob 与 _resolve_batch_path 白名单同源，消除「列出却拒绝」。"""
     gallery = gallery_dir(project_root)
     if not gallery.is_dir():
         return []
     batches: list[dict[str, Any]] = []
-    for file in sorted(gallery.glob("*-v*.csv")):
-        rows = _read_candidate_rows(file)
-        batches.append({"batch": file.name, "channel": rows[0].get("来源", "") if rows else "", "rows": len(rows)})
+    seen: set[Path] = set()
+    for slug in ("ai", "chaishu", "gongfang", "misc"):
+        for file in sorted(gallery.glob(f"{slug}-v[0-9]*.csv")):
+            if file in seen:
+                continue
+            seen.add(file)
+            rows = _read_candidate_rows(file)
+            batches.append({"batch": file.name, "channel": rows[0].get("来源", "") if rows else "", "rows": len(rows)})
     return batches
 
 

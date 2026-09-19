@@ -27,8 +27,10 @@ _CHAPTER_TARGET_DIR = Path("大纲") / "章纲"
 def _safe_key(key: str) -> str:
     """章纲 key 安全校验（P2-5 路径穿越加固，2026-09-20）。
 
-    key 只允许作为单层文件名/目录名使用：拒绝空值、路径分隔符、绝对路径、
-    `..` 与 `~` 展开。随后调用方还对落点做 resolve()+relative_to 的双保险。
+    key 只允许作为单层文件名/目录名使用：拒绝空值、路径分隔符、盘符/盘符相对
+    形态（``D:evil`` 无斜杠但在 pathlib join 下会整段替换尾部——第 1 轮审阅实测
+    可写项目外）、绝对路径、``..`` 与 ``~`` 展开、冒号（NTFS ADS 形态）。
+    调用方另须对落点做 resolve()+relative_to 双保险。
     """
     raw = str(key or "")
     if (
@@ -36,7 +38,10 @@ def _safe_key(key: str) -> str:
         or raw in {".", ".."}
         or "/" in raw
         or "\\" in raw
+        or ":" in raw
         or Path(raw).is_absolute()
+        or Path(raw).drive
+        or Path(raw).anchor
         or raw.startswith("~")
     ):
         raise ValueError(f"invalid regen key: {key!r}")
@@ -48,7 +53,10 @@ def _gallery_dir(project_root: str | Path, domain: str, key: str) -> Path:
     if domain == "总纲":
         return root / "大纲" / "regen" / "总纲"
     if domain == "章纲":
-        return root / "大纲" / "regen" / "章纲" / _safe_key(key)
+        key = _safe_key(key)
+        gallery = root / "大纲" / "regen" / "章纲" / key
+        gallery.resolve().relative_to(Path(root).resolve())  # 双保险：越界即抛 ValueError
+        return gallery
     raise ValueError(f"unsupported domain: {domain}")
 
 

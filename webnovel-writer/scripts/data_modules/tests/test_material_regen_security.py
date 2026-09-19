@@ -95,7 +95,7 @@ def test_adopt_legit_missing_batch_reports_missing(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("key", ["../x", "..\\x", "a/b", "C:/tmp/pwn", "..", ".", "~x", ""])
+@pytest.mark.parametrize("key", ["../x", "..\\x", "a/b", "C:/tmp/pwn", "D:evil", "a:b", "..", ".", "~x", ""])
 def test_regen_save_rejects_traversal_keys(tmp_path, key):
     root = _make_repo(tmp_path)
     with pytest.raises(ValueError):
