@@ -90,3 +90,14 @@ marketplace 登记与克隆**保留 id 不动、原地改指向**（见 §2）�
 
 - 保留旧缓存即可秒回滚：恢复 `installed_plugins.json` 中 6.5.0 条目（installPath 指回 `…\webnovel-writer\6.5.0`）、config.json 开关键、marketplace source.path 指回旧路径，重启。
 - 本 runbook 执行前先备份三个 JSON（`*.bak-zcode-adaptation`）。旧缓存目录（6.5.0）在 §1.3 中删除——**如需保留回滚能力，改为把 6.5.0 目录改名留存（`6.5.0.bak`）而非删除**（ZCode 只按 installed_plugins.json 的 installPath 定位，改名目录不会被扫描）。本任务采用「改名留存」。
+
+## 6. 登记面丢失后的快速重建（2026-09-20 实战补充）
+
+- **症状与定性**：ZCode 更新/迁移后插件整体消失（无 skill/命令/agents，MCP 面板无 webnovel），而 `cache/webnovel-writer-marketplace/` 副本仍在 → 是**登记面丢失**，不是缓存过期。2026-09-16–09-17 的 ZCode 更新曾把三处登记全清掉（known_marketplaces 只剩官方两条、installed_plugins.json 整文件消失、config.json 无 plugins 段）；09-18–09-20 按下述 schema 重建并实测恢复。
+- **登记 schema**（从 `D:\lgq\ai-software\Zcode\resources\glm\zcode.cjs` 解析器逆向核实；通用取证办法 `grep -o '.\{N\}<关键字>.\{M\}' zcode.cjs`）：
+  - `installed_plugins.json`：顶层 `{"version":1,"plugins":[…]}`（数组或以 id 为键的字典均认）；条目七必填：`id`（`<name>@<marketplace>`）/`name`/`marketplace`/`version`/`installPath`/`installedAt`/`scope`（user|workspace）；`updatedAt`/`source`/`cacheTransactionId` 可选。
+  - `known_marketplaces.json`：条目须含 `id`/`name`/`pluginCount`（数字）/`source`；directory 源为 `{"source":"directory","path":"…"}`（strict 校验）。
+  - `cli/config.json`：`plugins.enabledPlugins = {"webnovel-writer@webnovel-writer-marketplace": true}`（与 hooks/mcp 同文件）。
+- **重建步骤**：缓存副本对源**逐文件字节比对**补齐（比对对象是磁盘工作区而非 git blob——`core.autocrlf=true` 时工作区为 CRLF，对 blob 比会假报几十个差异）；镜像克隆 `git fetch + reset --hard` 对齐源 HEAD；三登记用 Python json 模块写、先备份。
+- **MCP「声明了但未成功加载」新坑（2026-09-20）**：mcpServers env 引用 `${user_config.<key>}` 的键必须有 `default` 或用户已设值，否则宿主展开直接 throw，server 未及 spawn 即失败；修复 = plugin.json 给该键补 `"default": ""`。另：3.12.3 起宿主已读 `.zcode-plugin/plugin.json` 内联 mcpServers，**无需根 `.mcp.json`**（§4.5 时代 9/15 的旧结论作废）。
+- **验收**：守卫 hook 探针 5 例（直删/复合命令/伪造写链 rc=2、单独写链 rc=0、Write 受保护 rc=2）+ 装机副本 `mcp/server.py` 行分隔 JSON-RPC `tools/list` 计 12 工具 + 重启后按 §4 清单 GUI 复验。
