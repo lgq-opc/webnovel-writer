@@ -89,7 +89,7 @@
 | Skill | 说明 |
 |-------|------|
 | webnovel-dashboard | 只读面板启动流程，不加载独立 reference；核心校验接口是 `/api/story-runtime/health` 与 `/api/preflight` |
-| webnovel-learn | 只读 state 后追加 `.webnovel/project_memory.json`，不加载独立 reference 或 CSV |
+| webnovel-learn | 只读 state 与定稿后经 learn 命令归入 `作者/author_model.md`（v7 无 project_memory.json，该文件随 v6 退役 Phase 2 删除），不加载独立 reference 或 CSV |
 
 ## 当前非直接调用项
 

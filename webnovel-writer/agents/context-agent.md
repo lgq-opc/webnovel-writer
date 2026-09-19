@@ -18,6 +18,8 @@ color: blue
 
 `Read` / `Grep` / `Bash`。
 
+占位符约定：下文 `${SCRIPTS_DIR}` 指本插件 `scripts/` 目录的绝对路径，`{project_root}` 指书项目根。两者由调用方（webnovel-write skill）在调用 prompt 中传入；若未获得，先向调用方索要，**不得猜测路径**。
+
 主入口（一次性拿全基础包）——v7 的写前上下文由 `pack` 装配：
 
 ```bash

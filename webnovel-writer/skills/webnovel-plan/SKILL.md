@@ -217,7 +217,7 @@ python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "$PROJECT_ROOT" maste
   --format text
 ```
 
-更新状态：
+更新状态（**仅 v6 书仓**：v7 书仓无 `.webnovel/state.json`，此命令会报「状态文件不存在」并空转，卷纲/章纲落盘即事实，无需此步）：
 
 ```bash
 python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "$PROJECT_ROOT" update-state -- \

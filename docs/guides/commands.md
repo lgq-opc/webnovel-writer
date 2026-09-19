@@ -1,6 +1,6 @@
 # 命令详解
 
-> 口径：v8.1.0（ZCode 插件）。三层命令面：① 8 个 skill（`/webnovel-<name>`）；② 13 条 `/webnovel:<name>` 短名命令（薄壳，前 8 条转发同名 skill，后 5 条转发 CLI 治理子命令）；③ 统一 CLI `webnovel.py` 子命令；另有会话自动挂载的 `webnovel` MCP 服务（12 只读工具）。
+> 口径：v8.1.1（ZCode 插件）。三层命令面：① 8 个 skill（`/webnovel-<name>`）；② 13 条 `/webnovel:<name>` 短名命令（薄壳：7 条转发同名 skill，doctor 独立复刻且首推 MCP `webnovel_doctor`，其余 5 条转发 CLI 治理子命令）；③ 统一 CLI `webnovel.py` 子命令；另有会话自动挂载的 `webnovel` MCP 服务（12 只读工具）。
 
 ## Skill 命令（在 ZCode 中使用；`/webnovel:<name>` 短名等价）
 

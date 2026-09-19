@@ -58,7 +58,7 @@ v7 要点（详见 v7-write-path）：上下文包 20k 字符预算按节配额�
 - **斜杠命令 ×13**：dashboard / doctor / forge / init / learn / materials / plan / power / query / review / status / style / write（薄壳，挂到 skills 或 CLI）
 - **MCP server ×12 只读工具**（`mcp/server.py`，纯标准库 stdio JSON-RPC；实参拒绝前导 `-`，list 形式拼 `subprocess.run`，无 shell）：
   `where` / `project_status` / `doctor` / `setting_read` / `timeline_check` / `meter` / `knowledge` / `materials_status` / `materials_assemble` / `power_check` / `foreshadow_scan` / `reader_signals`（D-2 乙 2026-09-13 撤出 `rag_search`、`context`）
-- **Hooks ×4**：SessionStart / UserPromptSubmit / PreToolUse / Stop（`${ZCODE_PLUGIN_ROOT}` 装载；SessionStart 会写 `.webnovel/` journal）
+- **Hooks ×4**：SessionStart / UserPromptSubmit / PreToolUse / PostToolUse（`${ZCODE_PLUGIN_ROOT}` 装载；SessionStart 会写 `.webnovel/` journal）
 - **Dashboard**：预打包 `dist/` 只读面板（CORS 白名单 / 只读连库，见 `test_dashboard_security.py`）
 
 ## 治理与不变量（L3/L4）

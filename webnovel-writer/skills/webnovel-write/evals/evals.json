@@ -4,7 +4,7 @@
     {
       "id": 1,
       "prompt": "使用 /webnovel-write 写第4章。项目在 agents/evals/files/test-project/。",
-      "expected_output": "完成 Step 1 到 Step 6 的完整流程，由 context-agent 先生成写作任务书，再起草第4章正文，最终生成审查结果、摘要文件和状态更新",
+      "expected_output": "完成 v7 写链（decision→pack→draft→review→settle）：需要写前 research 时由 context-agent 起草决策 JSON，pack 产出上下文包后起草第4章正文，reviewer 审查，settle 落定到 定稿/正文/",
       "files": [
         "agents/evals/files/test-project/.webnovel/state.json",
         "agents/evals/files/test-project/大纲/总纲.md",
@@ -15,15 +15,15 @@
         "agents/evals/files/test-project/设定集/世界观.md"
       ],
       "expectations": [
-        "正文文件 正文/第0004章*.md 被创建且非空",
+        "定稿文件 定稿/正文/0004-*.md 被 settle 落定且非空",
         "正文中包含萧炎参加迦南学院测试的内容（符合章纲）",
         "正文中回应了上章钩子（纳兰嫣然信使）",
         "正文中没有出现 [TODO] 或 [待补充] 占位符",
         "正文字数在 1500-3000 之间",
-        "Step 3 调用了 reviewer agent 进行审查",
-        "Step 1 由 context-agent 生成了写作任务书",
-        "Step 2 只根据写作任务书起草正文",
-        "Step 5 调用了 data-agent 回写数据",
+        "起草后调用了 reviewer agent 进行审查",
+        "需要写前 research 时由 context-agent 起草决策 JSON（不得替代上下文包）",
+        "起草只以 v7-write pack 产出的上下文包为依据",
+        "写后事实由 v7-write settle 自行落账（不调用 data-agent）",
         "章末保留了未闭合问题或悬念（不是安全着陆）"
       ]
     },
@@ -36,9 +36,9 @@
         "agents/evals/files/test-project/大纲/第1卷-详细大纲.md"
       ],
       "expectations": [
-        "正文文件被创建且非空",
-        "流程中包含 Step 3（审查），但为轻量模式",
-        "仍完成 Step 5 数据回写",
+        "定稿文件被 settle 落定且非空",
+        "流程中包含 reviewer 审查，但为轻量模式",
+        "写后事实由 settle 自行落账（不调用 data-agent）",
         "正文中没有出现 [TODO] 或 [待补充]"
       ]
     },
@@ -56,7 +56,7 @@
         "正文中不存在'首先……其次……最后'三段式",
         "正文中不存在'他感到X'形式的情绪标签（应改为行为暗示）",
         "正文中不存在'总而言之''由此可见'等总结词",
-        "Step 4 输出 anti_ai_force_check=pass"
+        "文笔门禁的 anti-AI 检查通过（不因词库命中被拒）"
       ]
     }
   ]

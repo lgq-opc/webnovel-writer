@@ -8,7 +8,7 @@ allowed-tools: Bash
 优先用 MCP 工具 `webnovel_power_check`；否则：
 
 ```bash
-python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" power check --chapter {N} --format json
+python -X utf8 "${ZCODE_PLUGIN_ROOT}/scripts/webnovel.py" power check --chapter {N} --format json
 ```
 
 $ARGUMENTS 可含锚点管理动作：`extract --apply`（从力量体系.md 抽锚点，作者确认落盘）、`validate`（境界链校验）、`battle`（战例登记）、`inflate`（通胀记录）。

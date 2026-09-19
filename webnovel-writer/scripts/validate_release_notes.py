@@ -87,6 +87,47 @@ def _changelog_section(text: str, version: str) -> str:
     return text[match.start():end]
 
 
+def _check_release_tags(repo_root: Path, issues: list[dict[str, str]]) -> None:
+    """历史缺口守卫（P2-18，2026-09-20）：每个 releases/vX.Y.Z.md 都必须有同名 git tag。
+
+    v7.1.0 曾有发布说明而无 tag，且只校验当前版本的旧逻辑对此不设防。
+    校验范围自 **v7.0.0**（本仓自主发版线起点）起：v6.x 时期从未打过 tag，
+    属上游分叉前的历史口径，不回溯造 tag。无 git 环境（如某些沙箱）静默跳过。
+    """
+    releases_dir = repo_root / "releases"
+    if not releases_dir.is_dir():
+        return
+    try:
+        existing = subprocess.run(
+            ["git", "tag", "-l"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            cwd=str(repo_root),
+            check=True,
+        ).stdout.split()
+    except (OSError, subprocess.SubprocessError):
+        return
+    for path in sorted(releases_dir.glob("v*.md")):
+        version = path.stem.lstrip("v")
+        if not VERSION_RE.fullmatch(version):
+            continue
+        major = int(version.split(".", 1)[0])
+        if major < 7:
+            continue
+        tag = f"v{version}"
+        if tag not in existing:
+            issues.append(
+                _issue(
+                    "release_note.tag_missing",
+                    message=f"release note {path.name} has no matching git tag {tag}",
+                    path=str(path),
+                    repair=f"git tag -a {tag} <对应提交> 并推送，保持发布说明与 tag 一一对应。",
+                )
+            )
+
+
 def validate_release_notes(
     root: str | Path | None = None,
     *,
@@ -184,6 +225,8 @@ def validate_release_notes(
                 )
             )
 
+    _check_release_tags(repo_root, issues)
+
     return {
         "schema_version": "webnovel-release-notes-validator/v1",
         "ok": not issues,
@@ -232,4 +275,6 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    from runtime_compat import enable_windows_utf8_stdio
+    enable_windows_utf8_stdio(skip_in_pytest=True)
     raise SystemExit(main())

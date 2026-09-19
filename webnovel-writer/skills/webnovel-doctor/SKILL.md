@@ -1,7 +1,6 @@
 ---
 name: webnovel-doctor
-description: 对网文项目做只读体检/诊断（/webnovel-doctor）——检查目录、文件、JSON、SQLite、依赖与 Dashboard 构建产物是否完整（v6 仓另含 RAG 向量库）。
-version: 0.1.0
+description: 对网文项目做只读体检/诊断（/webnovel:doctor）——检查目录、文件、JSON、SQLite、依赖与 Dashboard 构建产物是否完整（v6 仓另含 RAG 向量库）。
 allowed-tools: Read Bash
 argument-hint: "[--chapter N] [--deep]"
 ---

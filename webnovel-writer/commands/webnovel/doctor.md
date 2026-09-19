@@ -10,7 +10,7 @@ allowed-tools: Bash
 优先用 MCP 工具 `webnovel_doctor`（若会话中可用）；否则运行：
 
 ```bash
-python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" doctor --format json
+python -X utf8 "${ZCODE_PLUGIN_ROOT}/scripts/webnovel.py" doctor --format json
 ```
 
 $ARGUMENTS 若含 `--deep` 则附加 `--deep`（包含 dashboard 等较深检查）。

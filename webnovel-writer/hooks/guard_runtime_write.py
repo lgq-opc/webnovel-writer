@@ -54,11 +54,13 @@ def _normalized_path(value: object) -> str:
 
 
 def _deny(message: str) -> int:
+    """结构化 deny 走 stdout（宿主适配约定：结构化字段必须可从 stdout 解析）；
+    退出码仍为 2，兼容按退出码拦截的宿主（P2-12，2026-09-20）。"""
     payload = {
         "hookSpecificOutput": {"permissionDecision": "deny"},
         "systemMessage": message,
     }
-    print(json.dumps(payload, ensure_ascii=False), file=sys.stderr)
+    print(json.dumps(payload, ensure_ascii=False))
     return 2
 
 

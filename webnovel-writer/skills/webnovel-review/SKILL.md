@@ -113,7 +113,7 @@ python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" qua
 
 完整报告默认写到 `.webnovel/reports/quality-trend.md`。`/webnovel:status`（`project-status`）也会带一行 `quality_trend`。
 
-### Step 7：写入兼容审查记录
+### Step 7：写入兼容审查记录（**仅 v6 书仓**；v7 书仓跳过——审查指标由 review 管线与 settle 落账，v7 仓无该状态文件）
 
 ```bash
 python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" update-state -- --add-review "{chapter_num}-{chapter_num}" "审查报告/第{chapter_num}章审查报告.md"

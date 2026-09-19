@@ -10,7 +10,7 @@ allowed-tools: Bash
 优先用 MCP 工具 `webnovel_project_status`（若会话中可用）；否则运行：
 
 ```bash
-python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" project-status --format json
+python -X utf8 "${ZCODE_PLUGIN_ROOT}/scripts/webnovel.py" project-status --format json
 ```
 
 对输出做一句话解读：当前阶段、最近断点、计量是否闭合，以及 `quality_trend`（有审查记录时给出近 10 次均分；没有则说明不可用）。不要修改任何文件。

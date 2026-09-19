@@ -16,7 +16,10 @@
 ### 使用指南
 
 - [`guides/commands.md`](./guides/commands.md)：Skill 命令与 CLI 子命令速查
-- [`guides/rag-and-config.md`](./guides/rag-and-config.md)：RAG 检索链路、环境变量与配置
+- [`guides/v7-write-path.md`](./guides/v7-write-path.md)：v7 写路径指南（decision/pack/draft/check/settle 与书仓契约；webnovel-write skill 的开发参考）
+- [`guides/model-routing.md`](./guides/model-routing.md)：模型路由说明
+- [`guides/setting-card-contract.md`](./guides/setting-card-contract.md)：设定卡契约
+- [`guides/rag-and-config.md`](./guides/rag-and-config.md)：RAG 检索链路、环境变量与配置（v6 legacy）
 - [`guides/genres.md`](./guides/genres.md)：37 个题材模板与复合题材规则
 
 ### 运维
@@ -26,7 +29,7 @@
 
 ### 项目状态与待办
 
-> **权威口径以 [`../AGENTS.md`](../AGENTS.md)「当前状态」节为准**；本节只做索引与状态标注。**2026-09-12 校准**：原先把 `v8-gap-review-3rounds` 标为「当前待办入口」，而它早已收官，与 `AGENTS.md` 的口径矛盾，现予订正。
+> **权威口径以 [`../AGENTS.md`](../AGENTS.md)「当前状态」节为准**；本节只做索引与状态标注。**2026-09-12 校准**：原先把 `v8-gap-review-3rounds` 标为「当前待办入口」，而它早已收官，与 `AGENTS.md` 的口径矛盾，现予订正。**2026-09-20 起：在役待办入口 = 编排台看板（`python D:\lgq\a-hermes-space\scripts\board.py list --target ai-webnovel`），本仓不再维护 docs 待办清单文件。**
 
 | 状态 | 文档 | 说明 |
 |---|---|---|
@@ -37,7 +40,8 @@
 | 📋 **现状截面** | [`reports/2026-09-12-需求与设计对账.md`](./reports/2026-09-12-需求与设计对账.md) | 四套方案集 × 实现的逐条对账（P/T/D/F 编号，含未核项） |
 | 📋 现状截面 | [`reports/2026-09-11-待办全景梳理.md`](./reports/2026-09-11-待办全景梳理.md) | 待办入口归属判定与三类收尾 |
 | 📋 复审报告 | [`cursor/项目复审/2026-09-04-项目复审报告.md`](./cursor/项目复审/2026-09-04-项目复审报告.md) | v8.0.0 发版后全项目复审（P0/P1/P2 + 建议执行顺序） |
-| 📋 复审报告 | [`opencode/项目复审/2026-09-13-项目复审报告.md`](./opencode/项目复审/2026-09-13-项目复审报告.md) | v8.1.0 全项目只读复审（P0 为空；P1 三项：备份漏 v7 域 / MCP 工具面名实落差——**已由 D-2 乙 2026-09-13 部分消解**（撤 `rag_search`/`context`，工具面 14→12） / W6 学习闭环未实现） |
+| 📋 复审报告 | [`opencode/项目复审/2026-09-13-项目复审报告.md`](./opencode/项目复审/2026-09-13-项目复审报告.md) | v8.1.0 全项目只读复审（P0 为空；P1 三项：备份漏 v7 域 / MCP 工具面名实落差——**已由 D-2 乙 2026-09-13 部分消解**（撤 `rag_search`/`context`，工具面 14→12） / W6 学习闭环——**已于 2026-09-13 按「已被取代」结案**，见 [`zcode/writing-quality-review/04-roadmap.md`](./zcode/writing-quality-review/04-roadmap.md) W6 节） |
+| 📋 复审报告 | [`zcode/项目复审/2026-09-20-项目复审报告.md`](./zcode/项目复审/2026-09-20-项目复审报告.md) | v8.1.1 复审（ZCode 宿主；P0/P1 空，P2×2 孤儿模块当日处置）+ 同日 Claude Code 宿主全面审阅 [`reports/2026-09-20-项目全面审阅报告.md`](./reports/2026-09-20-项目全面审阅报告.md)（P1×3 门禁类：CI 红/发版链断/路径穿越——已由 2026-09-20 修复批处置） |
 
 ### 方案集（按任务成套：spec / plan / ledger / 审计）
 
@@ -45,12 +49,15 @@
 - [`zcode/zcode-native-adaptation/`](./zcode/zcode-native-adaptation/README.md)：v7.1 ZCode 原生化 spec / plan / ledger + 装卸手册
 - [`zcode/writing-quality-review/`](./zcode/writing-quality-review/README.md)：写作质量机制审计与路线图
 - [`zcode/v8-migration-gap-audit/`](./zcode/v8-migration-gap-audit/README.md)：v6→v7/v8 功能继承缺口审计（28 项）
+- [`zcode/项目复审/`](./zcode/项目复审/)：ZCode 宿主项目复审报告（按日期）
 - [`cursor/`](./cursor/)：Cursor 宿主产出（审查报告 / 分析），按任务名分目录
 - [`opencode/`](./opencode/)：OpenCode 宿主产出（审阅报告 / 分析），按任务名分目录
+- [`claude/`](./claude/)：Claude Code 宿主产出，按任务名分目录
 
 ### 报告与决策
 
-- [`reports/`](./reports/)：S 系列专项复盘（预算配额、设定卡验证、v7 垂直切片、配额时机）与 2026-09-02 全面审阅 / 增量审阅
+- [`reports/`](./reports/)：S 系列专项复盘（预算配额、设定卡验证、v7 垂直切片、配额时机）与 2026-09-02 全面审阅 / 增量审阅；`experience-log.md` 经验日志
+- [`reviews/`](./reviews/)：宿主审阅与修复验证（如 2026-09-10 v8-author 审阅与修复核验）
 - [`reports/2026-09-11-待办全景梳理.md`](./reports/2026-09-11-待办全景梳理.md)：待办入口归属判定与三类收尾（现状诊断截面）
 - [`reports/2026-09-12-需求与设计对账.md`](./reports/2026-09-12-需求与设计对账.md)：四套方案集 × 实现的逐条对账（P/T/D/F 编号，供逐条过审）
 - [`decisions/`](./decisions/)：ADR（[多宿主适配立项](./decisions/2026-09-02-多宿主适配立项决策.md)、[v6 退役 Phase 3 读侧归属](./decisions/2026-09-18-v6退役Phase3读侧归属.md)）

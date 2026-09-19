@@ -8,10 +8,10 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-# 清单探测顺序与 ZCode 宿主一致：.zcode-plugin 优先，.claude-plugin 兼容回退。
+# 清单探测：.zcode-plugin 是 v7.1 起的唯一清单位置（.claude-plugin/plugin.json 已随
+# 改名消亡，2026-09-20 复审清掉陈旧 fallback——留着会让人误以为双位置仍合法）。
 PLUGIN_JSON_CANDIDATES = (
     ROOT / "webnovel-writer" / ".zcode-plugin" / "plugin.json",
-    ROOT / "webnovel-writer" / ".claude-plugin" / "plugin.json",
 )
 # marketplace 双位置镜像：仓库根（github 源先例）+ .claude-plugin/（directory 源先例）。
 MARKETPLACE_JSON_PATHS = (
@@ -290,4 +290,6 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    from runtime_compat import enable_windows_utf8_stdio
+    enable_windows_utf8_stdio(skip_in_pytest=True)
     raise SystemExit(main())

@@ -6,7 +6,7 @@ on:
       - master
     paths:
       - '.claude-plugin/marketplace.json'
-      - 'webnovel-writer/.claude-plugin/plugin.json'
+      - 'webnovel-writer/.zcode-plugin/plugin.json'
       - 'README.md'
       - 'CHANGELOG.md'
       - 'releases/**'
@@ -46,7 +46,7 @@ jobs:
           if [ -n "$INPUT_VERSION" ]; then
             version="$INPUT_VERSION"
           else
-            version="$(python -c 'import json; from pathlib import Path; print(json.loads(Path("webnovel-writer/.claude-plugin/plugin.json").read_text(encoding="utf-8"))["version"])')"
+            version="$(python -c 'import json; from pathlib import Path; print(json.loads(Path("webnovel-writer/.zcode-plugin/plugin.json").read_text(encoding="utf-8"))["version"])')"
           fi
           if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::Invalid version format: '$version' (expected semver like 6.2.0)"

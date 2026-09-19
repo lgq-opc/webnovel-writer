@@ -1,6 +1,7 @@
 # Webnovel Writer 当前状态与待完成清单
 
 > **[superseded] 2026-09-04**：本清单停在 v6.3.0/v7 前夜，其 P2「v7 Story Repo 迁移」四项已在 v7.0.0 交付、「多宿主适配」已在 v7.1.0 交付（ZCode 原生化），不再作为待办入口。当前待办见 `docs/zcode/v8-gap-review-3rounds/README.md`（41 项缺口 + 4 阶段修复计划）与 `docs/cursor/项目复审/2026-09-04-项目复审报告.md` §9。以下内容只作历史记录，不再更新。
+>**[superseded] 2026-09-20 补注**：上段所指的 v8-gap-review 入口亦已收官；本文全部 [ ]/[~] 条目**不再维护、不代表现状**（其中多数已交付或已否决），现状以 AGENTS.md「当前状态」与编排台看板为准。
 >
 > 核对日期：2026-08-25
 > 适用范围：当时位于 `projects/claude-plugins/webnovel-writer`（现已迁至 `projects/zcode-plugins/webnovel-writer`）

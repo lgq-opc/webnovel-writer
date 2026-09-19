@@ -34,7 +34,7 @@ color: magenta
 
 可用工具：`Read`、`Grep`、`Bash`。
 
-本 agent 是 init 前置分析器，只返回结构化结果，**不写任何文件**。init 早期尚未生成书项目目录，不得假设 `.webnovel/tmp/` 或任何项目路径存在。
+本 agent 是 init 前置分析器，只返回结构化结果，**默认不写任何文件**（唯一例外：素材投喂模式，见第 9 节——仅允许写 `工作区/素材候选-拆书.csv` 并调用 `materials propose`）。init 早期尚未生成书项目目录，不得假设 `.webnovel/tmp/` 或任何项目路径存在。
 
 严禁创建、写入或修改：`.story-system/`、`.webnovel/`、`设定集/`、`大纲/`、`正文/`，以及任何 story canon、生成项目文件或长期 canon/read model。
 
@@ -141,7 +141,7 @@ color: magenta
 边界：
 - 不生成新书 canon，不替用户做最终设定决定。
 - 不把原作人物关系、世界规则、能力名、剧情节点写成新书事实。
-- **不写任何文件**；所有结果作为 JSON 返回给 init 主流程。
+- **不写项目文件**（素材投喂模式的候选 CSV 除外，见第 9 节）；init 拆解模式下所有结果作为 JSON 返回给 init 主流程。
 - **不写 `idea_bank.json`**。只有 init 主流程在用户确认后，才能把已变形的模式写入 `idea_bank.json` 或生成项目文件。
 - 不把 `.webnovel/state.json` 当可写目标；它是 init/runtime 的项目读模型。
 

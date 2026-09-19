@@ -79,7 +79,7 @@ export PROJECT_ROOT="$(echo "$PREFLIGHT_ALL" | grep '^PROJECT_ROOT=' | head -1 |
 
 ### 1. 决策卡与上下文包
 
-决策 JSON 字段以 `docs/guides/v7-write-path.md` §3 为准。需要写前 research 时，用 `Agent` 工具按注册名调 `webnovel-writer:context-agent` 起草决策 JSON（可选步骤）——但**不得由它替代上下文包**：起草只以 `pack` 产出的包为依据。
+决策 JSON 字段以 `v7-write decision`/`pack` 的实际输出为准（字段参考见仓库 `docs/guides/v7-write-path.md` §3；该文档属仓库开发文档，不在插件包内）。需要写前 research 时，用 `Agent` 工具按注册名调 `webnovel-writer:context-agent` 起草决策 JSON（可选步骤）——调用时必须在 prompt 中给出 `SCRIPTS_DIR`（本插件 `scripts/` 目录绝对路径）与 `project_root`（书项目根，同本 skill 其他步骤）——但**不得由它替代上下文包**：起草只以 `pack` 产出的包为依据。
 
 ```bash
 python -X utf8 "${SCRIPTS_DIR}/webnovel.py" --project-root "${PROJECT_ROOT}" v7-write decision --json "${PROJECT_ROOT}/工作区/决策-{chapter_num}.json"
@@ -121,7 +121,7 @@ Task:
 - chapter_file=${PROJECT_ROOT}/工作区/草稿-{NNNN}.md
 - project_root=${PROJECT_ROOT}
 - scripts_dir=${SCRIPTS_DIR}
-- 只返回严格的 reviewer schema JSON，不写任何文件。
+- 只返回严格的 reviewer schema JSON 摘要；除下述唯一允许的审查结果文件外，不写任何文件。
 - 不评分、不口头总结。
 
 reviewer 持受限 `Write`（唯一允许写入的文件）：它自己把审查 JSON 写入 `${PROJECT_ROOT}/.webnovel/tmp/review_results.json`（顶层 `chapter` + `blocking_count`），最终回复只给一行汇总；**主流程只检查文件存在与 schema**，不代写、不重写、不口头替代 artifact。**settle 门禁会读这个文件**：缺失、章号不符或 `blocking_count > 0` 都拒绝。

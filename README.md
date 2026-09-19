@@ -257,9 +257,9 @@ python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJEC
 | `preflight` | 校验插件路径、项目根、Story System 健康状态 |
 | `project-status` | 输出机器可读短状态、phase 和下一步 |
 | `doctor` | 阶段感知项目体检，给出影响和修复建议 |
-| `story-system` | 生成合同种子和 runtime contracts |
-| `memory` | 查看、查询、导出和回填长期记忆 |
-| `rag` | 管理向量索引和检索状态 |
+| `story-system` | 生成合同种子和 runtime contracts（v6 legacy，冻结） |
+| `memory` | 查看、查询、导出和回填长期记忆（v6 legacy，冻结） |
+| `rag` | 管理向量索引和检索状态（v6 legacy，冻结；RAG 已于 2026-09-18 对 v7 正式下线） |
 | `status` | 输出项目健康报告 |
 
 v8 治理子命令（书仓六域）：

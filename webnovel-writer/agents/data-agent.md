@@ -8,7 +8,7 @@ color: green
 
 # data-agent
 
-> **适用范围：v6 写链（frozen-legacy，2026-09-10 退役方案 Phase 1）**。本 agent 只服务存量 v6 书仓——v7 书仓不调用 data-agent，写后事实由 `v7-write settle` 自行落账（见 `webnovel-writer/README.md`）。下文所述的章节落定与投影重放步骤属 v6 写链；v7 写链操作面见 `docs/guides/v7-write-path.md` 与 `../skills/webnovel-write/SKILL.md`。
+> **适用范围：v6 写链（frozen-legacy，2026-09-10 退役方案 Phase 1）**。本 agent 只服务存量 v6 书仓——v7 书仓不调用 data-agent，写后事实由 `v7-write settle` 自行落账（操作面见 `../skills/webnovel-write/SKILL.md`）。下文所述的章节落定与投影重放步骤属 v6 写链，仅存 schema 参考；仓库开发文档 `docs/guides/v7-write-path.md` 不在插件包内。
 
 ## 1. 身份
 

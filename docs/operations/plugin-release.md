@@ -46,7 +46,7 @@ python -X utf8 webnovel-writer/scripts/sync_plugin_version.py --version X.Y.Z --
 
 该命令会更新：
 
-- `webnovel-writer/.claude-plugin/plugin.json`
+- `webnovel-writer/.zcode-plugin/plugin.json`
 - `.claude-plugin/marketplace.json`
 - `README.md` 版本徽章
 - `README.md` 当前版本行
@@ -91,7 +91,7 @@ git diff --check
 触发文件：
 
 - `.claude-plugin/marketplace.json`
-- `webnovel-writer/.claude-plugin/plugin.json`
+- `webnovel-writer/.zcode-plugin/plugin.json`
 - `webnovel-writer/scripts/sync_plugin_version.py`
 - `webnovel-writer/scripts/validate_release_notes.py`
 - `README.md`

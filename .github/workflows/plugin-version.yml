@@ -4,7 +4,7 @@ on:
   push:
     paths:
       - '.claude-plugin/marketplace.json'
-      - 'webnovel-writer/.claude-plugin/plugin.json'
+      - 'webnovel-writer/.zcode-plugin/plugin.json'
       - 'webnovel-writer/scripts/sync_plugin_version.py'
       - 'webnovel-writer/scripts/validate_release_notes.py'
       - 'README.md'
@@ -14,7 +14,7 @@ on:
   pull_request:
     paths:
       - '.claude-plugin/marketplace.json'
-      - 'webnovel-writer/.claude-plugin/plugin.json'
+      - 'webnovel-writer/.zcode-plugin/plugin.json'
       - 'webnovel-writer/scripts/sync_plugin_version.py'
       - 'webnovel-writer/scripts/validate_release_notes.py'
       - 'README.md'
