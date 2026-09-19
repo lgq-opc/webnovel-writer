@@ -42,6 +42,7 @@
       "type": "directory",
       "title": "书项目根目录",
       "description": "当前工作区绑定的书项目路径；留空则按 cwd 向上探测 + 全局指针解析。",
+      "default": "",
       "required": false
     },
     "draftsPerChapter": {
