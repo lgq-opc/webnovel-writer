@@ -9,7 +9,7 @@
 >
 > **原则**：配置用于"调整权重和建议"，不做硬性裁决。
 >
-> **说明**：基于 xslca.cc 热门榜实证数据扩展，新增 history-travel / game-lit，并更新 shuangwen / xianxia / urban-power 关键参数。
+> **说明**：基于 xslca.cc 热门榜实证数据扩展，新增 history-travel / game-lit，并更新 shuangwen / xianxia / urban-power 关键参数。2026-09-22 按canonical 15 题材补齐缺口：新增 xuanhuan / qihuan / guyan / huanyan / niandai / zhongtian / kuaichuan 七个 profile（对应审计台账 P2-4 清账）。
 
 ---
 
@@ -694,6 +694,328 @@ override_config:
 - 星际/末世背景建议控制地名与专有名词密度，避免记忆负担
 - 文明尺度博弈（地外文明/公司财阀）适合做中期反派层级
 - LOGIC_INTEGRITY 可用于解释技术限制导致的降级，读者接受度高
+
+---
+
+### 2.15 玄幻升级 (xuanhuan)
+
+```yaml
+id: xuanhuan
+name: 玄幻升级
+description: 东方玄幻升级流，境界体系驱动，大陆争霸与天才打脸并存
+tags: [xuanhuan, upgrade, Eastern-fantasy]
+
+hook_config:
+  preferred_types: [渴望钩, 危机钩, 悬念钩]
+  strength_baseline: strong
+  chapter_end_required: true
+  transition_allowance: 2
+
+coolpoint_config:
+  preferred_patterns: [越级反杀, 装逼打脸, 垫底逆袭, 扮猪吃虎]
+  density_per_chapter: high
+  combo_interval: 5
+  milestone_interval: 10
+
+micropayoff_config:
+  preferred_types: [能力兑现, 资源兑现, 认可兑现]
+  min_per_chapter: 2
+  transition_min: 1
+
+pacing_config:
+  stagnation_threshold: 3
+  strand_quest_max: 5
+  strand_fire_gap_max: 12
+  transition_max_consecutive: 2
+
+override_config:
+  allowed_rationale_types: [ARC_TIMING, TRANSITIONAL_SETUP]
+  debt_multiplier: 1.0
+  payback_window_default: 3
+```
+
+**题材特点**：
+- 境界体系是骨架，突破节点即天然里程碑，建议前 3 章亮出金手指与境界差距
+- 数值反馈建议可视化（战力/境界前后对比），打脸前先立靶（嘲讽要具体）
+- 升级曲线建议快慢交替：小境界快、大境界设卡，避免无成长张力
+- 大地图换地图节奏：一族→一城→一域→一大陆，每换图保留旧人际牵引
+- 反派层级建议与境界同步抬高，同阶天骄是中期主力对手
+
+---
+
+### 2.16 西方奇幻 (qihuan)
+
+```yaml
+id: qihuan
+name: 西方奇幻
+description: 魔法职业体系，种族势力博弈，史诗冒险与领地经营并存
+tags: [qihuan, fantasy, magic]
+
+hook_config:
+  preferred_types: [悬念钩, 危机钩, 渴望钩]
+  strength_baseline: medium
+  chapter_end_required: true
+  transition_allowance: 1
+
+coolpoint_config:
+  preferred_patterns: [扮猪吃虎, 技术碾压, 反派翻车, 身份掉马]
+  density_per_chapter: medium
+  combo_interval: 5
+  milestone_interval: 15
+
+micropayoff_config:
+  preferred_types: [能力兑现, 信息兑现, 资源兑现]
+  min_per_chapter: 1
+  transition_min: 1
+
+pacing_config:
+  stagnation_threshold: 3
+  strand_quest_max: 8
+  strand_fire_gap_max: 15
+  transition_max_consecutive: 1
+
+override_config:
+  allowed_rationale_types: [WORLD_RULE_CONSTRAINT, LOGIC_INTEGRITY, ARC_TIMING]
+  debt_multiplier: 0.9
+  payback_window_default: 4
+```
+
+**题材特点**：
+- 魔法/职业体系建议一次设定长期遵守，规则自洽优先于爽点密度
+- 种族与神祇背景适合做世界观悬念层，远期揭示优于开篇倾倒
+- 领地/冒险双线可交替推进：建设积累与探索揭秘互为节奏调剂
+- 专有名词建议控制密度（每章新词建议 ≤5），译名风格保持统一
+- 力量成长建议配合身份/头衔晋升，骑士/法师等级是天然里程碑
+
+---
+
+### 2.17 古言 (guyan)
+
+```yaml
+id: guyan
+name: 古言
+description: 古代言情，宅斗宫斗与情感线双驱动，步步为营型生存博弈
+tags: [guyan, romance, ancient]
+
+hook_config:
+  preferred_types: [情绪钩, 悬念钩, 危机钩]
+  strength_baseline: medium
+  chapter_end_required: true
+  transition_allowance: 2
+
+coolpoint_config:
+  preferred_patterns: [身份掉马, 打脸权威, 反派翻车, 扮猪吃虎]
+  density_per_chapter: medium
+  combo_interval: 4
+  milestone_interval: 12
+
+micropayoff_config:
+  preferred_types: [关系兑现, 情绪兑现, 认可兑现]
+  min_per_chapter: 1
+  transition_min: 1
+
+pacing_config:
+  stagnation_threshold: 3
+  strand_quest_max: 6
+  strand_fire_gap_max: 12
+  transition_max_consecutive: 2
+
+override_config:
+  allowed_rationale_types: [CHARACTER_CREDIBILITY, ARC_TIMING]
+  debt_multiplier: 0.9
+  payback_window_default: 3
+```
+
+**题材特点**：
+- 情感线与生存博弈双线并行，建议每章至少推进一线（斗中带情、情中有斗）
+- 打脸前先立「规矩压制」（嫡庶/尊卑/宫规），破规矩的爽感才立得住
+- 金手指宜低调（空间/医术藏拙），张扬型金手指在宅斗语境易崩人设
+- 反派（继母/姨娘/情敌）动机建议利益自洽，避免无脑恶毒
+- 服化道细节是氛围资产，重要场合（宴席/婚嫁）建议做足排场描写
+
+---
+
+### 2.18 幻言 (huanyan)
+
+```yaml
+id: huanyan
+name: 幻言
+description: 玄幻仙侠+言情双线，废材逆袭与情感羁绊并重的女主修仙文
+tags: [huanyan, romance, xianxia]
+
+hook_config:
+  preferred_types: [渴望钩, 情绪钩, 危机钩]
+  strength_baseline: medium
+  chapter_end_required: true
+  transition_allowance: 2
+
+coolpoint_config:
+  preferred_patterns: [垫底逆袭, 扮猪吃虎, 打脸权威, 越级反杀]
+  density_per_chapter: medium
+  combo_interval: 4
+  milestone_interval: 12
+
+micropayoff_config:
+  preferred_types: [能力兑现, 关系兑现, 情绪兑现]
+  min_per_chapter: 1
+  transition_min: 1
+
+pacing_config:
+  stagnation_threshold: 3
+  strand_quest_max: 6
+  strand_fire_gap_max: 12
+  transition_max_consecutive: 2
+
+override_config:
+  allowed_rationale_types: [CHARACTER_CREDIBILITY, ARC_TIMING]
+  debt_multiplier: 1.0
+  payback_window_default: 3
+```
+
+**题材特点**：
+- 修炼线与感情线建议交替主导：升级章配情感暗线，感情章配危机推进
+- 废材开局反转建议在前 2 章内给出（金手指/体质/机缘任一）
+- 男主（师尊/宿敌/妖帝）身份建议自带信息差，掉马节点即高潮点
+- 女主成长强调「独立优先」：关键战斗建议女主主导，男主勿代打
+- 宗门资源争夺（丹药/秘境名额）是天然冲突源，小比大比间隔使用
+
+---
+
+### 2.19 年代文 (niandai)
+
+```yaml
+id: niandai
+name: 年代文
+description: 民国至八九十年代，物资匮乏期经营发家与家长里短并重
+tags: [niandai, period, family]
+
+hook_config:
+  preferred_types: [渴望钩, 选择钩, 情绪钩]
+  strength_baseline: medium
+  chapter_end_required: true
+  transition_allowance: 2
+
+coolpoint_config:
+  preferred_patterns: [打脸权威, 扮猪吃虎, 反派翻车, 身份掉马]
+  density_per_chapter: medium
+  combo_interval: 4
+  milestone_interval: 10
+
+micropayoff_config:
+  preferred_types: [资源兑现, 信息兑现, 情绪兑现]
+  min_per_chapter: 1
+  transition_min: 1
+
+pacing_config:
+  stagnation_threshold: 3
+  strand_quest_max: 5
+  strand_fire_gap_max: 10
+  transition_max_consecutive: 2
+
+override_config:
+  allowed_rationale_types: [WORLD_RULE_CONSTRAINT, CHARACTER_CREDIBILITY, ARC_TIMING]
+  debt_multiplier: 0.9
+  payback_window_default: 4
+```
+
+**题材特点**：
+- 时代细节是信任底座：粮票/工分/供销社等物件建议准确，硬伤伤全文
+- 发家线小步快走：摆摊→小店→厂房，每步变现节点即微兑现
+- 亲戚冲突是主爽点源（吸血亲戚/偏心长辈），反击建议过招有来有回
+- 年代政策红线（投机倒把边界）本身可作危机与反转资源
+- 时代节点（高考恢复/改革开放）建议当里程碑事件用，主角提前卡位
+
+---
+
+### 2.20 种田经营 (zhongtian)
+
+```yaml
+id: zhongtian
+name: 种田经营
+description: 种田基建美食经营，积累线驱动，慢生活节奏下的滚雪球爽感
+tags: [zhongtian, farming, business]
+
+hook_config:
+  preferred_types: [渴望钩, 选择钩, 悬念钩]
+  strength_baseline: medium
+  chapter_end_required: true
+  transition_allowance: 3
+
+coolpoint_config:
+  preferred_patterns: [身份掉马, 反派翻车, 打脸权威]
+  density_per_chapter: low
+  combo_interval: 5
+  milestone_interval: 15
+
+micropayoff_config:
+  preferred_types: [资源兑现, 信息兑现, 情绪兑现]
+  min_per_chapter: 1
+  transition_min: 1
+
+pacing_config:
+  stagnation_threshold: 4
+  strand_quest_max: 8
+  strand_fire_gap_max: 18
+  transition_max_consecutive: 3
+
+override_config:
+  allowed_rationale_types: [WORLD_RULE_CONSTRAINT, ARC_TIMING, TRANSITIONAL_SETUP]
+  debt_multiplier: 0.8
+  payback_window_default: 4
+```
+
+**题材特点**：
+- 积累线可视化是核心爽感：田亩/存银/铺面数量递增，建议定期盘资产
+- 慢节奏不等于无张力：经营难题（旱涝/销路/同行使绊）保持低频高压
+- 旁人从质疑到求教的转变是主力爽点，打脸力度轻但频率均匀
+- 美食/农技描写建议具体可感（步骤/气味/收成对比），忌一句带过
+- 过渡章容忍度高，但连续过渡章内仍建议保留一处经营进展
+
+---
+
+### 2.21 快穿任务 (kuaichuan)
+
+```yaml
+id: kuaichuan
+name: 快穿任务
+description: 多世界穿梭任务制，单元剧结构，位面任务与主线暗线双推进
+tags: [kuaichuan, quick-transmigration, episodic]
+
+hook_config:
+  preferred_types: [悬念钩, 危机钩, 选择钩]
+  strength_baseline: strong
+  chapter_end_required: true
+  transition_allowance: 1
+
+coolpoint_config:
+  preferred_patterns: [身份掉马, 打脸权威, 反派翻车, 装逼打脸]
+  density_per_chapter: high
+  combo_interval: 4
+  milestone_interval: 8
+
+micropayoff_config:
+  preferred_types: [认可兑现, 情绪兑现, 线索兑现]
+  min_per_chapter: 2
+  transition_min: 1
+
+pacing_config:
+  stagnation_threshold: 2
+  strand_quest_max: 4
+  strand_fire_gap_max: 8
+  transition_max_consecutive: 1
+
+override_config:
+  allowed_rationale_types: [ARC_TIMING, TRANSITIONAL_SETUP]
+  debt_multiplier: 1.0
+  payback_window_default: 2
+```
+
+**题材特点**：
+- 单元开局建议 3 章内入戏：接收任务→身份落地→第一反击，忌长铺垫
+- 每个世界的「原主遗愿/剧情偏差」是任务钩，开局亮明、结尾验收
+- 主线暗线（系统真相/同一男主/位面秘密）建议每世界至少漏一块拼图
+- 任务评分/积分体系建议数值化，结算节点是天然爽点与里程碑
+- 换世界即换地图：配角可换，女主核心性格与行为逻辑建议保持一致
 
 ---
 
