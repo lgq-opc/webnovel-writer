@@ -18,7 +18,7 @@
     {
       "code": "write-gate failed",
       "match": {
-        "codes": ["write-gate failed", "prewrite_validator_blocking", "phase_not_ready_for_precommit"],
+        "codes": ["write-gate failed", "phase_not_ready_for_precommit"],
         "contains": ["write-gate failed"]
       },
       "severity": "must_handle",
