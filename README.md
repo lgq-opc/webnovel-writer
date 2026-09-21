@@ -20,7 +20,7 @@
 >
 > | 分支 | 版本 | 状态 |
 > |---|---|---|
-> | `v8-author` | v8.1.0 · ZCode 插件（MCP 12 只读工具 + 13 条 `/webnovel:*` 命令 + 六域书仓治理） | **当前主线**，本 README 描述的即此版本 |
+> | `v8-author` | v8.1.1 · ZCode 插件（MCP 12 只读工具 + 13 条 `/webnovel:*` 命令 + 六域书仓治理） | **当前主线**，本 README 描述的即此版本 |
 > | `tmp/zcode` | v7.1.0 · ZCode 原生化 | 已并入 v8-author，保留作档案 |
 > | `v7-tmp` | v7.0.0 · Story-Repo 书仓迁移 | 已并入 v8-author，保留作档案 |
 > | `master` | v6.x · Claude Code 插件基线 | 只修致命 bug，Claude Code 用户可用 |
@@ -140,7 +140,9 @@ project-root/
 └── 审查报告/              # 章节审查报告
 ```
 
-### 4. 配置 RAG
+### 4. 配置 RAG（**仅 v6 遗留仓适用**；v7 六域书仓已于 2026-09-18 正式下线 RAG，无需本节配置）
+
+> v7 书仓的检索走 BM25 + SQLite（`references/csv/`），不依赖 Embedding/Rerank；本节仅服务仍运行 v6 写链的存量书仓。
 
 进入书项目根目录，把 `.env.example` 复制为 `.env` 并填写 API Key：
 
@@ -335,7 +337,7 @@ python -X utf8 "<ZCODE_PLUGIN_ROOT>/scripts/webnovel.py" --project-root "<PROJEC
 - `.story-system/commits/chapter_XXX.commit.json` 是否存在且 accepted
 - `projection_status` 是否全部为 `done` 或 `skipped`
 - `index.db`、`summaries/`、`memory_scratchpad.json` 是否正常生成
-- RAG API Key 是否已写入书项目根目录的 `.env`
+- RAG API Key 是否已写入书项目根目录的 `.env`（仅 v6 遗留仓需要；v7 仓无此项）
 
 更多运维说明见 [项目结构与运维](docs/operations/operations.md)。
 
@@ -364,7 +366,7 @@ git push origin feature/your-feature
 
 | 版本 | 主要变化 |
 |------|----------|
-| **v8.1.1 (当前)** | D:/lgq/ai-workspace/projects/zcode-plugins/webnovel-writer/releases/v8.1.1.md |
+| **v8.1.1 (当前)** | [releases/v8.1.1.md](releases/v8.1.1.md)：CI 6 连红真因修复（runner %TEMP% 8.3 短路径）、路径穿越/MCP 类型加固、发版链路径修复 |
 | **v8.1.0** | 40 项缺口四阶段修复：上下文包 7→10 section、settle 三门禁+后置落账、章纲一致性闸、六项数据不变量、doctor 治理体检、面板承诺账本视图、复合题材播种与浮动名扫描 |
 | **v8.0.0** | 「作者主权+300章连贯」工程落地（webnovel-copilot-300） |
 | **v7.1.0** | ZCode 原生化：.zcode-plugin 清单、webnovel MCP 服务、/webnovel:* 命令、userConfig 书项目根配置 |

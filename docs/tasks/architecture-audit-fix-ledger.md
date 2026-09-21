@@ -4,7 +4,7 @@
 > 审计基准：v6.2.1（2026-08-23）
 > 修复分支：`fix/temp`
 > 台账目的：记录全部审计发现的问题（P0/P1/P2），标注已修复/未修复状态与修复进度，逐项落地。
-> 当前同步：P0/P1 已按代码与测试证据完成；P2 保持部分完成/未完成状态。当前新增 backlog 与跨方案状态以 `docs/plans/2026-08-25-status-and-pending-work.md` 为准。
+> 当前同步：P0/P1 已按代码与测试证据完成；P2 五项已于 2026-09-22 全部归宿（P2-1/2/3 由单线队列 S5-S8 落地等效方案核销、P2-4 题材数据补齐、P2-6 留痕半边落地后封存挂起）。当前待办以编排台看板为准（`python D:\lgq\a-hermes-space\scripts\board.py list --target ai-webnovel`）；`2026-08-25-status-and-pending-work.md` 已 `[superseded]`，仅存档。
 
 ## 优先级定义
 
@@ -129,28 +129,29 @@
 
 ### P2-1 性能
 - **问题**：`_load_latest_commit` 逐章线性回扫；`_project_total_words` 重扫全部章节；`vector_search` 全表 Python 余弦；graph 候选全表扫描
-- **状态**：`[~]` 部分修复（_project_total_words 增量 + vector_search norm 预计算已落地；其余 2 项留 v7）
-- **Commit**：`b1c2572` + `a1eb037`
+- **状态**：`[x]` 已修复（_project_total_words 增量 + vector_search norm 预计算已落地；**两项「留 v7」待办已由单线队列 S7（2026-08-30）落地等效方案核销**）
+- **Commit**：`b1c2572` + `a1eb037`（+ S7 对应提交）
 - **改动**：`_project_total_words` 增量缓存；`vector_search` 查询向量 norm 循环外预计算一次
-- **待办**：`_load_latest_commit` latest.json 指针方案（state current_chapter 起点方案因跳过 commit 风险已回退）、graph 候选 FTS 全文索引（LIKE 无索引收益低），留 v7
+- **待办**：已清——`_load_latest_commit` latest.json 指针由 S7① 落地（`persist_commit` 维护 max 语义，四场景测试锁定）；graph 候选由 S7② 以 SQLite 下推方案落地（term 命中过滤 + LIKE ESCAPE + chapter 过滤下推，无命中行不拉进 Python，行为等价测试锁定），FTS 索引不再需要
 
 ### P2-2 大纲硬切与字段名不统一
 - **问题**：`load_chapter_outline` 按字符硬切；plot 与 directive 两套字段名
-- **状态**：`[~]` 部分修复（截断优化已落地；字段名统一留 v7）
-- **Commit**：`dc80506`
+- **状态**：`[x]` 已修复（截断优化已落地；**字段名统一已由单线队列 S6（2026-08-30）完成**）
+- **Commit**：`dc80506`（+ S6 对应提交）
 - **改动**：`_truncate_outline_by_field_priority` 先保留 CBN/CPNs/CEN/必须覆盖节点/本章禁区，再按剩余预算截断描述文本
-- **待办**：字段名统一（mandatory_nodes/prohibitions vs must_cover_nodes/forbidden_zones）涉及 6+ 文件，prewrite.py 已双向兼容，留 v7
+- **待办**：已清——字段名统一七处落地（loader/directive 兜底/state_validator/runtime_contract_builder/prewrite 等），准绳名定为 `must_cover_nodes`/`forbidden_zones`，fantasy01 真书合同复验无行为回退
 
 ### P2-3 实体消歧与追读力护栏
 - **问题**：消歧精确匹配无相似度；追读力无 sanity check
-- **状态**：`[~]` 部分修复（warn + sanity 断言已落地；LLM 别名预注册留 v7）
-- **Commit**：`0dfa842`
+- **状态**：`[x]` 已修复（warn + sanity 断言已落地；**别名预注册已由单线队列 S8①（2026-08-30）以等效方案落地**）
+- **Commit**：`0dfa842`（+ S8 对应提交）
 - **改动**：`lookup_alias` 一对多时记 warn；`get_entity` compact-id 兜底标 `_compact_id_fallback`；`save_chapter_reading_power` 加 sanity 断言（debt_balance/hook_strength/chapter/override_count）
-- **待办**：新实体入库用 LLM 生成 3-5 别名预注册，留 v7
+- **待办**：已清——S8① 落地 `new_entity_few_aliases` commit 轻校验（新实体 1-2 个别名时提示补 3-5 个，不阻断）+ data-agent 契约明确预注册要求与示例；实现形式为轻校验提示而非 LLM 预注册，目标（新实体别名不足可被发现）等效达成
 
 ### P2-4 题材参考覆盖不均
 - **问题**：genre-tropes 仅 5 题材、genre-profiles 仅 13 profile
-- **状态**：`[ ]` 未修复（数据补充，非代码 bug，留 v7）
+- **状态**：`[x]` 已修复（2026-09-22 题材数据补齐，对齐 `references/csv/genre-canonical.md` canonical 15 题材）
+- **改动**：`skills/webnovel-init/references/genre-tropes.md` 8→17 题材段（补玄幻/奇幻/游戏/古言/现言/幻言/年代/种田/快穿）；`references/genre-profiles.md` 14→21 profile（补 xuanhuan/qihuan/guyan/huanyan/niandai/zhongtian/kuaichuan，含完整 hook/coolpoint/micropayoff/pacing/override 五组配置与题材特点）；历史口径：审计基准时 5 题材 → S8②（2026-08-30）补至 9 节 → 本次 17 节全覆盖（衍生为低优先级保留值，不设段落）
 
 ### P2-5 一致性校验 LLM 自判升级为程序校验
 - **问题**：plan 时间线校验靠 LLM 自判
@@ -161,7 +162,7 @@
 
 ### P2-6 文本侧保护
 - **问题**：正文目录无变更记录，状态漂移无检测
-- **状态**：`[ ]` 未修复（hook 配置，留 v7）
+- **状态**：`[~]` 部分修复 + 封存挂起（变更留痕半边已由单线队列 S8③ `chapter_body_trace.py` 落地——`正文/` 写入记 JSONL 到 `.webnovel/logs/`；主动漂移检测未做。2026-09-22 随台账收官封存，重启需显式重开）
 
 ### P2-7 CSV 检索质量
 - **问题**：`_tokenize` 无中文分词；子串兜底误召回

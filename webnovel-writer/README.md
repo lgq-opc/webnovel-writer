@@ -49,7 +49,7 @@
 
 通过 ZCode 插件市场安装（推荐）：
 
-1. Settings → Plugin Management → Discover → `+` 添加 marketplace（GitHub 仓库 `lingfengQAQ/webnovel-writer`，或本地目录指向本仓库根）；
+1. Settings → Plugin Management → Discover → `+` 添加 marketplace（GitHub 仓库 `lgq-opc/webnovel-writer`，或本地目录指向本仓库根；**勿用上游 `lingfengQAQ` 仓库——其无 ZCode 版本**）；
 2. 在 Discover 中找到 webnovel-writer 点击 Get 安装；
 3. 重启会话后生效（8 个 skill、4 个 agent、`/webnovel:*` 命令、`webnovel` MCP server 自动加载）。
 

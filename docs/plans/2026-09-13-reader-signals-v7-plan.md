@@ -1,6 +1,7 @@
 # reader_signals 在 v7 接通 实施计划
 
 > **执行者注意：** 按任务逐个实施。步骤用 checkbox（`- [ ]`）跟踪，完成即勾选。
+> **完成注记（2026-09-22 回写）**：Task 1-6 已全部实施落地——`v7_cache.py` 追读力表（建表/INSERT/查询）、`v7_write.py` settle 钩子写 front matter + check 硬闸 + 后置钩子三件套、消费侧 `index` 派发分流均经 2026-09-21 复审核验（硬证据：`v7_cache.py:222/:241/:332-371`、`v7_write.py:455-513/:672`；行为测试 `test_reader_signal.py` 3 用例直接锁定）。落地提交：`1a080a5`（Task 1 追读力表 schema v2）、`2e43209`（Task 5 v7 仓改读 .cache），Task 2-4/6 随 v7-write 系列提交；`releases/v8.1.1.md:25` 已对外宣称该设计单落地。本次回写补勾 35 个步骤 checkbox，两处「实施订正」注记保留原文。
 > **先读 spec：** `docs/plans/2026-09-13-reader-signals-v7-spec.md`（本计划从 spec 论证）。
 > 测试命令一律 `$env:PYTHONUTF8=1; python -X utf8 -m pytest <路径> -q`（AGENTS.md 口径）。
 
@@ -55,7 +56,7 @@
 
 **验证/MCP：** 无特殊需求（stdlib sqlite3）。
 
-- [ ] 写失败测试（**实施订正**：追加到既有 `webnovel-writer/scripts/data_modules/tests/test_v7_cache.py`，
+- [x] 写失败测试（**实施订正**：追加到既有 `webnovel-writer/scripts/data_modules/tests/test_v7_cache.py`，
   新增 `TestReadingPowerFromFrontMatter` 类并补两处 import；不新建文件，理由见「文件结构」表）：
 
 ```python
@@ -136,11 +137,11 @@ def test_legacy_cache_without_schema_version_is_rebuilt(tmp_path: Path):
     ]
 ```
 
-- [ ] 跑它确认失败：
+- [x] 跑它确认失败：
   `$env:PYTHONUTF8=1; python -X utf8 -m pytest webnovel-writer/scripts/data_modules/tests/test_v7_cache_reading_power.py -q`
   预期：`AttributeError: module 'v7_cache' has no attribute 'get_recent_reading_power'`。
 
-- [ ] 实现。`v7_cache.py` 增常量与函数：
+- [x] 实现。`v7_cache.py` 增常量与函数：
 
 ```python
 _CACHE_SCHEMA_VERSION = "2"
@@ -208,7 +209,7 @@ def get_hook_type_usage(repo_root: Path, last_n: int = 20) -> dict[str, int]:
     return {r[0]: r[1] for r in rows}
 ```
 
-- [ ] `rebuild_cache` 建表并写入。在 `CREATE TABLE meta ...` 后追加：
+- [x] `rebuild_cache` 建表并写入。在 `CREATE TABLE meta ...` 后追加：
 
 ```sql
 CREATE TABLE chapter_reading_power (chapter INTEGER PRIMARY KEY,
@@ -226,7 +227,7 @@ CREATE TABLE chapter_reading_power (chapter INTEGER PRIMARY KEY,
         )
 ```
 
-- [ ] `_cache_intact` 改为同时校验 schema 版本：
+- [x] `_cache_intact` 改为同时校验 schema 版本：
 
 ```python
 def _cache_intact(path: Path) -> bool:
@@ -248,7 +249,7 @@ def _cache_intact(path: Path) -> bool:
         return False
 ```
 
-- [ ] `snapshot` 纳入新表（保住不变量验收面）——在 `summaries = ...` 后追加：
+- [x] `snapshot` 纳入新表（保住不变量验收面）——在 `summaries = ...` 后追加：
 
 ```python
         reading_power = conn.execute(
@@ -257,16 +258,16 @@ def _cache_intact(path: Path) -> bool:
 ```
 并把返回改为 `{..., "reading_power": reading_power}`。
 
-- [ ] 跑测试确认通过（同一命令）；预期 5 passed。
+- [x] 跑测试确认通过（同一命令）；预期 5 passed。
 
-- [ ] 全量回归：`$env:PYTHONUTF8=1; python -X utf8 -m pytest -q`
-- [ ] 提交：`feat(v7-cache): .cache 新增追读力表，从正文 front matter 重算（schema v2）`
+- [x] 全量回归：`$env:PYTHONUTF8=1; python -X utf8 -m pytest -q`
+- [x] 提交：`feat(v7-cache): .cache 新增追读力表，从正文 front matter 重算（schema v2）`
 
 ## Task 2：`settle` 写钩子进正文 front matter
 
 **验证/MCP：** 无特殊需求。
 
-- [ ] 写失败测试。追加到 `webnovel-writer/scripts/data_modules/tests/test_v7_write.py`：
+- [x] 写失败测试。追加到 `webnovel-writer/scripts/data_modules/tests/test_v7_write.py`：
 
 ```python
 def test_settle_writes_hook_into_front_matter(tmp_path: Path):
@@ -287,11 +288,11 @@ def test_settle_omits_hook_lines_when_waived(tmp_path: Path):
     assert "钩子类型:" not in text
 ```
 
-- [ ] 跑它确认失败：
+- [x] 跑它确认失败：
   `$env:PYTHONUTF8=1; python -X utf8 -m pytest webnovel-writer/scripts/data_modules/tests/test_v7_write.py -q -k hook`
   预期：`assert '钩子类型: 危机钩' in ...` 失败。
 
-- [ ] 实现。`v7_write.py` 在 `:770`（`书内时间` 之后）插入：
+- [x] 实现。`v7_write.py` 在 `:770`（`书内时间` 之后）插入：
 
 ```python
     hook_type = str(decision.get("hook_type") or "").strip()
@@ -304,14 +305,14 @@ def test_settle_omits_hook_lines_when_waived(tmp_path: Path):
 > 注：`_normalize_hook_strength` 目前是 `v7_cache` 的私有名。为跨模块复用，Task 1 实现时
 > 把它改为公开名 `normalize_hook_strength`（`v7_cache.py` 内两处调用同步改），本任务按公开名导入。
 
-- [ ] 跑测试确认通过；预期 2 passed。
-- [ ] 提交：`feat(v7-write): settle 将决策卡钩子写入正文 front matter`
+- [x] 跑测试确认通过；预期 2 passed。
+- [x] 提交：`feat(v7-write): settle 将决策卡钩子写入正文 front matter`
 
 ## Task 3：`run_checks` 钩子硬闸
 
 **验证/MCP：** 无特殊需求。
 
-- [ ] 先改夹具，让既有用例不被新闸误伤。`test_v7_write_gates.py:75`：
+- [x] 先改夹具，让既有用例不被新闸误伤。`test_v7_write_gates.py:75`：
 
 ```python
 def _decision(**over) -> dict:
@@ -321,7 +322,7 @@ def _decision(**over) -> dict:
     return d
 ```
 
-- [ ] 写失败测试。追加到 `test_v7_write.py`：
+- [x] 写失败测试。追加到 `test_v7_write.py`：
 
 ```python
 def test_check_rejects_missing_hook(tmp_path: Path):
@@ -339,11 +340,11 @@ def test_check_accepts_hook_waiver(tmp_path: Path):
 
 （`run_checks` 需已在测试文件顶部导入。）
 
-- [ ] 跑它确认失败：
+- [x] 跑它确认失败：
   `$env:PYTHONUTF8=1; python -X utf8 -m pytest webnovel-writer/scripts/data_modules/tests/test_v7_write.py -q -k "hook"`
   预期：`KeyError: 'hook_ok'`。
 
-- [ ] 实现。`v7_write.py:433` 之后追加：
+- [x] 实现。`v7_write.py:433` 之后追加：
 
 ```python
     hook_type = str(decision.get("hook_type") or "").strip()
@@ -366,14 +367,14 @@ def test_check_accepts_hook_waiver(tmp_path: Path):
 
 `:484` 的 `ok` 表达式加入 `and hook_ok`；`:493` 附近返回体加入 `"hook_ok": hook_ok,`。
 
-- [ ] 跑测试确认通过；再跑全量确认无回归。
-- [ ] 提交：`feat(v7-write): 决策卡钩子改硬闸（hook_type 或 hook_waiver）`
+- [x] 跑测试确认通过；再跑全量确认无回归。
+- [x] 提交：`feat(v7-write): 决策卡钩子改硬闸（hook_type 或 hook_waiver）`
 
 ## Task 4：退役 `settle_reading_power` 写盘
 
 **验证/MCP：** 无特殊需求。
 
-- [ ] 改写 `test_v7_write_post_hooks.py:71-94` 两条用例：
+- [x] 改写 `test_v7_write_post_hooks.py:71-94` 两条用例：
 
 ```python
 def test_reading_reported_from_decision_card(tmp_path: Path):
@@ -399,10 +400,10 @@ def test_reading_skipped_when_waived(tmp_path: Path):
     assert result["post"]["reading"]["status"] == "skipped"
 ```
 
-- [ ] 跑它确认失败：
+- [x] 跑它确认失败：
   `$env:PYTHONUTF8=1; python -X utf8 -m pytest webnovel-writer/scripts/data_modules/tests/test_v7_write_post_hooks.py -q`
 
-- [ ] 实现：
+- [x] 实现：
   - `reading_power_projection.py`：删除 `settle_reading_power` 的 `IndexManager` 写盘路径与
     `ChapterReadingPowerMeta` 构造；保留一个纯函数
     `reading_status(decision_hook_type: str, decision_hook_strength: str) -> dict`，
@@ -410,14 +411,14 @@ def test_reading_skipped_when_waived(tmp_path: Path):
   - `v7_write._run_post_hooks(repo, chapter, summary_text)` 增参 `decision: dict`，
     用 `post["reading"] = reading_status(...)` 取代原 `settle_reading_power` 调用。
   - `_SETTLE_ADD_PATHS` 移除 `.webnovel/index.db`（v7 不再产生该文件）。
-- [ ] 跑测试确认通过；全量回归。
-- [ ] 提交：`refactor(v7-write): 追读力写盘退役，改由缓存重建（移除 v6 域副作用）`
+- [x] 跑测试确认通过；全量回归。
+- [x] 提交：`refactor(v7-write): 追读力写盘退役，改由缓存重建（移除 v6 域副作用）`
 
 ## Task 5：消费侧 v7 分支
 
 **验证/MCP：** 无特殊需求。
 
-- [ ] 写失败测试。新增 `test_reader_signal_builder_v7.py`：
+- [x] 写失败测试。新增 `test_reader_signal_builder_v7.py`：
 
 ```python
 def test_v7_repo_reads_reading_power_from_cache(tmp_path: Path):
@@ -433,8 +434,8 @@ def test_v7_repo_without_cache_degrades_gracefully(tmp_path: Path):
     assert sig["recent_reading_power"] == []
 ```
 
-- [ ] 跑它确认失败。
-- [ ] 实现：
+- [x] 跑它确认失败。
+- [x] 实现：
   - `reader_signal_builder.build_reader_signal`：守卫由「`.webnovel/index.db` 存在」改为
     「v7 形态（`resolve_write_mode() == "v7"`）走 `.cache`，否则原路」。
   - `data_modules/webnovel.py:1426` 前插入：
@@ -450,15 +451,15 @@ def test_v7_repo_without_cache_degrades_gracefully(tmp_path: Path):
             raise SystemExit(0)
 ```
 
-- [ ] 跑测试确认通过；**反向守住**：构造 v6 形态仓（含 `state.json`），断言仍走
+- [x] 跑测试确认通过；**反向守住**：构造 v6 形态仓（含 `state.json`），断言仍走
   `.webnovel/index.db` 且输出形状不变。
-- [ ] 提交：`feat(mcp): 读者信号在 v7 仓改读 .cache（含 index 派发分流）`
+- [x] 提交：`feat(mcp): 读者信号在 v7 仓改读 .cache（含 index 派发分流）`
 
 ## Task 6：端到端与文档收口
 
 **验证/MCP：** playwright 不需要（纯 CLI）。
 
-- [ ] `smoke_v7_newbook.py`：把 `reader-signals` 移出 `:239` 的通用只读工具循环，单独跑。
+- [x] `smoke_v7_newbook.py`：把 `reader-signals` 移出 `:239` 的通用只读工具循环，单独跑。
   **2026-09-13 实施订正（Human 裁定）**：原计划的「直接断言内容非空」在当前冒烟里**必然失败**——
   主流程的 settle 被 **prose 门禁**拒（实测 `码=2 REJECTED … 门禁拒绝（prose）`，fixture 正文命中
   Anti-AI 词库，是交接文件在案的既有 BIZ 基线）→ 定稿/正文无文件 → `.cache` 追读力表为空。
@@ -466,13 +467,13 @@ def test_v7_repo_without_cache_degrades_gracefully(tmp_path: Path):
   另加一段用 `--force-review-bypass "<smoke 理由>"`（该参数只放行 ①② 两门禁）让 settle 真正写章，
   随后断言 `reader-signals` 的 `recent_reading_power` 非空且 `hook_type == "危机钩"`。
   理由：既验到端到端钩子链路，又不篡改冒烟对真实链路的监测语义。
-- [ ] 跑冒烟：`python -X utf8 webnovel-writer/scripts/smoke_v7_newbook.py`
+- [x] 跑冒烟：`python -X utf8 webnovel-writer/scripts/smoke_v7_newbook.py`
   预期：`reader-signals` PASS 且内容非空；BREAK 仍为 0。
-- [ ] 文档回改（spec §8）：对账 §D-2 乙就地订正；`SKILL.md:174` 对齐实现；
+- [x] 文档回改（spec §8）：对账 §D-2 乙就地订正；`SKILL.md:174` 对齐实现；
   `docs/guides/v7-write-path.md` §3 决策卡字段表 +3 行；todohub `t-20260913-6202` 更新范围。
-- [ ] 四校验：`python -X utf8 webnovel-writer/scripts/validate_reference_wiring.py` 等
+- [x] 四校验：`python -X utf8 webnovel-writer/scripts/validate_reference_wiring.py` 等
   （按 `AGENTS.md` 当前状态节列出的四条）。
-- [ ] 提交：`docs(v7): 回改对账与 SKILL，reader_signals 接通落地`
+- [x] 提交：`docs(v7): 回改对账与 SKILL，reader_signals 接通落地`
 
 ---
 
